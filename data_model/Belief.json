@@ -1,0 +1,19 @@
+{
+  "civ_id": "c_007",
+  "last_update_year": 3.1024e9,
+  "known_civs": [
+    {
+      "target_id": "c_002",
+      "info_age_years": 4200,
+      "detection_channel": "signal",
+      "estimated_position_pc": [30.1, 2.0, -1.5],
+      "estimated_tech_level": 1.2,
+      "tech_level_uncertainty": 0.4,
+      "estimated_biochem": "water",
+      "is_competitor": true,
+      "trust": 0.2,
+      "attacked_me": false
+    }
+  ],
+  "self_exposure_estimate": { "believed_exposed": "unknown" }
+}

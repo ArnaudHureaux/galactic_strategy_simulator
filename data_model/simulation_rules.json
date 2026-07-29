@@ -1,0 +1,38 @@
+{
+  "description": "SPECS (comportement de simulation), distinctes du modele de donnee (strategy_vector.json) et des exemples (strategy_presets.json). La decision est une fonction PURE qui lit les beliefs d'une civ (vue retardee/incertaine), jamais la verite du monde.",
+
+  "derived_quantities": {
+    "delta_tech": "mon_tech - estimated_tech_level(X). Via beliefs: incertain et retarde par distance/c.",
+    "is_competitor": "true si mon_biochem == estimated_biochem(X). Concurrence = besoin du MEME type de monde (types discrets: eau, ammoniac, ...).",
+    "broadcast_radius_pc": "Si broadcast=true: rayon de detectabilite croissant avec tech_level. Si broadcast=false: emission ACTIVE = 0, mais la detectabilite PASSIVE (fuites, chaleur, front visible) peut rester > 0.",
+    "trust": "Etat PAR CIBLE, stocke dans les beliefs (pas dans le strategy_vector). Initialise selon is_competitor, puis modifie par evenements (voir trust_dynamics)."
+  },
+
+  "trust_dynamics": {
+    "init": "trust(X) = trust_default_competitor si is_competitor(X), sinon trust_default_noncompetitor",
+    "on_attacked_by_X": "trust(X) := 0 ; attacked_me(X) := true  // declenche la riposte au tour suivant SI la fenetre de tech gap le permet",
+    "on_reputation_received_about_X": "trust(X) diminue  // on a appris que X a attaque quelqu'un",
+    "on_peaceful_or_share_from_X": "trust(X) augmente  // optionnel v1"
+  },
+
+  "decision_logic": {
+    "note": "decide(self, beliefs, strategy) -> action. Sur les civs DETECTEES uniquement. caution_k vient du strategy_vector. Lit les beliefs, jamais la verite.",
+    "should_i_attack": "detecte(X) ET atteignable(X) ET ((delta_tech(X) - caution_k * tech_level_uncertainty(X)) > attack_gap_min) ET (delta_tech(X) < attack_gap_max) ET (trust(X) < attack_when_trust_inferior_than)",
+    "should_i_share": "(NON should_i_attack(X)) ET (trust(X) > share_trust_threshold)",
+    "emit": "broadcast == true",
+    "colonize": "monde vide disponible ; intensite = colonization_aggressiveness"
+  },
+
+  "attack_consequences_model": {
+    "note": "Pas de maille MONDE. Survie partielle: l'attaque AFFAIBLIT la cible au lieu de la tuer nettement. Sans ca, la strategie aggressive serait trop favorisee.",
+    "on_attack_target": {
+      "expansion_radius": "diminue",
+      "tech_level": "diminue",
+      "trust_toward_attacker": "-> 0"
+    },
+    "reputation_propagation": {
+      "desc": "La cible affaiblie signale, a portee, que l'attaquant X n'est pas fiable.",
+      "effect": "trust(X) baisse chez les civs qui recoivent l'information, avec le retard/portee d'un signal (causalite respectee)."
+    }
+  }
+}

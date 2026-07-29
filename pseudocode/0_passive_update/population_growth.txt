@@ -1,0 +1,12 @@
+def population_growth(civ, dt):
+    if POPULATION_GROWTH_MODEL == "logistic":
+        population_growth_logistic(civ, dt)
+    else:
+        population_growth_exponential(civ, dt)
+
+def population_growth_logistic(civ, dt):
+    capacity = POPULATION_PER_WORLD * civ.nb_of_world
+    civ.population_size += civ.natural_population_growth * civ.population_size * (1 - civ.population_size / capacity) * dt
+
+def population_growth_exponential(civ, dt):
+    civ.population_size += civ.natural_population_growth * civ.population_size * dt

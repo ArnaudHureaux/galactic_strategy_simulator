@@ -1,0 +1,6 @@
+def generate_world(config):
+    rng = Random(config.seed)
+    civs = seed_life_in_bubbles(config, rng)
+    humanity = make_humanity(config, rng)
+    civs.append(humanity)
+    return World(civs=civs, humanity=humanity, now=config.last_grb_date_years)

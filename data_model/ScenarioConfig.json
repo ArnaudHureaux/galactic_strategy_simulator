@@ -1,0 +1,28 @@
+{
+  "config_hash": "sha256:...",
+  "seed": 42,
+  "time_step_years": 1000,
+  "region_radius_pc": 1000,
+  "scale_height_pc": 300,
+  "star_density_pc3": 0.08,
+  "ftl_allowed": false,
+  "contact_definition": {
+    "signal_channel": true,
+    "physical_channel": true,
+    "human_detection_threshold_flux": 1e-26,
+    "signal_window_years": 100
+  },
+  "tech_growth_model": "logistic",
+  "population_growth_model": "logistic",
+  "front_model": "reaction_diffusion",
+  "biochem_types": ["water", "ammonia", "silicon"],
+  "world_type_fractions": [0.7, 0.2, 0.1],
+  "panspermia_range_pc": 300,
+  "expected_bubbles": 5,
+  "civs_per_bubble": 20,
+  "civ_birth_rate": 1e-8,
+  "last_grb_date_years": 1.0e9,
+  "self_destruction_shape": "danger_window",
+  "humanity_birth_date_years": 1.30e10,
+  "present_date_years": 1.38e10
+}

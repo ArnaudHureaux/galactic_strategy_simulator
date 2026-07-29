@@ -1,0 +1,34 @@
+{
+  "id": "c_007",
+  "origin_world_id": "w_00417",
+  "birth_year": 3.05e9,
+  "status": "alive",
+  "biochem_type": "water",
+
+  "tech_level": 1.7,
+  "tech_progress_rate": 0.003,
+  "local_consumption_rate": 0.5,
+  "energy_conversion_eff": 0.07,
+
+  "occupied_world_ids": ["w_00417", "w_00982"],
+  "expansion_radius_pc": 8.4,
+  "max_probe_speed_c": 0.02,
+
+  "strategy_vector": {
+    "broadcast": false,
+    "attack_gap_min": 0.0,
+    "attack_gap_max": 1e9,
+    "caution_k": 2.0,
+    "attack_when_trust_inferior_than": 0.9,
+    "trust_default_competitor": 0.0,
+    "trust_default_noncompetitor": 0.0,
+    "share_trust_threshold": 0.8,
+    "colonization_aggressiveness": 0.3
+  },
+
+  "detection": {
+    "detected_others": ["c_002"],
+    "detected_by_others": ["c_002", "c_019"],
+    "passive_leakage_level": 0.3
+  }
+}

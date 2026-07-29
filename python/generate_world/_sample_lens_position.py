@@ -1,0 +1,8 @@
+from math import cos, sin, pi, sqrt
+
+
+def _sample_lens_position(config, rng):
+    r = config.region_radius_pc * sqrt(rng.random())
+    theta = 2 * pi * rng.random()
+    z = rng.exponential(config.scale_height_pc) * rng.choice([-1, 1])
+    return (r * cos(theta), r * sin(theta), z)

@@ -1,0 +1,2 @@
+def compute_max_number_of_attack(my_civ.tech_level, my_civ.population):
+    return ...int(tech_level x population / X)

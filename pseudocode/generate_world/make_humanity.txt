@@ -1,0 +1,6 @@
+def make_humanity(config, rng):
+    civ = new_civ(sample_lens_position(config, rng), config, rng)
+    civ.is_human = True
+    civ.birth_year = config.humanity_birth_date_years
+    civ.strategy = config.humanity_strategy
+    return civ

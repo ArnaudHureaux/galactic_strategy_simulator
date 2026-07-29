@@ -1,0 +1,101 @@
+# Variables du simulateur — v0 (première passe, à raffiner)
+
+## 0. Simulation & calibration (méta)
+| Variable | Type | Valeur / plage | Source | Sens. |
+|---|---|---|---|---|
+| seed RNG | FIXÉ | int | — | — |
+| granularité temporelle (pas) | FIXÉ | 1 000 ans ? | choix | moy |
+| horizon temporel simulé | FIXÉ | ~13 Gyr (âge galaxie) | — | moy |
+| rayon spatial simulé | FIXÉ | voisinage → GHZ | Forgan/Bjørk | moy |
+| définition du « contact » (filtre rejet) | FIXÉ | signal>seuil OU présence physique | nous | forte |
+| seuil de détection instrumental humain | FIXÉ | fenêtre ~100 ans | nous | forte |
+
+## 1. Substrat galactique (physique, surtout fixé)
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| nb d'étoiles / densité stellaire | FIXÉ | 0,06 étoile/pc³ (voisinage) | Bjørk | faible |
+| IMF (fonction de masse initiale) | FIXÉ | Kroupa/Chabrier | Forgan | faible |
+| longueur d'échelle du disque | FIXÉ | ~3 kpc | Bjørk | faible |
+| Zone Galactique Habitable | FIXÉ | 3–11 kpc | Bjørk/Lineweaver | moy |
+| distribution des types spectraux | FIXÉ | F,G,K,M (+A) | Bjørk | moy |
+| durée de vie stellaire par type | FIXÉ | M≫G≫O (10¹²–10⁷ ans) | astro std | moy |
+| mouvement propre stellaire | LIBRE | σ_v ~ km/s | Carroll-Nellenback | moy |
+| taux de formation stellaire vs temps | FIXÉ | courbe SFR | Forgan | faible |
+
+## 2. Apparition & évolution de la vie (priors — cœur de l'incertitude)
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| taux d'abiogenèse f_l | LIBRE | log-uniforme, ~200 ordres | Sandberg2018 | forte |
+| P(vie → vie intelligente) f_i | LIBRE | log-uniforme, inconnu total | Sandberg2018/Cirkovic | forte |
+| P(intelligence → techno) f_c | LIBRE | log-uniforme | Sandberg2018 | forte |
+| taux de panspermie / clustering | LIBRE | 0 → fort | Forgan | forte |
+| longévité moyenne d'une civ L | LIBRE | 10²–10⁹ ans | Drake/Sandberg | forte |
+
+## 3. Diversité des mondes & niches (ta Nouveauté II)
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| nb de types de biochimie (eau, NH₃, …) | LIBRE | 1–5 | (original) | forte |
+| fraction de mondes par type | LIBRE | Dirichlet | (original) | forte |
+| matrice de recouvrement de niches | LIBRE | 0 (disjoint) → 1 (total) | (original) | forte |
+| seuil techno de convergence « tous mondes » | LIBRE | niveau techno | (original) | moy |
+
+## 4. État d'une civilisation (par agent)
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| date d'apparition | dérivé | — | §2 | — |
+| type biochimique | dérivé | §3 | (original) | — |
+| niveau technologique | LIBRE | échelle continue / Kardashev | Hanson/aest. | forte |
+| population / nb de mondes occupés | dérivé | — | — | — |
+| stratégie (policy) | LIBRE | cf §8 | Kent + bestiaire | forte |
+| a_détecté_autrui (flag) | dérivé | bool | asymétrie | forte |
+| a_été_détecté_par_autrui (flag) | dérivé | bool | asymétrie | forte |
+
+## 5. Technologie & énergie
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| forme du progrès techno | FIXÉ | logistique bornée | choix | forte |
+| vitesse de progrès de base | LIBRE | /Gyr | Hanson | forte |
+| taux de conso/reproduction locale | LIBRE | faible→vorace | Hanson | forte |
+| efficacité de conversion masse→énergie | LIBRE | 0,7 %→42 % | aest./physique | moy |
+| bonus techno via partage (coopération) | LIBRE | 0→fort | (original, Nouveauté I) | forte |
+
+## 6. Mobilité, expansion, colonisation
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| FTL autorisé ? | FIXÉ | NON | choix | forte |
+| vitesse max des sondes/vaisseaux | LIBRE | 0,001–0,1 c | Armstrong/Bjørk | forte |
+| portée / autonomie d'une sonde | LIBRE | pc | Bjørk | moy |
+| taux de lancement / réplication | LIBRE | /an | Armstrong/Bjørk | moy |
+| modèle de front (analytique) | FIXÉ | réaction-diffusion | Carroll-Nellenback | moy |
+| pop. min viable pour coloniser | LIBRE | — | (std) | moy |
+
+## 7. Détection & communication (l'asymétrie clé)
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| puissance d'émission (si broadcast) | LIBRE | — | Kent | forte |
+| atténuation signal | FIXÉ | 1/r² | physique | faible |
+| bruit galactique / seuil de détection | LIBRE | — | Forgan | forte |
+| détectabilité passive (fuites radio) | LIBRE | — | (original) | forte |
+| délai de propagation (causalité) | FIXÉ | = distance/c | relativité | forte |
+
+## 8. Stratégie (couche décision — le bestiaire)
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| policy de la civ | LIBRE | {Silencieuse, Broadcast, DarkForest, Colonisateur, Coopératif, Hibernation, Mimétique} | Kent + roadmap | forte |
+| stratégie conditionnée au type de monde | LIBRE | « agressif vs X, passif vs Y » | (original, Nouveauté II) | forte |
+| seuil de confiance pour partager la techno | LIBRE | 0–1 | (original) | forte |
+| capacité d'évolution de stratégie | FIXÉ/LIBRE | on/off | roadmap | moy |
+
+## 9. Conflit & destruction
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| asymétrie attaque/défense | LIBRE | favorise attaque ? | roadmap/Kent | forte |
+| énergie de destruction d'un monde | LIBRE | — | physique (RKM…) | moy |
+| P(succès d'une attaque) vs Δtechno | LIBRE | fonction du gap techno | (original) | forte |
+
+## 10. Mortalité & disparition
+| Variable | Type | Plage | Source | Sens. |
+|---|---|---|---|---|
+| taux d'autodestruction (Great Filter) | LIBRE | /an | Cirkovic | forte |
+| durée de vie d'une colonie (→ steady state) | LIBRE | — | Carroll-Nellenback | forte |
+| mortalité exogène (GRB, SN…) | LIBRE/FIXÉ | rare | Cirkovic | faible |

@@ -1,0 +1,5 @@
+def compute_broadcast_radius(tech_level, strategy):
+    active_radius = EMIT_RADIUS_PER_TECH * tech_level
+    if strategy["broadcast"]:
+        return active_radius
+    return active_radius * PASSIVE_LEAKAGE_FACTOR

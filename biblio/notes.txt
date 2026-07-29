@@ -1,0 +1,127 @@
+Après lecture de ces papiers
+
+Armstrong Sandberg 2013: on pourrait simuler pour chaque CIV, 
+à partir d'un certains "niveau technologique" relativement faible à en 
+croire l'auteur
+un lancement de sonde auto-réplicante
+peur que ce soit couteux pour le simulateur
+on ne parle pas de sondes colonisatrice, mais uniquement de sonde d'analyse
+assez autonome pour se répliquer, mais pas assez pour le faire sur un monde
+déjà colonisé
+on peut réutiliser certaines range de constantes du modèle (vitesse de réplicaton, de déplacement etc)
+
+Bjork 2007 :
+on peut réutiliser certaines ranges de constantes du modèle (vitesse de réplicaton, de déplacement etc)
+
+Carroll Nellenback 2019 :
+inclure la rotation des étoiles dans le modèle pour l'avancement du front
+de peuplement ?
+inclure la probabilité de disparition d'un monde
+reuse: proba de disparition, algo de front de peuplement
+questions en suspens: voir si il y a pas d'autres variables,
+mieux comprendre cette histoire de disparition, pas intuitif pour moi
+
+Cirkovic 2009:
+notre variable "taux d'apparition de la vie" / "taux d'apparition de la vie inteligente"
+gère le scenario "soft" & "rare"
+mais pour gérer le "catastrophic" il faudrait une variable sur le taux d'autodestruction
+
+Forgan 2009:
+le plus proche de notre projet
+on peut reprendre plein d'éléments
+-algo de generation procédurale de la galaxie (~10^9 étoiles avec IMF
+  réaliste, distribution spatiale par bras spiral, métallicité,
+  formation stellaire dans le temps.)
+-variables: soit on reprend les variables du papiers (metalicité etc), soit pour alléger notre modèle
+-> on part de la conclusion du papier avec de la vie qui apparait de manière clusterisé
+on peut avoir en variable un taux de "panspermia"$
+tu as dit "Notre projet se positionne comme un **Forgan-like + couche stratégique** : c'est notre véritable apport."
+intuition, qu'au lieu de reprendre le simulateur, on devrait partir de ses résultats pour avoir plus de 
+marge de calculs sur ce qu'on veut ajouter (stratégies etc)
+
+Hanson 1998:
+on pourrait avoir en variable, pour chaque civ, le taux de "reproduction" / "consommation locale"
+
+Kent 2011:
+théorie de la foret noire, c'est justement ce qu'on va challenger avec notre simulateur (cf les notes générales)
+
+Sandberg Armstrong Cirkovic 2017:
+pas grand chose à en tirer, c'est une branche d'hypothèse trop éloigné de celle que
+je veux tester
+si une CIV de type II existe déjà, tous mes questionnement à propos des stratégies à avoir ne sont plus d'un grand intérêt
+
+Sandberg Drexler Ord 2018:
+importance d'utiliser Monte Carlo au lieu de prendre des moyennes
+mais être moins confiant que le papier, une distribution est plus sage qu'une moyenne,
+mais la forme de la distribution reste complètement arbitraire (par exemple, la distribution du % de vie évoluant vers de la vie inteligente -> inconnu total, en moyenne ou en distribution !)
+
+Notes générales : 
+intuition que ce n'est pas grave d'avoir trop de variables dans le simulateur
+car on peut décider à posteriori d'en fixer (je peux avoir 1000 variables, et en explorer que les 10 qui m'intéressent)
+
+mon approche apporte pas mal de nouveautés:
+
+I/ chaque civ aura un niveau technologique, par exemple, celle qui ont un fort taux de conso locale progresseront, à court terme, plus vitesse
+et les stratégies pacifiques auraient un avantage par rapport aux aggressives
+-> elles pourraient bénéficier des progrès technologiques de leur partenaire
+(tout comme, les USA bénéficient de la recherche chinoise et inversement)
+ce qui contredirait la conclusion de Kent 2011 par exemple
+
+II/ aucun de ces papiers ne mentionnent la diversité des mondes existants, une forme de vie vie basé sur l'amoniac ne sera pas en compétition
+avec une forme basée sur l'eau par exemple, j'aimerai avoir en variable
+le taux de forme de vie par type
+et que cela soit prit en compte dans les stratégies (on pourrait avoir "aggressif against type X but passive against type Y")
+(on pourrait imaginer un stade technologique ou une civ serait intéressé par tout type de monde)
+
+je pense qu'une première étape serait de lister toutes les variables / constantes que veut avoir
+et les mapper avec des papiers existants
+
+puis de faire un modèle de données (json d'une civ avec caractéristques, strat etc)
+
+puis de lister les "actions" interactions possibles entre 2 civ / 1 civ & 1 monde etc
+
+----------suite des notes après échange avec Opus -------------
+
+la question fondamentale à tout ce projet est :
+l'humanité doit-elle émettre ou être discrète ?
+si elle détecte un monde, doit-elle lui transférer de la technologie ? l'attaquer etc
+plus brièvement, qu'elle doit être sa stratégie ?
+
+cette question n'a pas d'intérêt dans l'hypothèse où :
+A / l'humanité est seul dans l'univers
+B / elle n'en pas non plus beaucoup si nous sommes entouré d'une civ de type II
+(la question mérite d'être posé, mais pas via un simulateur, car aucun simulateur ne peut y répondre, cela dépend des objectifs & stratégie de cette civ II, on peut cependant,
+via le simulateur, arriver à des scénario où, à l'étape d'apparition de l'humanité, une civ de type II a déjà conquis toute la galaxie et avoir le % de fois ou elle a une strat aggressive vs pacifiste)
+en tout cas, le concept d'aestivation n'apporte rien à mon simulateur
+
+on cherchera, via notre simulateur, à comprendre le lien entre nos hypothèses (autrement dit, nos variables)
+et la chance de survie de l'humanité
+
+pour ensuite, pourquoi pas, maximiser le temps de survie de l'espèce humaine (espérance ou variance ?) ou la probabilité que l'humanité survive à la rencontre de chaque civ (2 cas, soit il ne reste qu'une aggressive qui a tout conquis, soit uniquement des pacifistes, trop avancé technologiquement pour être supprimé par une nouvelle aggressive)
+
+on essaira de coller aux données existantes, cad le silence total, tout scénario où l'humanité rentre en contact, avant aujourd'hui, avec une civ devra être considére comme "fausse"
+
+je me suis mal exprimé tout à l'heure avec mes 1000 variables, ce que je veux dire,
+ce que ce simulateur a pour ambition d'explorer un sous cas des grandes familles de scénarios (en excluant le cas où on est seul déjà), et qu'on pouvait donc figer un grand nombre de variables
+
+je m'exprime mal surement, n'hésite pas à reformuler ce que j'essaie de dire
+
+----------suite après le 2e échange -------------
+Question : conditionnellement au silence cosmique observé, quelle stratégie (discrétion / émission / partage techno / agression) maximise la survie à long terme de l'humanité, dans un univers peuplé de civilisations comparables ?
+Hors périmètre (assumé) : on est seuls (A) ; une civ II incumbent domine déjà (B). On ne modélise que le cas C.
+Méthode : Monte Carlo sur priors → rejet des runs incompatibles avec le silence (aucun contact avant aujourd'hui) → posterior sur (variables → survie).
+Objectif de décision : non pas l'espérance de survie, mais P(survie > horizon) / un quantile bas (aversion au risque existentiel).
+Structure : beaucoup de variables fixées et documentées (la famille de scénarios) ; peu de variables libres (stratégies + incertitudes clés) réellement explorées.
+
+j'adore ce résumé
+j'ai l'intuition que 40% de l'effort sera de lister ces
+variables et leur distribution et les justifier / mapper avec de la recherche déjà existante
+ensuite 20% sur les stratégie existante et le modèle de données
+10% sur le simulateur en lui-même
+10% sur l'exploration de ce simulateur pour en tirer des conclusions
+
+-----
+Contact (déclencheur de rejet d'un run) : l'humanité reçoit, avant aujourd'hui, une preuve d'existence d'une autre civilisation, via l'un des deux canaux :
+(a) signal/technosignature à distance dépassant le seuil de détection instrumental historique (fenêtre ≈ 100 ans) ;
+(b) présence physique / artefact dans ou près du système solaire (fenêtre = histoire géologique).
+Le filtre est unilatéral (seule la réception par l'humanité compte ; les contacts entre autres civs n'entraînent pas de rejet). « Recevoir une preuve » est distinct de « être détecté » : un run gardé peut contenir une humanité déjà repérée mais encore ignorante

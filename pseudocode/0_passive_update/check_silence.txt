@@ -1,0 +1,5 @@
+def check_silence(world, now):
+    human = world.humanity
+    contacted = len(human.belief) > 0 or human.attacked_by is not None
+    if now < PRESENT_DATE and contacted:
+        world.rejected = True

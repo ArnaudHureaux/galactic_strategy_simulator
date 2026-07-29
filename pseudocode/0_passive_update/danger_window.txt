@@ -1,0 +1,3 @@
+def danger_window(tech_level):
+    x = (tech_level - DANGER_WINDOW_CENTER) / DANGER_WINDOW_WIDTH
+    return exp(-x * x)

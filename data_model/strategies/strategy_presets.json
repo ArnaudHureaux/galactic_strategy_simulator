@@ -1,0 +1,59 @@
+{
+  "description": "EXEMPLES: strategies nommees exprimees comme reglages du StrategyVector (schema: strategy_vector.json). Seuls les champs non-defaut sont montres; les autres prennent la valeur par defaut du schema. Convention: 1e9 = +infini, -1e9 = -infini.",
+  "presets": {
+    "full_aggressive": {
+      "_comment": "Attaque toute civ detectee et atteignable, quel que soit le type ou le tech gap. Temeraire (caution_k=0).",
+      "attack_gap_min": -1e9,
+      "attack_gap_max": 1e9,
+      "caution_k": 0.0,
+      "attack_when_trust_inferior_than": 1.0,
+      "trust_default_competitor": 0.0,
+      "trust_default_noncompetitor": 0.0
+    },
+    "full_passive": {
+      "_comment": "N'attaque jamais, meme attaquee (pas de riposte).",
+      "attack_when_trust_inferior_than": 0.0
+    },
+    "aggressive_only_against_competitors": {
+      "_comment": "Attaque les concurrents (meme niche), laisse les non-concurrents tranquilles via un trust par defaut eleve.",
+      "attack_gap_min": -1e9,
+      "attack_gap_max": 1e9,
+      "attack_when_trust_inferior_than": 0.3,
+      "trust_default_competitor": 0.0,
+      "trust_default_noncompetitor": 1.0
+    },
+    "aggressive_only_against_competitors_with_less_technology": {
+      "_comment": "Comme ci-dessus mais uniquement si superieur techniquement (gap_min = 0) et avec prudence (caution_k=1.5).",
+      "attack_gap_min": 0.0,
+      "attack_gap_max": 1e9,
+      "caution_k": 1.5,
+      "attack_when_trust_inferior_than": 0.3,
+      "trust_default_competitor": 0.0,
+      "trust_default_noncompetitor": 1.0
+    },
+    "dark_forest": {
+      "_comment": "Silencieuse, ne fait confiance a personne, frappe preventivement mais seulement si surement superieure (prudente, caution_k=2.0).",
+      "broadcast": false,
+      "attack_gap_min": 0.0,
+      "attack_gap_max": 1e9,
+      "caution_k": 2.0,
+      "attack_when_trust_inferior_than": 0.9,
+      "trust_default_competitor": 0.0,
+      "trust_default_noncompetitor": 0.0
+    },
+    "broadcaster": {
+      "_comment": "Emet, n'attaque jamais.",
+      "broadcast": true,
+      "attack_when_trust_inferior_than": 0.0
+    },
+    "cooperative": {
+      "_comment": "Confiance par defaut elevee, partage facilement, n'attaque qu'un concurrent qui a trahi (trust tombe a 0).",
+      "broadcast": true,
+      "caution_k": 1.0,
+      "attack_when_trust_inferior_than": 0.2,
+      "trust_default_competitor": 0.5,
+      "trust_default_noncompetitor": 0.9,
+      "share_trust_threshold": 0.4
+    }
+  }
+}

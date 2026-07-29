@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StrategyVector",
+  "description": "MODELE DE DONNEE d'une strategie de civilisation. Une strategie est un point dans un espace continu, pas une categorie. Exemples de reglages: strategy_presets.json. Regles de decision et dynamique de trust: simulation_rules.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "broadcast",
+    "attack_gap_min",
+    "attack_gap_max",
+    "caution_k",
+    "attack_when_trust_inferior_than",
+    "trust_default_competitor",
+    "trust_default_noncompetitor",
+    "share_trust_threshold",
+    "colonization_aggressiveness"
+  ],
+  "properties": {
+    "broadcast": {
+      "type": "boolean",
+      "default": false,
+      "description": "Emettre un signal actif ou rester silencieux. Le rayon de detectabilite n'est PAS un parametre de strategie: il est derive de tech_level (voir simulation_rules.derived_quantities.broadcast_radius_pc)."
+    },
+    "attack_gap_min": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Delta_tech minimal pour oser attaquer. En dessous = suicidaire. Utiliser -1e9 comme -infini (attaque meme plus fort que soi)."
+    },
+    "attack_gap_max": {
+      "type": "number",
+      "default": 5.0,
+      "description": "Delta_tech au-dela duquel la cible est une 'fourmi' non rentable. Utiliser 1e9 comme +infini (exterminateur). Contrainte: attack_gap_max >= attack_gap_min."
+    },
+    "caution_k": {
+      "type": "number",
+      "minimum": 0.0,
+      "default": 1.0,
+      "description": "Aversion au risque a l'attaque. On exige (delta_tech - caution_k * tech_level_uncertainty) > attack_gap_min. 0 = temeraire (ignore l'incertitude), 1 = prudence a 1 sigma, 2-3 = tres prudent. Plage typique [0, 3]."
+    },
+    "attack_when_trust_inferior_than": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.3,
+      "description": "Seuil de trust: on attaque X si trust(X) < ce seuil ET que la fenetre de tech gap est aussi satisfaite (les DEUX conditions, cf simulation_rules.should_i_attack)."
+    },
+    "trust_default_competitor": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.2,
+      "description": "Trust initial envers une civ concurrente (meme niche). Bas = mefiant envers les concurrents."
+    },
+    "trust_default_noncompetitor": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.7,
+      "description": "Trust initial envers une civ non-concurrente (niche differente). Eleve => n'attaque pas les non-concurrents (ex: preset aggressive_only_against_competitors)."
+    },
+    "share_trust_threshold": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.8,
+      "description": "Trust minimal pour transferer de la techno a X. Contrainte usuelle: share_trust_threshold >= attack_when_trust_inferior_than (sinon zone d'attaque et zone de partage se chevauchent)."
+    },
+    "colonization_aggressiveness": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "default": 0.3,
+      "description": "Cadence / vitesse d'avancee du front de colonisation. Cible UNIQUEMENT les mondes vides (prendre un monde occupe = acte d'hostilite, gere par should_i_attack)."
+    }
+  }
+}

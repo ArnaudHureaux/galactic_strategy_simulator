@@ -1,0 +1,27 @@
+def apply_event(event, world):
+    if event.kind == "share":
+        apply_share(event, world)
+    elif event.kind == "attack":
+        apply_attack(event, world)
+
+
+def apply_share(event, world):
+    receiver = world.civ(event.dst)
+    receiver.tech_level = share_tech_update(receiver.tech_level, event.shared_tech_level)
+    receiver.tech_progress_rate *= (1 + SHARE_SYNERGY_BONUS)
+    world.civ(event.src).tech_progress_rate *= (1 + SHARE_SYNERGY_BONUS)
+    receiver.belief[event.src].trust = share_trust_update(
+        receiver.belief[event.src].trust,
+        receiver.belief[event.src].attacked_me,
+    )
+
+
+def apply_attack(event, world):
+    target = world.civ(event.dst)
+    damage = attack_damage(event.power, target.tech_level)
+    target.tech_level *= (1 - damage)
+    target.population_size *= (1 - damage)
+    target.expansion_radius *= (1 - damage)
+    target.belief[event.src].trust = 0
+    target.belief[event.src].attacked_me = True
+    target.attacked_by = event.src

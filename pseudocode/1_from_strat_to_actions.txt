@@ -1,0 +1,25 @@
+actions = []
+
+if strategy["broadcast]:
+    actions.append("broadcast")
+
+civ_to_attack = []
+civ_to_share = []
+
+for alien_civ in belief.known_civ:
+
+    attack_interest_score = compute_attack_interest_score(
+            my_civ,
+            belief[alien_civ],
+            strategy["attack_gap_min"],
+            strategy["attack_gap_max"],
+            strategy["caution_k"],
+            strategy["attack_when_trust_inferior_than"]
+        )
+    max_number_of_attack = compute_max_number_of_attack(my_civ.tech_level, my_civ.population)
+    alien_civ_to_attack = [k for k in attack_interest_score if k > attack_threshold][:max_number_of_attack]
+
+    if belief[alien_civ]["trust"]>share_trust_threshold:
+        alien_civ_to_share.append(civ)
+    
+

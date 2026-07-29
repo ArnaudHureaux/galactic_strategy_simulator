@@ -1,0 +1,13 @@
+def new_civ(position, config, rng):
+    return Civilisation(
+        position=position,
+        birth_year=config.last_grb_date_years,
+        status="alive",
+        biochem_type=sample_biochem(config, rng),
+        tech_level=INITIAL_TECH_LEVEL,
+        population_size=INITIAL_POPULATION,
+        natural_tech_progress=sample_natural_tech_progress(rng),
+        natural_population_growth=sample_natural_population_growth(rng),
+        strategy=sample_strategy(rng),
+        belief={},
+    )

@@ -1,0 +1,10 @@
+{
+  "id": "w_00417",
+  "position_pc": [12.3, -4.1, 0.8],
+  "proper_motion_kms": [0.01, -0.02, 0.0],
+  "spectral_type": "M",
+  "stellar_lifetime_years": 1.0e12,
+  "biochem_suitability": ["water", "ammonia"],
+  "occupant_civ_id": "c_007",
+  "colonized_at_year": 3.1e9
+}

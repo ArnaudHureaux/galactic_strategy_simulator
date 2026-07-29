@@ -1,0 +1,3 @@
+def attack_damage(power, target_tech_level):
+    ratio = power / target_tech_level
+    return min(1, DAMAGE_COEF * ratio)

@@ -1,0 +1,3 @@
+def self_destruction(civ, rng):
+    if rng.random() < SELF_DESTRUCTION_RISK * self_destruction_shape(civ.tech_level):
+        civ.status = "extinct"

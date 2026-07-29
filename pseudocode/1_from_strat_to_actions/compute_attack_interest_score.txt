@@ -1,0 +1,14 @@
+def compute_attack_interest_score(
+        my_civ,
+        belief_civ,
+        attack_gap_min,
+        attack_gap_max,
+        caution_k,
+        attack_when_trust_inferior_than
+    ):
+    tech_gap = belief_civ.tech_level - my_civ.tech_level
+    tech_gap_after_caution_k_consideration = ...caution_k...tech_gap...
+    if tech_gap_after_caution_k_consideration in [attack_gap_min,attack_gap_max] and 
+    belief_civ < attack_when_trust_inferior_than:
+        return 
+        

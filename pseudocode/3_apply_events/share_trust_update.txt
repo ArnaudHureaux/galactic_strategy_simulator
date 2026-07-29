@@ -1,0 +1,5 @@
+def share_trust_update(trust, attacked_me):
+    gain = SHARE_TRUST_GAIN * (1 - trust)
+    if attacked_me:
+        gain *= FORGIVENESS
+    return trust + gain

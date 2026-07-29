@@ -1,0 +1,5 @@
+def compute_probe_speed(tech_level, current_probe_speed):
+    probablement une fonction qui tend logarithmiquement vers
+    une % de C avec un coefficient
+    ce coeff et ce % doivent être des constantes justifiés qui apparaitrons sur le fichier regroupant chaque hypothèse
+    
