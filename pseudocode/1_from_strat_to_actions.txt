@@ -7,6 +7,9 @@ civ_to_attack = []
 civ_to_share = []
 
 for alien_civ in belief.known_civ:
+    # silent targets (dead or too weak to be seen) are remembered but not acted upon
+    if now - belief[alien_civ].last_seen_at > BELIEF_MEMORY_YEARS:
+        continue
 
     attack_interest_score = compute_attack_interest_score(
             my_civ,

@@ -10,7 +10,9 @@
     "signal_channel": true,
     "physical_channel": true,
     "human_detection_threshold_flux": 1e-26,
-    "signal_window_years": 100
+    "signal_window_years": 100,
+    "artefact_window_years": 4.5e9,
+    "artefact_detection_probability": 0.1
   },
   "tech_growth_model": "logistic",
   "population_growth_model": "logistic",

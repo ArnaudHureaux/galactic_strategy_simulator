@@ -3,6 +3,8 @@ class Logger:
         self.rows = []
         self.outcome = None
         self.metadata = None
+        self.n_steps = 0
+        self.n_jumps = 0
 
     def flush(self, world, now):
         self.rows.append(

@@ -3,3 +3,23 @@ def check_silence(world, now):
     contacted = len(human.belief) > 0 or human.attacked_by is not None
     if now < PRESENT_DATE and contacted:
         world.rejected = True
+
+
+# contact (b): one discovery draw per civ whose probes sat near the Sun during the artefact window
+def roll_artefacts(world, until):
+    for civ in world.civs - {world.humanity}:
+        presence = [civ.probe_arrived_at_human, civ.probes_end_at]  # end = inf while creator alive
+        if not civ.artefact_rolled and overlaps(presence, [PRESENT_DATE - ARTEFACT_WINDOW, until]):
+            civ.artefact_rolled = True
+            if rng.random() < ARTEFACT_DETECTION_PROBABILITY:
+                world.rejected = True
+
+
+# run once at PRESENT_DATE, independent of dt
+def final_silence_check(world):
+    roll_artefacts(world, until=PRESENT_DATE)
+    for civ in world.civs - {world.humanity}:
+        d = dist(civ, world.humanity)
+        emitted = [PRESENT_DATE - SIGNAL_WINDOW - d / C, PRESENT_DATE - d / C]
+        if any(view.broadcast_radius >= d for view in public_views(civ, during=emitted)):
+            world.rejected = True

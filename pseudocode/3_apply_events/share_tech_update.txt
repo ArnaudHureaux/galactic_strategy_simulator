@@ -1,5 +1,7 @@
 def share_tech_update(tech_level, shared_tech_level):
     gap = shared_tech_level - tech_level
     if gap > 0:
-        return tech_level + SHARE_CATCHUP * gap
-    return tech_level + SHARE_BACKFLOW * shared_tech_level * exp(gap / SHARE_DECAY)
+        updated = tech_level + SHARE_CATCHUP * gap
+    else:
+        updated = tech_level + SHARE_BACKFLOW * shared_tech_level * exp(gap / SHARE_DECAY)
+    return min(TECH_CAP, updated)

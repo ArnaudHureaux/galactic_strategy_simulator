@@ -8,6 +8,11 @@ class Config:
     dt: float = 1000.0
     max_civs: int = 100000
 
+    # Fast-forward over stationary regimes (see fast_forward.py).
+    fast_forward: bool = True
+    max_jump_years: float = 1.0e7
+    jump_max_relative_change: float = 0.01
+
     region_radius_pc: float = 1000.0
     scale_height_pc: float = 300.0
     star_density_pc3: float = 0.08
@@ -23,6 +28,9 @@ class Config:
     last_grb_date_years: float = 1.0e9
     humanity_birth_date_years: float = 1.3799e10
     present_date_years: float = 1.38e10
+    signal_window_years: float = 100.0
+    artefact_window_years: float = 4.5e9
+    artefact_detection_probability: float = 0.1
 
     tech_growth_model: str = "logistic"
     population_growth_model: str = "logistic"
@@ -42,6 +50,9 @@ class Config:
     max_broadcast_radius: float = 100.0
     probe_speed_per_tech: float = 1e-4
     max_probe_radius: float = 1e12
+    probe_lifetime_per_tech: float = 1e6
+
+    belief_memory_years: float = 0.0
 
     share_catchup: float = 0.5
     share_backflow: float = 0.05

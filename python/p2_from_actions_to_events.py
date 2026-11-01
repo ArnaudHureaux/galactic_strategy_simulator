@@ -8,8 +8,9 @@ def from_actions_to_events(actions, civ, world, now, config):
     for kind, target_id in actions:
         if kind == "broadcast":
             continue
+        # No liveness check here: the sender cannot know yet; dead targets just absorb the event on arrival.
         target = world.civ(target_id)
-        if target is None or target.status != "alive":
+        if target is None:
             continue
         arrival = now + dist(civ.position, target.position) / C_PC_PER_YEAR
         if kind == "attack":

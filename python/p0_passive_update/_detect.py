@@ -1,44 +1,58 @@
+from constants import C_PC_PER_YEAR
 from geometry import dist, SpatialGrid
 from state import BeliefEntry
 
 
 def _detect(world, config, now):
-    active = world.active(now)
-    grid = SpatialGrid(active, config.max_broadcast_radius)
-    for civ in active:
+    grid = SpatialGrid(world.visible(now), config.max_broadcast_radius)
+    for civ in world.active(now):
+        if civ.is_human and now < config.present_date_years - config.signal_window_years:
+            continue
         reach = max(config.max_broadcast_radius, civ.probe_radius)
         for other in grid.query(civ.position, reach):
             if other is civ:
                 continue
             d = dist(civ.position, other.position)
-            by_signal = other.broadcast_radius >= d
-            by_probe = civ.probe_radius >= d
+            seen_at = now - d / C_PC_PER_YEAR
+            view = other.state_at(seen_at)
+            if view is None:
+                continue
+            by_signal = view.broadcast_radius >= d
+            by_probe = _probe_reached(civ, seen_at, d)
             if not (by_signal or by_probe):
                 continue
-            _observe(civ, other, "signal" if by_signal else "probe")
-            if other.attacked_by in civ.belief:
-                entry = civ.belief[other.attacked_by]
+            _observe(civ, other, view, "signal" if by_signal else "probe", now)
+            if view.attacked_by in civ.belief:
+                entry = civ.belief[view.attacked_by]
                 entry.trust = max(0.0, entry.trust - config.reputation_trust_drop)
 
 
-def _observe(civ, other, channel):
+def _probe_reached(civ, seen_at, d):
+    # The probe must have been on site at seen_at for its light-speed report to arrive now.
+    own = civ.state_at(seen_at)
+    return own is not None and own.probe_radius >= d
+
+
+def _observe(civ, other, view, channel, now):
     is_competitor = civ.biochem_type == other.biochem_type
     if other.id not in civ.belief:
         civ.belief[other.id] = BeliefEntry(
             target_id=other.id,
-            estimated_tech_level=other.tech_level,
+            estimated_tech_level=view.tech_level,
             tech_level_uncertainty=0.0,
             estimated_biochem=other.biochem_type,
             is_competitor=is_competitor,
             trust=_default_trust(civ, is_competitor),
             channel=channel,
             position=other.position,
+            last_seen_at=now,
         )
     else:
         entry = civ.belief[other.id]
-        entry.estimated_tech_level = other.tech_level
+        entry.estimated_tech_level = view.tech_level
         entry.channel = channel
         entry.position = other.position
+        entry.last_seen_at = now
 
 
 def _default_trust(civ, is_competitor):

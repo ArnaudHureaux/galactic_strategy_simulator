@@ -3,6 +3,7 @@
   "origin_world_id": "w_00417",
   "birth_year": 3.05e9,
   "status": "alive",
+  "extinct_at": null,
   "biochem_type": "water",
 
   "tech_level": 1.7,

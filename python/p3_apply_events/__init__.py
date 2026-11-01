@@ -35,4 +35,4 @@ def _apply_attack(event, target, config):
         entry.attacked_me = True
     target.attacked_by = event.src
     if target.tech_level <= 0 or target.population_size <= 0:
-        target.status = "extinct"
+        target.go_extinct(event.t)

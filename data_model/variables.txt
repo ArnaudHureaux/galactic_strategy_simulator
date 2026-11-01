@@ -8,6 +8,8 @@
 | horizon temporel simulé | FIXÉ | ~13 Gyr (âge galaxie) | — | moy |
 | rayon spatial simulé | FIXÉ | voisinage → GHZ | Forgan/Bjørk | moy |
 | définition du « contact » (filtre rejet) | FIXÉ | signal>seuil OU présence physique | nous | forte |
+| fenêtre de conservation des artefacts | FIXÉ | ~4,5 Gyr (histoire géologique) | nous | forte |
+| P(découverte d'un artefact de sonde) | LIBRE | 0–1 | nous | forte |
 | seuil de détection instrumental humain | FIXÉ | fenêtre ~100 ans | nous | forte |
 
 ## 1. Substrat galactique (physique, surtout fixé)
@@ -64,7 +66,7 @@
 |---|---|---|---|---|
 | FTL autorisé ? | FIXÉ | NON | choix | forte |
 | vitesse max des sondes/vaisseaux | LIBRE | 0,001–0,1 c | Armstrong/Bjørk | forte |
-| portée / autonomie d'une sonde | LIBRE | pc | Bjørk | moy |
+| durée de vie des sondes après la mort du créateur (coef × tech) | LIBRE | ans/unité tech | Bjørk | moy |
 | taux de lancement / réplication | LIBRE | /an | Armstrong/Bjørk | moy |
 | modèle de front (analytique) | FIXÉ | réaction-diffusion | Carroll-Nellenback | moy |
 | pop. min viable pour coloniser | LIBRE | — | (std) | moy |
@@ -85,6 +87,7 @@
 | stratégie conditionnée au type de monde | LIBRE | « agressif vs X, passif vs Y » | (original, Nouveauté II) | forte |
 | seuil de confiance pour partager la techno | LIBRE | 0–1 | (original) | forte |
 | capacité d'évolution de stratégie | FIXÉ/LIBRE | on/off | roadmap | moy |
+| mémoire d'une cible devenue silencieuse | LIBRE | ans (0 = n'agit que sur ce qu'on voit) | nous | moy |
 
 ## 9. Conflit & destruction
 | Variable | Type | Plage | Source | Sens. |

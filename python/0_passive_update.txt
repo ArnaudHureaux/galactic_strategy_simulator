@@ -1,3 +1,6 @@
+# dt = time since the previous step: DT, or longer when fast_forward jumps over a stationary regime.
+# During a jump, births and self-destructions are forced by the jump (drawn from their exact
+# waiting-time laws) instead of rolled here, and tech/population follow their exact growth law.
 if rng.random() < CIV_BIRTH_RATE * dt:
     world.civs.append(new_civ(sample_lens_position(config, rng), config, rng))
 
@@ -6,31 +9,40 @@ for civ in world.civs:
     population_growth(civ, dt)
     civ.broadcast_radius = compute_broadcast_radius(civ.tech_level, civ.strategy)
     civ.probe_speed = compute_probe_speed(civ.tech_level, civ.probe_speed)
-    civ.probe_radius += civ.probe_speed * dt
+    advance_probes(civ, dt)  # records when the probe sphere reaches the Sun
+    civ.record_snapshot(now)
 
-index = SpatialIndex(world.civs.position)
-for civ in world.civs:
+# orphan probes keep spreading for PROBE_LIFETIME_PER_TECH * tech_at_death years
+for civ in world.extinct_with_live_probes(now):
+    advance_probes(civ, dt)
+
+# dead civs stay visible from afar until their last light has crossed the region
+index = SpatialIndex(world.visible(now).position)
+for civ in world.active(now):
     reach = max(MAX_BROADCAST_RADIUS, civ.probe_radius)
     for other in index.neighbors_within(civ.position, reach):
         if other is civ:
             continue
         d = dist(civ, other)
-        by_signal = other.broadcast_radius >= d
-        by_probe = civ.probe_radius >= d
+        view = public_view(other, at=now - d / C)  # None if not yet born or already dead at that time
+        if view is None:
+            continue
+        by_signal = view.broadcast_radius >= d
+        by_probe = public_view(civ, at=now - d / C).probe_radius >= d
         if not (by_signal or by_probe):
             continue
-        view = public_view(other, at=now - d / C)
         if other not in civ.belief:
             civ.belief[other] = new_belief(view, trust=default_trust(civ, other))
         else:
             civ.belief[other].refresh_estimates(view)
+        civ.belief[other].last_seen_at = now
         civ.belief[other].channel = "signal" if by_signal else "probe"
         if view.attacked_by in civ.belief:
             civ.belief[view.attacked_by].trust = max(0, civ.belief[view.attacked_by].trust - REPUTATION_TRUST_DROP)
 
-for civ in world.civs:
-    self_destruction(civ, rng)
-    if civ.tech_level <= 0 or civ.population_size <= 0:
-        civ.status = "extinct"
+for civ in world.active(now):
+    if self_destruction(civ, rng) or civ.tech_level <= 0 or civ.population_size <= 0:
+        civ.go_extinct(at=now)
 
+roll_artefacts(world, until=now)
 check_silence(world, now)

@@ -30,6 +30,12 @@ class EventQueue:
         for event in events:
             self.push(event)
 
+    def shift(self, delta):
+        # A uniform time translation keeps the heap ordered.
+        for scheduled in self._heap:
+            scheduled.t += delta
+            scheduled.payload.t += delta
+
     def pop_due(self, now):
         due = []
         while self._heap and self._heap[0].t <= now:
