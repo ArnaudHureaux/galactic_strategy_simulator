@@ -16,10 +16,17 @@ def from_strat_to_actions(civ, config, now):
         if score > 0:
             scored.append((score, target_id))
         elif entry.trust > civ.strategy["share_trust_threshold"]:
-            actions.append(("share", target_id))
+            # Between two civs at the tech cap, sharing only keeps the relationship going
+            # (trust, synergy): it is applied directly instead of travelling as an event.
+            actions.append(("implicit_share" if _both_at_tech_cap(civ, entry, config) else "share", target_id))
 
     scored.sort(reverse=True)
     for _, target_id in scored[: _compute_max_number_of_attack(civ)]:
         actions.append(("attack", target_id))
 
     return actions
+
+
+def _both_at_tech_cap(civ, entry, config):
+    # As seen by civ: a share would not change any tech level.
+    return civ.tech_level >= config.tech_cap and entry.estimated_tech_level >= config.tech_cap

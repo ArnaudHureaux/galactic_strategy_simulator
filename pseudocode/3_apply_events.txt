@@ -1,6 +1,8 @@
 def apply_event(event, world):
     if event.kind == "share":
         apply_share(event, world)
+    elif event.kind == "implicit_share":
+        apply_share_relationship(event, world)
     elif event.kind == "attack":
         apply_attack(event, world)
 
@@ -8,8 +10,14 @@ def apply_event(event, world):
 def apply_share(event, world):
     receiver = world.civ(event.dst)
     receiver.tech_level = share_tech_update(receiver.tech_level, event.shared_tech_level)
-    receiver.tech_progress_rate *= (1 + SHARE_SYNERGY_BONUS)
-    world.civ(event.src).tech_progress_rate *= (1 + SHARE_SYNERGY_BONUS)
+    apply_share_relationship(event, world)
+
+
+def apply_share_relationship(event, world):
+    receiver = world.civ(event.dst)
+    synergy = (1 + SHARE_SYNERGY_BONUS) ** (DT / SHARE_PERIOD_YEARS)
+    receiver.tech_progress_rate *= synergy
+    world.civ(event.src).tech_progress_rate *= synergy
     receiver.belief[event.src].trust = share_trust_update(
         receiver.belief[event.src].trust,
         receiver.belief[event.src].attacked_me,

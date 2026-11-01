@@ -19,3 +19,7 @@ for target in civ_to_share:
         t=now + d / C,
         shared_tech_level=my_civ.tech_level,
     ))
+
+# no travel: applied once every civ has decided, at the end of the current step
+for target in civ_to_share_implicitly:
+    events.append(Event(kind="implicit_share", src=my_civ.id, dst=target.id, t=now))

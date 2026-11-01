@@ -8,6 +8,10 @@ def from_actions_to_events(actions, civ, world, now, config):
     for kind, target_id in actions:
         if kind == "broadcast":
             continue
+        if kind == "implicit_share":
+            # Applied at the end of the step, without travelling (see simulation.run).
+            events.append(Event("implicit_share", civ.id, target_id, now))
+            continue
         # No liveness check here: the sender cannot know yet; dead targets just absorb the event on arrival.
         target = world.civ(target_id)
         if target is None:

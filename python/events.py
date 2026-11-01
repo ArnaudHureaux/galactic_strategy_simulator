@@ -1,6 +1,5 @@
 import heapq
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 
 @dataclass
@@ -13,10 +12,16 @@ class Event:
     shared_tech_level: float = 0.0
 
 
-@dataclass(order=True)
 class ScheduledEvent:
-    t: float
-    payload: Any = field(compare=False)
+    __slots__ = ("t", "payload")
+
+    def __init__(self, t, payload):
+        self.t = t
+        self.payload = payload
+
+    def __lt__(self, other):
+        # heapq only needs <; ordering on t alone keeps ties in heap order.
+        return self.t < other.t
 
 
 class EventQueue:

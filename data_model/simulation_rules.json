@@ -18,7 +18,7 @@
   "decision_logic": {
     "note": "decide(self, beliefs, strategy) -> action. Sur les civs DETECTEES uniquement. caution_k vient du strategy_vector. Lit les beliefs, jamais la verite.",
     "should_i_attack": "detecte(X) ET atteignable(X) ET ((delta_tech(X) - caution_k * tech_level_uncertainty(X)) > attack_gap_min) ET (delta_tech(X) < attack_gap_max) ET (trust(X) < attack_when_trust_inferior_than)",
-    "should_i_share": "(NON should_i_attack(X)) ET (trust(X) > share_trust_threshold)",
+    "should_i_share": "(NON should_i_attack(X)) ET (trust(X) > share_trust_threshold)  // si mon_tech >= tech_cap ET estimated_tech_level(X) >= tech_cap, le partage ne change aucune tech: il est implicite (confiance et synergie appliquees directement, sans evenement en vol)",
     "emit": "broadcast == true",
     "colonize": "monde vide disponible ; intensite = colonization_aggressiveness"
   },

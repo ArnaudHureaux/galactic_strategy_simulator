@@ -54,6 +54,9 @@ class Config:
 
     belief_memory_years: float = 0.0
 
+    # share_catchup, share_backflow, share_synergy_bonus and share_trust_gain are rates per
+    # share_period_years of continuous sharing; each share event applies one dt worth of them.
+    share_period_years: float = 1000.0
     share_catchup: float = 0.5
     share_backflow: float = 0.05
     share_decay: float = 0.5

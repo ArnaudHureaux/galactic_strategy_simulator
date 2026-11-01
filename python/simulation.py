@@ -35,7 +35,11 @@ def run(config, seed):
         for civ in world.active(now):
             actions = from_strat_to_actions(civ, config, now)
             emitted.extend(from_actions_to_events(actions, civ, world, now, config))
-        queue.push_all(emitted)
+        # Implicit shares are applied once every civ has decided, so decisions do not depend on civ order.
+        for event in emitted:
+            if event.kind == "implicit_share":
+                apply_events(event, world, config)
+        queue.push_all(e for e in emitted if e.kind != "implicit_share")
 
         log.flush(world, now)
         log.n_steps += 1

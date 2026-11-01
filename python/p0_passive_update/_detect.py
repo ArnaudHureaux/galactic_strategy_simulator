@@ -1,17 +1,15 @@
 from constants import C_PC_PER_YEAR
-from geometry import dist, SpatialGrid
+from geometry import dist
 from state import BeliefEntry
 
 
 def _detect(world, config, now):
-    grid = SpatialGrid(world.visible(now), config.max_broadcast_radius)
+    visible = {c.id for c in world.visible(now)}
     for civ in world.active(now):
         if civ.is_human and now < config.present_date_years - config.signal_window_years:
             continue
         reach = max(config.max_broadcast_radius, civ.probe_radius)
-        for other in grid.query(civ.position, reach):
-            if other is civ:
-                continue
+        for other in world.neighbors_within(civ, reach, visible):
             d = dist(civ.position, other.position)
             seen_at = now - d / C_PC_PER_YEAR
             view = other.state_at(seen_at)

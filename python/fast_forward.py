@@ -41,14 +41,25 @@ class Jump:
 class FastForward:
     def __init__(self, config):
         self.config = config
-        self._signature = None
+        self._quick = None
+        self._beliefs = None
         self._stable_since = None
 
     def step(self, world, applied, emitted, now, rng):
         tech_touched, pop_touched = _touched(applied, emitted)
-        signature = _cycle_signature(world, applied, emitted, now, tech_touched, pop_touched)
-        if signature != self._signature:
-            self._signature = signature
+        # The cycle signature is split so that the costly belief part is only built when the
+        # cheap part already repeats; it differs from one step to the next most of the time.
+        quick = _quick_signature(world, applied, emitted, tech_touched, pop_touched)
+        if quick != self._quick:
+            self._quick = quick
+            self._beliefs = None
+            self._stable_since = now
+            return None
+        beliefs = _belief_signature(world, now)
+        if beliefs != self._beliefs:
+            # Also reached when the previous beliefs were not built: the stationary window
+            # then starts one step later than strictly needed, which is only conservative.
+            self._beliefs = beliefs
             self._stable_since = now
             return None
         # Every event still in flight must have been emitted by the stationary cycle.
@@ -63,7 +74,7 @@ def _touched(applied, emitted):
     return tech_touched, pop_touched
 
 
-def _cycle_signature(world, applied, emitted, now, tech_touched, pop_touched):
+def _quick_signature(world, applied, emitted, tech_touched, pop_touched):
     # Everything that drives decisions must repeat exactly; only slow, analytically
     # integrable variables may drift: tech of civs untouched by events, population of
     # civs that are not attacked.
@@ -72,18 +83,25 @@ def _cycle_signature(world, applied, emitted, now, tech_touched, pop_touched):
         if c.status != "alive":
             civs.append((c.id, c.status))
             continue
-        # Trust converges geometrically (towards 1 through shares, 0 through reputation drops)
-        # and only matters through random thresholds: compare it at 1e-9 to stop waiting for
-        # the last float digits.
-        beliefs = tuple((k, round(e.trust, 9), e.attacked_me, e.last_seen_at == now) for k, e in c.belief.items())
         tech = c.tech_level if c.id in tech_touched else None
         pop = c.population_size if c.id in pop_touched else None
         civs.append((c.id, c.status, c.attacked_by, c.natural_tech_progress,
-                     int(c.tech_level * c.population_size), tech, pop, beliefs))
+                     int(c.tech_level * c.population_size), tech, pop))
     return (
-        tuple(civs),
         tuple(sorted((e.kind, e.src, e.dst) for e in applied)),
         tuple(sorted((e.kind, e.src, e.dst) for e in emitted)),
+        tuple(civs),
+    )
+
+
+def _belief_signature(world, now):
+    # Trust converges geometrically (towards 1 through shares, 0 through reputation drops)
+    # and only matters through random thresholds: compare it at 1e-9 to stop waiting for
+    # the last float digits.
+    return tuple(
+        tuple((k, round(e.trust, 9), e.attacked_me, e.last_seen_at == now) for k, e in c.belief.items())
+        for c in world.civs
+        if c.status == "alive"
     )
 
 

@@ -1,5 +1,6 @@
 def share_trust_update(trust, attacked_me):
-    gain = SHARE_TRUST_GAIN * (1 - trust)
+    rate = SHARE_TRUST_GAIN
     if attacked_me:
-        gain *= FORGIVENESS
-    return trust + gain
+        rate *= FORGIVENESS
+    # share_fraction: see share_tech_update.txt (rate per SHARE_PERIOD_YEARS rescaled to DT)
+    return trust + share_fraction(rate) * (1 - trust)

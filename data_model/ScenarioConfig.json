@@ -2,6 +2,7 @@
   "config_hash": "sha256:...",
   "seed": 42,
   "time_step_years": 1000,
+  "share_period_years": 1000,
   "region_radius_pc": 1000,
   "scale_height_pc": 300,
   "star_density_pc3": 0.08,

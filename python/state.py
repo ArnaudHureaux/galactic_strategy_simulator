@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from math import inf
 
 from constants import C_PC_PER_YEAR
+from geometry import NeighborIndex
 
 
 @dataclass
@@ -99,15 +100,24 @@ class World:
 
     def __post_init__(self):
         self._index = {c.id: c for c in self.civs}
+        self._slot = {}
+        self._neighbors = NeighborIndex()
         self._lo = None
         self._hi = None
         for c in self.civs:
+            self._slot[c.id] = self._neighbors.add(c.position)
             self._extend_bounds(c.position)
 
     def add_civ(self, civ):
         self.civs.append(civ)
         self._index[civ.id] = civ
+        self._slot[civ.id] = self._neighbors.add(civ.position)
         self._extend_bounds(civ.position)
+
+    def neighbors_within(self, civ, radius, allowed_ids):
+        """Civs whose id is in allowed_ids (other than civ) at distance <= radius, in world.civs order."""
+        civs = self.civs
+        return [civs[j] for j in self._neighbors.within(self._slot[civ.id], radius) if civs[j].id in allowed_ids]
 
     def _extend_bounds(self, position):
         if self._lo is None:

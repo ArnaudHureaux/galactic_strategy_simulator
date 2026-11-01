@@ -23,6 +23,12 @@ for alien_civ in belief.known_civ:
     alien_civ_to_attack = [k for k in attack_interest_score if k > attack_threshold][:max_number_of_attack]
 
     if belief[alien_civ]["trust"]>share_trust_threshold:
-        alien_civ_to_share.append(civ)
+        # between two civs already at the tech cap (as seen by my_civ), a share would not change
+        # any tech level: it only keeps the relationship going (trust, synergy) and is applied
+        # directly at the end of the step instead of travelling as an event
+        if my_civ.tech_level >= TECH_CAP and belief[alien_civ].estimated_tech_level >= TECH_CAP:
+            alien_civ_to_share_implicitly.append(civ)
+        else:
+            alien_civ_to_share.append(civ)
     
 
