@@ -27,6 +27,10 @@ class BeliefEntry:
     attacked_me: bool = False
     position: tuple = (0.0, 0.0, 0.0)
     last_seen_at: float = None
+    # Rank of the entry in its owner's belief dict (insertion order), used to keep decisions in that order.
+    order: int = 0
+    # (rounded trust, attacked_me) as of the last stationarity check (see fast_forward).
+    signature: tuple = None
 
 
 @dataclass
@@ -48,13 +52,29 @@ class Civilisation:
     probe_radius: float = 0.0
     expansion_radius: float = 0.0
     belief: dict = field(default_factory=dict)
+    # Beliefs seen recently enough to still be actionable (a superset, see recent_beliefs).
+    recent: dict = field(default_factory=dict)
     attacked_by: str = None
     is_human: bool = False
     extinct_at: float = None
+    extinction_cause: str = None
     probe_arrived_at_human: float = None
     artefact_rolled: bool = False
     history: list = field(default_factory=list)
     history_t: list = field(default_factory=list)
+    _probes_end: float = field(default=None, repr=False, compare=False)
+
+    def recent_beliefs(self, now, memory, ordered=True):
+        """Beliefs that may still be actionable at now, in belief (insertion) order if ordered.
+        Callers apply their own exact test; an entry is dropped once both forms of the memory
+        test fail, which stays true as time goes on until the target is seen again."""
+        recent = self.recent
+        stale = [k for k, e in recent.items() if now - e.last_seen_at > memory and e.last_seen_at + memory < now]
+        for k in stale:
+            del recent[k]
+        if not ordered or len(recent) < 2:
+            return list(recent.values())
+        return sorted(recent.values(), key=_entry_order)
 
     def record(self, now, horizon):
         self.history_t.append(now)
@@ -76,17 +96,25 @@ class Civilisation:
             return None
         return self.history[i]
 
-    def go_extinct(self, t):
+    def go_extinct(self, t, cause):
         if self.status != "extinct":
             self.status = "extinct"
             self.extinct_at = t
+            self.extinction_cause = cause
 
     def probes_end_at(self, config):
         # Probes are replenished while the creator lives, then survive it for a tech-dependent time.
         if self.extinct_at is None:
             return inf
-        tech_at_death = self.history[-1].tech_level if self.history else self.tech_level
-        return self.extinct_at + config.probe_lifetime_per_tech * tech_at_death
+        # A dead civ is never updated again: the date is computed once.
+        if self._probes_end is None:
+            tech_at_death = self.history[-1].tech_level if self.history else self.tech_level
+            self._probes_end = self.extinct_at + config.probe_lifetime_per_tech * tech_at_death
+        return self._probes_end
+
+
+def _entry_order(entry):
+    return entry.order
 
 
 @dataclass
@@ -97,16 +125,35 @@ class World:
     config: object
     rejected: bool = False
     intractable: bool = False
+    rejection_reason: str = None
+    rejected_at: float = None
 
     def __post_init__(self):
+        self.n_initial = len(self.civs)
         self._index = {c.id: c for c in self.civs}
         self._slot = {}
+        self._pair_cache = {}
         self._neighbors = NeighborIndex()
         self._lo = None
         self._hi = None
         for c in self.civs:
             self._slot[c.id] = self._neighbors.add(c.position)
             self._extend_bounds(c.position)
+        # Change tracking for the fast-forward belief signature (see note_* and beliefs_changed).
+        self._tracking = bool(self.config.fast_forward)
+        self._touched_beliefs = []
+        self._detect_now = None
+        self._prev_detect_now = None
+        self._seen_count = 0
+        self._prev_seen_count = 0
+        self._seen_changed = False
+
+    def reject(self, reason, t):
+        # The run contradicts the observed silence: keep the first cause found.
+        if not self.rejected:
+            self.rejected = True
+            self.rejection_reason = reason
+            self.rejected_at = t
 
     def add_civ(self, civ):
         self.civs.append(civ)
@@ -118,6 +165,62 @@ class World:
         """Civs whose id is in allowed_ids (other than civ) at distance <= radius, in world.civs order."""
         civs = self.civs
         return [civs[j] for j in self._neighbors.within(self._slot[civ.id], radius) if civs[j].id in allowed_ids]
+
+    def neighbor_pairs_within(self, civ, radius):
+        """(other civ, distance) for every other civ at distance <= radius, in world.civs order.
+        The result is cached: callers must not modify it."""
+        slot = self._slot[civ.id]
+        pairs = self._neighbors.within_pairs(slot, radius)
+        cached = self._pair_cache.get(slot)
+        if cached is not None and cached[0] is pairs:
+            return cached[1]
+        civs = self.civs
+        result = [(civs[j], d) for j, d in pairs]
+        self._pair_cache[slot] = (pairs, result)
+        return result
+
+    def neighbors_by_distance(self, civ):
+        """(distances, civs) of every other civ, sorted by increasing distance."""
+        row_d, row_i = self._neighbors.rows[self._slot[civ.id]]
+        civs = self.civs
+        return row_d, [civs[j] for j in row_i]
+
+    # The fast-forward compares, step after step, the rounded trust and attacked_me of every
+    # belief and which beliefs were refreshed this step. Instead of rebuilding that signature,
+    # the world records what may have changed it since the previous step.
+    def note_detection_step(self, now):
+        self._prev_detect_now = self._detect_now
+        self._detect_now = now
+        self._prev_seen_count = self._seen_count
+        self._seen_count = 0
+
+    def note_seen(self, entry, created):
+        # Called before entry.last_seen_at is set to the current step.
+        if not self._tracking:
+            return
+        self._seen_count += 1
+        if created or entry.last_seen_at != self._prev_detect_now:
+            self._seen_changed = True
+        if created:
+            self._touched_beliefs.append(entry)
+
+    def note_trust(self, entry):
+        if self._tracking:
+            self._touched_beliefs.append(entry)
+
+    def beliefs_changed(self):
+        """Whether the belief signature differs from the one at the previous call (one call per step).
+        Trust converges geometrically (towards 1 through shares, 0 through reputation drops) and only
+        matters through random thresholds: it is compared at 1e-9 to stop waiting for the last digits."""
+        changed = self._seen_changed or self._seen_count != self._prev_seen_count
+        for entry in self._touched_beliefs:
+            signature = (round(entry.trust, 9), entry.attacked_me)
+            if signature != entry.signature:
+                entry.signature = signature
+                changed = True
+        self._touched_beliefs.clear()
+        self._seen_changed = False
+        return changed
 
     def _extend_bounds(self, position):
         if self._lo is None:

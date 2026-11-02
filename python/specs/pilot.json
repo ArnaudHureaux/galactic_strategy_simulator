@@ -1,0 +1,23 @@
+{
+  "description": "Pilot LHS over the environment (12 dims). Strategies are not explored here: every civ draws its own strategy in the default ranges, and their effect is read in civs.parquet. Ranges are first guesses to bracket the acceptance (silence) region, not sourced priors. max_steps is the deterministic budget; run with --time-budget 600 as a wall-clock safety net (dense regimes run at ~35 steps/s).",
+  "design_seed": 0,
+  "n_points": 200,
+  "seeds_per_point": 1,
+  "base": {
+    "max_steps": 100000
+  },
+  "parameters": {
+    "expected_bubbles": {"low": 1.0, "high": 10.0, "scale": "log"},
+    "civs_per_bubble": {"low": 5.0, "high": 40.0, "scale": "log"},
+    "civ_birth_rate": {"low": 1e-10, "high": 1e-7, "scale": "log"},
+    "self_destruction_risk": {"low": 1e-10, "high": 1e-6, "scale": "log"},
+    "natural_tech_progress_mean": {"low": 3e-11, "high": 3e-10, "scale": "log"},
+    "probe_speed_per_tech": {"low": 1e-5, "high": 1e-3, "scale": "log"},
+    "probe_lifetime_per_tech": {"low": 1e5, "high": 1e8, "scale": "log"},
+    "artefact_detection_probability": {"low": 1e-3, "high": 0.5, "scale": "log"},
+    "emit_radius_per_tech": {"low": 1.0, "high": 30.0, "scale": "log"},
+    "passive_leakage_factor": {"low": 0.01, "high": 1.0, "scale": "log"},
+    "damage_coef": {"low": 0.05, "high": 1.0},
+    "share_synergy_bonus": {"low": 0.0, "high": 0.5}
+  }
+}

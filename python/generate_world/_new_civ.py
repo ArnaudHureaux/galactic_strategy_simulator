@@ -3,13 +3,13 @@ from generate_world._sample_strategy import _sample_strategy
 
 
 def _new_civ(civ_id, position, config, rng, birth_year):
-    strategy = _sample_strategy(rng)
+    strategy = _sample_strategy(config, rng)
     return Civilisation(
         id=civ_id,
         position=position,
         birth_year=birth_year,
         status="alive",
-        biochem_type=rng.choice(config.biochem_types),
+        biochem_type=rng.weighted_choice(config.biochem_types, config.world_type_fractions),
         tech_level=config.initial_tech_level,
         population_size=config.initial_population,
         nb_of_world=1,

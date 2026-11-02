@@ -10,16 +10,16 @@ from p0_passive_update._check_silence import _check_silence, _received_signal_in
 from p0_passive_update._advance_probes import _advance_probes
 
 
-def passive_update(world, config, now, rng, dt=None, jump=None):
+def passive_update(world, config, now, streams, dt=None, jump=None):
     # dt is the time elapsed since the previous step; jump carries the events forced by fast_forward.
     dt = config.dt if dt is None else dt
     if jump is None:
-        born = rng.random() < config.civ_birth_rate * dt
+        born = streams.birth.random() < config.civ_birth_rate * dt
     else:
         born = jump.birth
     if born:
-        position = _sample_lens_position(config, rng)
-        world.add_civ(_new_civ(f"c_{len(world.civs)}", position, config, rng, now))
+        position = _sample_lens_position(config, streams.birth)
+        world.add_civ(_new_civ(f"c_{len(world.civs)}", position, config, streams.birth, now))
 
     horizon = world.history_horizon()
     for civ in world.active(now):
@@ -50,17 +50,19 @@ def passive_update(world, config, now, rng, dt=None, jump=None):
 
     for civ in world.active(now):
         if jump is None:
-            destroyed = _self_destruction(civ, config, rng, dt)
+            destroyed = _self_destruction(civ, config, streams.destruction, dt)
         else:
             destroyed = civ.id in jump.extinctions
-        if destroyed or civ.tech_level <= 0 or civ.population_size <= 0:
-            civ.go_extinct(now)
+        if destroyed:
+            civ.go_extinct(now, "self_destruction")
+        elif civ.tech_level <= 0 or civ.population_size <= 0:
+            civ.go_extinct(now, "collapse")
 
-    _roll_artefacts(world, config, rng, now)
+    _roll_artefacts(world, config, streams.artefact, now)
     _check_silence(world, config, now)
 
 
-def final_silence_check(world, config, rng):
-    _roll_artefacts(world, config, rng, config.present_date_years)
+def final_silence_check(world, config, streams):
+    _roll_artefacts(world, config, streams.artefact, config.present_date_years)
     if _received_signal_in_window(world, config):
-        world.rejected = True
+        world.reject("signal_in_window", config.present_date_years)

@@ -17,10 +17,10 @@ During the jump the event queue is translated in time, so the step that ends the
 looks exactly like the next regular step of the stationary regime.
 """
 
+from bisect import bisect_right
 from dataclasses import dataclass
 from math import floor, inf, log, log1p
 
-from geometry import dist
 from p0_passive_update._growth_law import time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
@@ -42,30 +42,29 @@ class FastForward:
     def __init__(self, config):
         self.config = config
         self._quick = None
-        self._beliefs = None
+        self._beliefs_tracked = False
         self._stable_since = None
 
-    def step(self, world, applied, emitted, now, rng):
+    def step(self, world, applied, emitted, now, streams):
         tech_touched, pop_touched = _touched(applied, emitted)
-        # The cycle signature is split so that the costly belief part is only built when the
-        # cheap part already repeats; it differs from one step to the next most of the time.
+        # Consumed at every step, so that it always compares with the previous step.
+        beliefs_changed = world.beliefs_changed()
         quick = _quick_signature(world, applied, emitted, tech_touched, pop_touched)
         if quick != self._quick:
             self._quick = quick
-            self._beliefs = None
+            self._beliefs_tracked = False
             self._stable_since = now
             return None
-        beliefs = _belief_signature(world, now)
-        if beliefs != self._beliefs:
-            # Also reached when the previous beliefs were not built: the stationary window
-            # then starts one step later than strictly needed, which is only conservative.
-            self._beliefs = beliefs
+        # The belief part (rounded trust, attacked_me and which beliefs were refreshed this step,
+        # for every alive civ) only counts from the second step of an unchanged quick signature.
+        if not self._beliefs_tracked or beliefs_changed:
+            self._beliefs_tracked = True
             self._stable_since = now
             return None
         # Every event still in flight must have been emitted by the stationary cycle.
         if now - self._stable_since < world.history_horizon():
             return None
-        return _plan_jump(world, self.config, now, rng, tech_touched, pop_touched)
+        return _plan_jump(world, self.config, now, streams, tech_touched, pop_touched)
 
 
 def _touched(applied, emitted):
@@ -87,25 +86,18 @@ def _quick_signature(world, applied, emitted, tech_touched, pop_touched):
         pop = c.population_size if c.id in pop_touched else None
         civs.append((c.id, c.status, c.attacked_by, c.natural_tech_progress,
                      int(c.tech_level * c.population_size), tech, pop))
+    # Events are emitted civ by civ (world.civs order) and, within a civ, shares in belief order,
+    # then attacks by score: only attacks need sorting to compare the emitted sets. Arrivals
+    # may tie in time and pop from the heap in any order, so applied events are sorted.
     return (
         tuple(sorted((e.kind, e.src, e.dst) for e in applied)),
-        tuple(sorted((e.kind, e.src, e.dst) for e in emitted)),
+        tuple((e.kind, e.src, e.dst) for e in emitted if e.kind != "attack"),
+        tuple(sorted((e.kind, e.src, e.dst) for e in emitted if e.kind == "attack")),
         tuple(civs),
     )
 
 
-def _belief_signature(world, now):
-    # Trust converges geometrically (towards 1 through shares, 0 through reputation drops)
-    # and only matters through random thresholds: compare it at 1e-9 to stop waiting for
-    # the last float digits.
-    return tuple(
-        tuple((k, round(e.trust, 9), e.attacked_me, e.last_seen_at == now) for k, e in c.belief.items())
-        for c in world.civs
-        if c.status == "alive"
-    )
-
-
-def _plan_jump(world, config, now, rng, tech_touched, pop_touched):
+def _plan_jump(world, config, now, streams, tech_touched, pop_touched):
     limit = config.max_jump_years
     milestones = (
         config.humanity_birth_date_years,
@@ -127,7 +119,7 @@ def _plan_jump(world, config, now, rng, tech_touched, pop_touched):
 
     limit = min(limit, _belief_expiry_limit(active, config, now))
     _decision_budgets(active, world, config, now, tech_budget, pop_budget)
-    limit = min(limit, _detection_limit(active, config, now, tech_budget))
+    limit = min(limit, _detection_limit(world, active, config, now, tech_budget))
 
     for c in active:
         if c.id not in tech_touched:
@@ -144,11 +136,11 @@ def _plan_jump(world, config, now, rng, tech_touched, pop_touched):
     # fixed-step run would succeed (geometric law), and stop the jump there.
     draws = []
     if config.civ_birth_rate > 0:
-        draws.append((_first_success(log1p(-min(1.0, config.civ_birth_rate * config.dt)), rng), None))
+        draws.append((_first_success(log1p(-min(1.0, config.civ_birth_rate * config.dt)), streams.birth), None))
     for c in active:
         hazard = config.self_destruction_risk * _self_destruction_shape(c.tech_level, config)
         if hazard > 0:
-            draws.append((_first_success(-hazard * config.dt, rng), c.id))
+            draws.append((_first_success(-hazard * config.dt, streams.destruction), c.id))
     n_steps = min([n_steps] + [k for k, _ in draws])
     forced = [civ_id for k, civ_id in draws if k == n_steps]
     return Jump(
@@ -172,7 +164,7 @@ def _belief_expiry_limit(active, config, now):
     # A remembered (unseen) target stays actionable until belief_memory_years after it was last seen.
     limit = inf
     for c in active:
-        for entry in c.belief.values():
+        for entry in c.recent_beliefs(now, config.belief_memory_years, ordered=False):
             expiry = entry.last_seen_at + config.belief_memory_years
             if entry.last_seen_at != now and expiry >= now:
                 limit = min(limit, expiry - now - config.dt)
@@ -188,11 +180,13 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
     for a in active:
         s = a.strategy
         scored = []
-        for target_id, entry in a.belief.items():
+        # Order does not matter here: budgets are minima and scored is fully sorted below.
+        for entry in a.recent_beliefs(now, config.belief_memory_years, ordered=False):
             if now - entry.last_seen_at > config.belief_memory_years:
                 continue
             if entry.trust >= s["attack_when_trust_inferior_than"]:
                 continue
+            target_id = entry.target_id
             target = world.civ(target_id)
             lag = max(0.0, target.tech_level - entry.estimated_tech_level) if target is not None else 0.0
             delta = a.tech_level - entry.estimated_tech_level
@@ -217,34 +211,46 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
             shrink(a.id, (k + 1) / (a.population_size + max(0.0, pop_budget[a.id])) - a.tech_level)
 
 
-def _detection_limit(active, config, now, tech_budget):
+def _detection_limit(world, active, config, now, tech_budget):
     # Unseen pairs: limit the drift of the emitter's broadcast radius and the time
-    # until the observer's probe sphere reaches the target.
+    # until the observer's probe sphere reaches the target. Neighbours are scanned by
+    # increasing distance: the broadcast part only concerns pairs closer than
+    # max_broadcast_radius, and the probe part only the nearest unseen target, since the
+    # time for the probe sphere to reach a target grows with its distance.
     limit = inf
     window_start = config.present_date_years - config.signal_window_years
+    active_ids = {c.id for c in active}
     for y in active:
         if y.is_human and now < window_start:
             continue
-        for x in active:
-            if x is y:
+        distances, neighbors = world.neighbors_by_distance(y)
+        n_broadcast = bisect_right(distances, config.max_broadcast_radius)
+        for d, x in zip(distances[:n_broadcast], neighbors[:n_broadcast]):
+            if x.id not in active_ids or x.tech_level <= 0 or _seen_now(y, x, now):
                 continue
-            entry = y.belief.get(x.id)
-            if entry is not None and entry.last_seen_at == now:
+            # Broadcast radius is proportional to tech.
+            critical_tech = d * x.tech_level / x.broadcast_radius if x.broadcast_radius > 0 else inf
+            tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
+        # tech_budget[y.id] only changes while scanning other observers, as in a pair-by-pair scan.
+        for d, x in zip(distances, neighbors):
+            if d > config.max_probe_radius:
+                break
+            if x.id not in active_ids or _seen_now(y, x, now):
                 continue
-            d = dist(y.position, x.position)
-            if d <= config.max_broadcast_radius and x.tech_level > 0:
-                # Broadcast radius is proportional to tech.
-                critical_tech = d * x.tech_level / x.broadcast_radius if x.broadcast_radius > 0 else inf
-                tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
-            if d <= config.max_probe_radius:
-                if y.probe_radius >= d:
-                    return 0.0
-                # Probe speed is proportional to tech: bound it by the end-of-jump tech.
-                gain = 1 + max(0.0, tech_budget[y.id]) / y.tech_level if y.tech_level > 0 else 1
-                speed = y.probe_speed * gain
-                if speed > 0:
-                    limit = min(limit, (d - y.probe_radius) / speed - config.dt)
+            if y.probe_radius >= d:
+                return 0.0
+            # Probe speed is proportional to tech: bound it by the end-of-jump tech.
+            gain = 1 + max(0.0, tech_budget[y.id]) / y.tech_level if y.tech_level > 0 else 1
+            speed = y.probe_speed * gain
+            if speed > 0:
+                limit = min(limit, (d - y.probe_radius) / speed - config.dt)
+            break
     return limit
+
+
+def _seen_now(y, x, now):
+    entry = y.belief.get(x.id)
+    return entry is not None and entry.last_seen_at == now
 
 
 def _time_to_spend_pop_budget(civ, config, pop_budget):

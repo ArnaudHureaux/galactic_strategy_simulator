@@ -13,6 +13,8 @@ class NeighborIndex:
     def __init__(self):
         self.positions = []
         self.rows = []
+        # Per point: (number of neighbours within the last radius, total points, pairs sorted by index).
+        self._cache = []
 
     def add(self, position):
         new = len(self.positions)
@@ -26,9 +28,22 @@ class NeighborIndex:
         pairs.sort()
         self.positions.append(position)
         self.rows.append(([d for d, _ in pairs], [j for _, j in pairs]))
+        self._cache.append(None)
         return new
 
     def within(self, i, radius):
         """Indices of the other points at distance <= radius from point i, in insertion order."""
         row_d, row_i = self.rows[i]
         return sorted(row_i[: bisect_right(row_d, radius)])
+
+    def within_pairs(self, i, radius):
+        """(index, distance) of the other points at distance <= radius from point i, in insertion order.
+        The result is cached: callers must not modify it."""
+        row_d, row_i = self.rows[i]
+        k = bisect_right(row_d, radius)
+        cached = self._cache[i]
+        if cached is not None and cached[0] == k and cached[1] == len(self.positions):
+            return cached[2]
+        pairs = sorted(zip(row_i[:k], row_d[:k]))
+        self._cache[i] = (k, len(self.positions), pairs)
+        return pairs

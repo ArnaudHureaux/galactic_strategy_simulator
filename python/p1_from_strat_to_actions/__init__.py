@@ -8,10 +8,11 @@ def from_strat_to_actions(civ, config, now):
         actions.append(("broadcast", None))
 
     scored = []
-    for target_id, entry in civ.belief.items():
+    for entry in civ.recent_beliefs(now, config.belief_memory_years):
         # A target that went silent (dead, or too weak to be seen) is only remembered, not acted upon.
         if now - entry.last_seen_at > config.belief_memory_years:
             continue
+        target_id = entry.target_id
         score = _compute_attack_interest_score(civ, entry)
         if score > 0:
             scored.append((score, target_id))

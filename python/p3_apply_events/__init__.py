@@ -13,7 +13,7 @@ def apply_events(event, world, config):
     elif event.kind == "implicit_share":
         _apply_share_relationship(event, target, world, config)
     elif event.kind == "attack":
-        _apply_attack(event, target, config)
+        _apply_attack(event, target, world)
 
 
 def _apply_share(event, target, world, config):
@@ -32,18 +32,24 @@ def _apply_share_relationship(event, target, world, config):
             source.natural_tech_progress = min(cap, source.natural_tech_progress * synergy)
     entry = target.belief.get(event.src)
     if entry is not None:
-        entry.trust = _share_trust_update(entry.trust, entry.attacked_me, config)
+        trust = _share_trust_update(entry.trust, entry.attacked_me, config)
+        # Converged relationships (trust 1.0) are the common case: only report actual changes.
+        if trust != entry.trust:
+            entry.trust = trust
+            world.note_trust(entry)
 
 
-def _apply_attack(event, target, config):
-    damage = _attack_damage(event.power, target.tech_level, config)
+def _apply_attack(event, target, world):
+    damage = _attack_damage(event.power, target.tech_level, world.config)
     target.tech_level *= (1 - damage)
     target.population_size *= (1 - damage)
     target.expansion_radius *= (1 - damage)
     if event.src in target.belief:
         entry = target.belief[event.src]
-        entry.trust = 0.0
-        entry.attacked_me = True
+        if entry.trust != 0.0 or not entry.attacked_me:
+            entry.trust = 0.0
+            entry.attacked_me = True
+            world.note_trust(entry)
     target.attacked_by = event.src
     if target.tech_level <= 0 or target.population_size <= 0:
-        target.go_extinct(event.t)
+        target.go_extinct(event.t, "attack")

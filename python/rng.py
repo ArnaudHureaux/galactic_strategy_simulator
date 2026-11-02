@@ -1,4 +1,6 @@
+import hashlib
 import random
+from dataclasses import dataclass
 from math import exp
 
 
@@ -18,6 +20,9 @@ class Rng:
     def choice(self, seq):
         return self._r.choice(seq)
 
+    def weighted_choice(self, seq, weights):
+        return self._r.choices(seq, weights)[0]
+
     def integers(self, low, high):
         return self._r.randrange(low, high)
 
@@ -32,8 +37,26 @@ class Rng:
                 return k - 1
 
 
-def make_rng(seed):
-    return Rng(seed)
+@dataclass
+class Streams:
+    """Independent random streams derived from one seed. Each source of randomness draws
+    from its own stream, so changing a parameter that only affects one of them (e.g. the
+    self-destruction risk) leaves the others, and in particular the initial world, unchanged."""
+
+    world: Rng
+    humanity: Rng
+    birth: Rng
+    destruction: Rng
+    artefact: Rng
+
+
+def make_streams(seed):
+    return Streams(**{name: Rng(_derive_seed(seed, name)) for name in Streams.__dataclass_fields__})
+
+
+def _derive_seed(seed, name):
+    digest = hashlib.sha256(f"{seed}/{name}".encode()).digest()
+    return int.from_bytes(digest[:8], "big")
 
 
 def sample_ball(radius, rng):

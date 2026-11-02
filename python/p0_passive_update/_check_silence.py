@@ -6,9 +6,14 @@ from geometry import dist
 
 def _check_silence(world, config, now):
     human = world.humanity
-    contacted = len(human.belief) > 0 or human.attacked_by is not None
-    if now < config.present_date_years and contacted:
-        world.rejected = True
+    if now >= config.present_date_years:
+        return
+    if human.attacked_by is not None:
+        world.reject("attacked", now)
+    elif human.belief:
+        # Name the channel of the first contact.
+        channel = next(iter(human.belief.values())).channel
+        world.reject(f"contact_{channel}", now)
 
 
 def _received_signal_in_window(world, config):
@@ -48,4 +53,4 @@ def _roll_artefacts(world, config, rng, until):
             continue
         civ.artefact_rolled = True
         if rng.random() < config.artefact_detection_probability:
-            world.rejected = True
+            world.reject("artefact", until)

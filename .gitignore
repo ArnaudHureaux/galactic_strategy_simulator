@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 tools/_scratch/
 .DS_Store
+results/
+explorations/
