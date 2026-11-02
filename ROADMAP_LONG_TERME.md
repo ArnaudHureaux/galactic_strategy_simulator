@@ -86,6 +86,7 @@ Horizon : 6 à 18 mois. Découpé en phases. Chaque phase a un **livrable scient
 **But** : ne pas être bloqué par le compute.
 
 - Profiling, optimisation des hot loops (Numba/Rust pour les calculs de voisinage, priority queue).
+  - [x] Cœur de simulation porté en Rust (`rust/`, moteur `--engine rust`) : résultats bit-identiques au moteur Python de référence, ~30× plus rapide. Python garde config, exploration et analyse ; tout changement du cœur Python doit être reporté dans `rust/core` (test de parité).
 - Parallélisation embarrassingly parallel (joblib/Ray) — 1 run = 1 process.
 - Optionnel : portage cluster (SLURM) ou cloud si on veut scaler à 10⁵+ runs.
 

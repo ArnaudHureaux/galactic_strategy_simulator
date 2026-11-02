@@ -4,3 +4,5 @@ tools/_scratch/
 .DS_Store
 results/
 explorations/
+rust/target/
+rust/py/dist/

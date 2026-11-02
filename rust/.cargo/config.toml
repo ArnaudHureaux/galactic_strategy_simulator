@@ -1,0 +1,5 @@
+﻿[env]
+# PyO3 links Python through raw-dylib by default on Windows, which needs a full binutils
+# (dlltool + as) on the windows-gnu target. Linking the interpreter's own import library
+# (pythonX\libs\python3.lib, read by both MSVC link and MinGW ld) needs nothing extra.
+PYO3_USE_RAW_DYLIB = "0"

@@ -1,0 +1,12 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "galactic-rs"
+version = "0.1.0"
+description = "Rust engine of galactic_strategy_simulator (bit-identical to python/simulation.run)"
+requires-python = ">=3.9"
+
+[tool.maturin]
+module-name = "galactic_rs"

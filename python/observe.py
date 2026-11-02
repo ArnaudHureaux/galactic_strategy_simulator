@@ -26,6 +26,15 @@ class Logger:
         )
 
 
+def _total(values):
+    # Plain left-to-right sum: Python >= 3.12's sum() compensates float rounding, which would
+    # make results depend on the Python version (and differ from the Rust engine).
+    total = 0.0
+    for value in values:
+        total += value
+    return total
+
+
 def capture(world, now):
     others = [c for c in world.active(now) if not c.is_human]
     n = len(others)
@@ -33,11 +42,11 @@ def capture(world, now):
         return {"n_alive": 0, "humanity_detected_by_others": False}
 
     def mean(key):
-        return sum(c.strategy[key] for c in others) / n
+        return _total(c.strategy[key] for c in others) / n
 
     return {
         "n_alive": n,
-        "mean_tech": sum(c.tech_level for c in others) / n,
+        "mean_tech": _total(c.tech_level for c in others) / n,
         "broadcast_frac": sum(1 for c in others if c.strategy["broadcast"]) / n,
         "mean_attack_when_trust": mean("attack_when_trust_inferior_than"),
         "mean_caution_k": mean("caution_k"),
@@ -71,6 +80,11 @@ def run_record(world, config, seed, log, end, wall_time_s):
         "humanity_detected_by_others": any(human.id in c.belief for c in world.civs if c is not human),
         "humanity_reached_by_probe": any(c.probe_arrived_at_human is not None for c in world.civs),
     }
+    return add_config(record, config)
+
+
+def add_config(record, config):
+    """Append the config parameters to a run record (tuples as JSON strings)."""
     for key, value in config.to_dict().items():
         if key in record:
             raise KeyError(f"config parameter {key} collides with a run metric")

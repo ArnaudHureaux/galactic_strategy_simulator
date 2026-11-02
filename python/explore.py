@@ -1,12 +1,15 @@
 """Latin hypercube exploration of the Config space, on one machine or split across several.
 
   python explore.py plan    SPEC.json --out DIR    # freeze the design: DIR/spec.json + DIR/design.json
-  python explore.py run     --out DIR [--shard I/N] [--workers W] [--time-budget S]
+  python explore.py run     --out DIR [--shard I/N] [--workers W] [--time-budget S] [--engine python|rust]
   python explore.py status  --out DIR
   python explore.py collect --out DIR              # DIR/design.parquet, runs.parquet, civs.parquet
 
 plan, run and status only need the standard library, so they also run under PyPy (about
 2x faster than CPython on this simulator, same results); collect needs pandas + pyarrow.
+`run --engine rust` uses the Rust engine (rust_engine.py: same results bit for bit, about
+30x faster than CPython; CPython only, see rust/README.md). Engines can be mixed between
+shards or machines: the parts they write are identical (apart from wall_time_s).
 
 The design only depends on the spec (design_seed included); copying DIR (spec.json,
 design.json) to each server is enough. A job is one (point, seed) pair; `--shard I/N` keeps
@@ -127,8 +130,8 @@ def _part_path(out, point_id, seed):
 
 
 def _run_job(args):
-    out, config, point_id, seed, time_budget_s = args
-    log_ = simulation.run(config, seed, time_budget_s)
+    out, config, point_id, seed, time_budget_s, engine = args
+    log_ = simulation.engine(engine)(config, seed, time_budget_s)
     run_record = {"point_id": point_id, **log_.run}
     part = {"run": run_record, "civs": [{"point_id": point_id, **c} for c in log_.civs]}
     path = _part_path(out, point_id, seed)
@@ -139,7 +142,8 @@ def _run_job(args):
     return point_id, seed, run_record["outcome"], run_record["rejection_reason"], run_record["wall_time_s"]
 
 
-def run(out, shard, workers, time_budget_s):
+def run(out, shard, workers, time_budget_s, engine="python"):
+    simulation.engine(engine)  # fail now, not in every worker, if the engine is unavailable
     spec, design = _load(out)
     index, count = shard
     rows = {row["point_id"]: row for row in design}
@@ -150,7 +154,7 @@ def run(out, shard, workers, time_budget_s):
         config = point_config(spec, rows[point_id])
         if config.config_hash() != rows[point_id]["config_hash"]:
             sys.exit(f"point {point_id}: config hash differs from design.json (code or spec changed)")
-        todo.append((out, config, point_id, seed, time_budget_s))
+        todo.append((out, config, point_id, seed, time_budget_s, engine))
     print(f"shard {index}/{count}: {len(todo)} jobs to run", flush=True)
     start = perf_counter()
     # One process per job: long runs, so the start-up cost is negligible and memory is returned each time.
@@ -219,6 +223,8 @@ def main():
     p.add_argument("--workers", type=int, default=None)
     p.add_argument("--time-budget", type=float, default=None,
                    help="wall-clock seconds per run, on top of max_steps (machine-dependent)")
+    p.add_argument("--engine", choices=simulation.ENGINES, default="python",
+                   help="rust: same results, ~30x faster (needs the galactic_rs extension)")
     for name in ("status", "collect"):
         sub.add_parser(name).add_argument("--out", required=True)
     args = parser.parse_args()
@@ -226,7 +232,7 @@ def main():
     if args.command == "plan":
         plan(args.spec, args.out)
     elif args.command == "run":
-        run(args.out, args.shard, args.workers, args.time_budget)
+        run(args.out, args.shard, args.workers, args.time_budget, args.engine)
     elif args.command == "status":
         status(args.out)
     else:

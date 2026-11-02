@@ -234,7 +234,9 @@ class World:
     def light_crossing_years(self):
         if self._lo is None:
             return 0.0
-        diagonal = sum((h - l) ** 2 for l, h in zip(self._lo, self._hi)) ** 0.5
+        # Explicit sum: Python >= 3.12's sum() rounds differently (compensated summation).
+        dx, dy, dz = (h - l for l, h in zip(self._lo, self._hi))
+        diagonal = (dx ** 2 + dy ** 2 + dz ** 2) ** 0.5
         return diagonal / C_PC_PER_YEAR
 
     def history_horizon(self):

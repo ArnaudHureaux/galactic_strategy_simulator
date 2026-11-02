@@ -1,0 +1,13 @@
+﻿[package]
+name = "galactic_rs"
+description = "Python bindings of galactic_core (see python/rust_engine.py)"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "galactic_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+galactic_core = { path = "../core" }
+pyo3 = { version = "0.30", features = ["extension-module"] }

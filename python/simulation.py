@@ -100,5 +100,20 @@ def _outcome(world, timed_out):
     return "consistent"
 
 
+ENGINES = ("python", "rust")
+
+
+def engine(name):
+    """run function of an engine: "python" (this module, the reference) or "rust"
+    (rust_engine: same results bit for bit, ~30x faster; needs the galactic_rs extension)."""
+    if name == "rust":
+        import rust_engine
+
+        return rust_engine.run
+    if name != "python":
+        raise ValueError(f"engine must be one of {ENGINES} (got {name!r})")
+    return run
+
+
 if __name__ == "__main__":
     run(Config(), 42)

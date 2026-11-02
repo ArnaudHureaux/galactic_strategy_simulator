@@ -7,6 +7,7 @@ Outputs, in --out (default: results/):
 Both tables share the (config_hash, seed) key, so batches of different configs can be concatenated.
 
 Usage: python run_batch.py [--config cfg.json] [--seeds 1-24 | --seeds 1,5,9] [--workers N] [--time-budget S] [--out DIR]
+                           [--engine python|rust]
 """
 
 import argparse
@@ -31,13 +32,13 @@ def parse_seeds(text):
 
 
 def run_one(args):
-    config, seed, time_budget_s = args
-    log = simulation.run(config, seed, time_budget_s)
+    config, seed, time_budget_s, engine = args
+    log = simulation.engine(engine)(config, seed, time_budget_s)
     return log.run, log.civs
 
 
-def run_batch(config, seeds, workers=None, time_budget_s=None):
-    jobs = [(config, seed, time_budget_s) for seed in seeds]
+def run_batch(config, seeds, workers=None, time_budget_s=None, engine="python"):
+    jobs = [(config, seed, time_budget_s, engine) for seed in seeds]
     if workers == 1:
         results = [run_one(job) for job in jobs]
     else:
@@ -65,10 +66,12 @@ def main():
     parser.add_argument("--time-budget", type=float, default=None,
                         help="wall-clock seconds per run (machine-dependent; prefer max_steps in the config)")
     parser.add_argument("--out", default="results")
+    parser.add_argument("--engine", choices=simulation.ENGINES, default="python",
+                        help="rust: same results, ~30x faster (needs the galactic_rs extension, see rust/README.md)")
     args = parser.parse_args()
 
     config = Config.from_json(args.config) if args.config else Config()
-    runs, civs = run_batch(config, parse_seeds(args.seeds), args.workers, args.time_budget)
+    runs, civs = run_batch(config, parse_seeds(args.seeds), args.workers, args.time_budget, args.engine)
     for path in write_batch(runs, civs, config, args.out):
         print(path)
     print(runs.groupby(["outcome", "rejection_reason"], dropna=False).size().to_string())

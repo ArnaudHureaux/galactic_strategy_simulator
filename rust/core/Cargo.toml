@@ -1,0 +1,11 @@
+[package]
+name = "galactic_core"
+description = "Simulation core of galactic_strategy_simulator, bit-identical to python/simulation.run"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+# float_roundtrip: parse floats exactly, so the config seen by Rust is the one Python wrote.
+serde_json = { version = "1", features = ["float_roundtrip"] }
+sha2 = "0.11"
