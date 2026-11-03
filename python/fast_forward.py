@@ -87,7 +87,9 @@ def _quick_signature(world, applied, emitted, tech_touched, pop_touched):
         if c.status != "alive":
             civs.append((c.id, c.status))
             continue
-        tech = c.tech_level if c.id in tech_touched else None
+        # Tech held periodic by events converges geometrically after each perturbation: compared
+        # at 1e-9 (like trust, see World.beliefs_changed) to stop waiting for the last digits.
+        tech = round(c.tech_level, 9) if c.id in tech_touched else None
         pop = c.population_size if c.id in pop_touched else None
         front = c.expansion_radius if c.id in pop_touched else None
         # The number of attacks only matters below the number of possible targets (beliefs):
@@ -308,11 +310,15 @@ def _front_moves(civ, config):
 
 
 def _front_budget(civ, config, rel):
-    # Largest advance keeping the number of worlds (hence the population capacity) within rel.
+    # Worlds only matter through the population capacity, which a jump keeps at its start value:
+    # the error on the logistic term pop / capacity is pop / capacity times the relative growth
+    # of the capacity, kept within rel (a civ far below its capacity can expand a lot).
     density = _world_density(civ, config)
-    if density <= 0:
+    capacity = _population_capacity(civ, config)
+    if density <= 0 or capacity is None or civ.population_size <= 0:
         return inf
-    return _radius_for_nb_of_world(civ.nb_of_world * (1 + rel), density) - civ.expansion_radius
+    growth = rel * capacity / civ.population_size
+    return _radius_for_nb_of_world(civ.nb_of_world * (1 + growth), density) - civ.expansion_radius
 
 
 def _front_end(civ, front_budget):

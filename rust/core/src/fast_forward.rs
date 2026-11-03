@@ -130,7 +130,8 @@ fn quick_signature(world: &World, applied: &[Event], emitted: &[Event], tech_tou
                 natural_tech_progress: c.natural_tech_progress,
                 // The number of attacks only matters below the number of possible targets (beliefs).
                 k: pymin((c.tech_level * c.population_size).trunc(), c.belief.len() as f64),
-                tech: tech_touched[i].then_some(c.tech_level),
+                // Compared at 1e-9 (see fast_forward._quick_signature).
+                tech: tech_touched[i].then_some(pymath::round9(c.tech_level)),
                 pop: pop_touched[i].then_some(c.population_size),
                 front: pop_touched[i].then_some(c.expansion_radius),
                 front_blocked: c.front_blocked,
@@ -416,13 +417,17 @@ fn front_moves(civ: &Civ, config: &Config) -> bool {
     civ.colonization_aggressiveness > 0.0 && config.front_speed_per_tech > 0.0 && civ.tech_level > 0.0 && !civ.front_blocked
 }
 
-/// Largest advance keeping the number of worlds (hence the population capacity) within rel.
+/// Worlds only matter through the population capacity, which a jump keeps at its start value:
+/// the error on pop / capacity is kept within rel (see fast_forward._front_budget).
 fn initial_front_budget(civ: &Civ, config: &Config, rel: f64) -> f64 {
     let density = world_density(civ, config);
-    if density <= 0.0 {
+    let capacity = population_capacity(civ, config);
+    let Some(capacity) = capacity else { return f64::INFINITY };
+    if density <= 0.0 || civ.population_size <= 0.0 {
         return f64::INFINITY;
     }
-    radius_for_nb_of_world(civ.nb_of_world * (1.0 + rel), density) - civ.expansion_radius
+    let growth = rel * capacity / civ.population_size;
+    radius_for_nb_of_world(civ.nb_of_world * (1.0 + growth), density) - civ.expansion_radius
 }
 
 fn front_end(civ: &Civ, budget: Option<f64>) -> f64 {
