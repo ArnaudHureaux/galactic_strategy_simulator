@@ -1,5 +1,8 @@
-def compute_broadcast_radius(tech_level, strategy):
-    active_radius = EMIT_RADIUS_PER_TECH * tech_level
-    if strategy["broadcast"]:
+def compute_broadcast_radius(civ, now):
+    # humanity's technosignatures only exist since the start of the signal window
+    if civ.is_human and now < PRESENT_DATE - SIGNAL_WINDOW:
+        return 0
+    active_radius = EMIT_RADIUS_PER_TECH * civ.tech_level
+    if civ.strategy["broadcast"]:
         return active_radius
     return active_radius * PASSIVE_LEAKAGE_FACTOR

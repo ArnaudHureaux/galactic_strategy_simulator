@@ -68,6 +68,7 @@ def run_one(args):
         "alive": {c.id for c in others if c.status == "alive"},
         "extinct_at": {c.id: c.extinct_at for c in others if c.extinct_at is not None},
         "tech": {c.id: c.tech_level for c in others if c.status == "alive"},
+        "front": {c.id: c.expansion_radius for c in others if c.status == "alive"},
     }
 
 
@@ -76,11 +77,14 @@ def compare(fixed, fast):
     shifts = [abs(fixed["extinct_at"][k] - fast["extinct_at"][k]) for k in common_dead]
     common_alive = fixed["alive"] & fast["alive"]
     tech_gap = max((abs(fixed["tech"][k] - fast["tech"][k]) for k in common_alive), default=0.0)
+    front_gap = max((abs(fixed["front"][k] - fast["front"][k]) / max(fixed["front"][k], 1e-9)
+                     for k in common_alive), default=0.0)
     return {
         "same_outcome": fixed["outcome"] == fast["outcome"],
         "alive_mismatch": len(fixed["alive"] ^ fast["alive"]),
         "max_extinction_shift": max(shifts, default=0.0),
         "max_tech_gap": tech_gap,
+        "max_front_gap": front_gap,
     }
 
 
@@ -124,7 +128,7 @@ def main():
     for name in variants:
         print(f"\n=== {name}: {variants[name]}")
         print(f"{'seed':>4} {'outcome fixed/ff':>24} {'end fixed':>12} {'end ff':>12} {'births':>7} {'alive diff':>10} "
-              f"{'max ext. shift':>14} {'max tech gap':>12} {'steps fixed/ff':>16} {'time fixed/ff':>15}")
+              f"{'max ext. shift':>14} {'max tech gap':>12} {'front gap':>9} {'steps fixed/ff':>16} {'time fixed/ff':>15}")
         for seed in seeds:
             fixed, fast = by_key[(seed, "fixed")], by_key[(seed, name)]
             c = compare(fixed, fast)
@@ -132,6 +136,7 @@ def main():
                 f"{seed:>4} {fixed['outcome'] + '/' + fast['outcome']:>24} {fixed['end']:>12.5g} {fast['end']:>12.5g} "
                 f"{str(fixed['births']) + '/' + str(fast['births']):>7} "
                 f"{c['alive_mismatch']:>10} {c['max_extinction_shift']:>14.4g} {c['max_tech_gap']:>12.3g} "
+                f"{c['max_front_gap']:>9.2%} "
                 f"{str(fixed['steps']) + '/' + str(fast['steps']):>16} {fixed['time']:>7.1f}/{fast['time']:<7.1f}"
             )
 

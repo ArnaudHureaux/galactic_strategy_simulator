@@ -3,12 +3,15 @@
 Once every civ in contact repeats exactly the same cycle (same events received and
 emitted, same beliefs, same trust up to 1e-9...), the step-by-step simulation only
 replays copies of that cycle while a few slow variables drift (tech of civs that
-receive no events, population of civs that are not attacked, probe radii).
+receive no events, population of civs that are not attacked, probe radii, colonization
+fronts of civs that are not attacked).
 FastForward detects such a regime and plans a single long step ("jump"), a whole
 number of regular steps long, that stops before anything can break it:
-  - a slow variable moving by more than `jump_max_relative_change`, or crossing a
-    decision threshold (attack window, attack ranking, number of attacks);
-  - a probe sphere or a broadcast radius reaching a civ that is not seen yet;
+  - a slow variable moving by more than `jump_max_relative_change` (for a front: the
+    number of worlds it holds), or crossing a decision threshold (attack window, attack
+    ranking, number of attacks);
+  - a probe sphere, a broadcast radius or colonization fronts reaching a civ that is not
+    seen yet, or a front reaching the Sun;
   - a remembered belief expiring (belief_memory_years);
   - a fixed date (humanity birth, start of the artefact and human signal windows, present);
   - a random event (civ birth, self-destruction), placed at the first step where the
@@ -21,10 +24,12 @@ from bisect import bisect_right
 from dataclasses import dataclass
 from math import floor, inf, log, log1p
 
+from geometry import dist
 from p0_passive_update._growth_law import time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
+from p0_passive_update._advance_fronts import _radius_for_nb_of_world, _world_density
 
 
 @dataclass
@@ -75,8 +80,8 @@ def _touched(applied, emitted):
 
 def _quick_signature(world, applied, emitted, tech_touched, pop_touched):
     # Everything that drives decisions must repeat exactly; only slow, analytically
-    # integrable variables may drift: tech of civs untouched by events, population of
-    # civs that are not attacked.
+    # integrable variables may drift: tech of civs untouched by events, population and
+    # colonization front of civs that are not attacked.
     civs = []
     for c in world.civs:
         if c.status != "alive":
@@ -84,8 +89,11 @@ def _quick_signature(world, applied, emitted, tech_touched, pop_touched):
             continue
         tech = c.tech_level if c.id in tech_touched else None
         pop = c.population_size if c.id in pop_touched else None
-        civs.append((c.id, c.status, c.attacked_by, c.natural_tech_progress,
-                     int(c.tech_level * c.population_size), tech, pop))
+        front = c.expansion_radius if c.id in pop_touched else None
+        # The number of attacks only matters below the number of possible targets (beliefs):
+        # populous civs would otherwise change it at almost every step.
+        k = min(int(c.tech_level * c.population_size), len(c.belief))
+        civs.append((c.id, c.status, c.attacked_by, c.natural_tech_progress, k, tech, pop, front, c.front_blocked))
     # Events are emitted civ by civ (world.civs order) and, within a civ, shares in belief order,
     # then attacks by score: only attacks need sorting to compare the emitted sets. Arrivals
     # may tie in time and pop from the heap in any order, so applied events are sorted.
@@ -116,16 +124,22 @@ def _plan_jump(world, config, now, streams, tech_touched, pop_touched):
     rel = config.jump_max_relative_change
     tech_budget = {c.id: rel * c.tech_level for c in active}
     pop_budget = {c.id: rel * c.population_size for c in active}
+    # Fronts of attacked civs replay one regular step per jump (see passive_update): they do not drift.
+    moving = {c.id for c in active if c.id not in pop_touched and _front_moves(c, config)}
+    front_budget = {c.id: _front_budget(c, config, rel) for c in active if c.id in moving}
 
     limit = min(limit, _belief_expiry_limit(active, config, now))
     _decision_budgets(active, world, config, now, tech_budget, pop_budget)
-    limit = min(limit, _detection_limit(world, active, config, now, tech_budget))
+    _colonization_budgets(world, active, front_budget)
+    limit = min(limit, _detection_limit(world, active, config, now, tech_budget, front_budget))
 
     for c in active:
         if c.id not in tech_touched:
             limit = min(limit, _time_to_spend_tech_budget(c, config, tech_budget[c.id], pop_budget[c.id]))
         if c.id not in pop_touched:
             limit = min(limit, _time_to_spend_pop_budget(c, config, pop_budget[c.id]))
+        if c.id in moving:
+            limit = min(limit, _time_to_spend_front_budget(c, config, front_budget[c.id], tech_budget[c.id]))
 
     # Jumps last a whole number of regular steps so the time grid of the fixed-step run is kept.
     n_steps = floor(limit / config.dt)
@@ -211,26 +225,40 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
             shrink(a.id, (k + 1) / (a.population_size + max(0.0, pop_budget[a.id])) - a.tech_level)
 
 
-def _detection_limit(world, active, config, now, tech_budget):
-    # Unseen pairs: limit the drift of the emitter's broadcast radius and the time
-    # until the observer's probe sphere reaches the target. Neighbours are scanned by
-    # increasing distance: the broadcast part only concerns pairs closer than
-    # max_broadcast_radius, and the probe part only the nearest unseen target, since the
-    # time for the probe sphere to reach a target grows with its distance.
+def _detection_limit(world, active, config, now, tech_budget, front_budget):
+    # Unseen pairs: limit the drift of the emitter's broadcast radius and of both fronts
+    # (signals carry from sphere edge to sphere edge), and the time until the observer's
+    # probe sphere reaches the target. Neighbours are scanned by increasing distance: the
+    # broadcast part only concerns pairs within max_broadcast_radius of the two spheres,
+    # and the probe part only the nearest unseen target, since the time for the probe
+    # sphere to reach a target grows with its distance.
     limit = inf
     window_start = config.present_date_years - config.signal_window_years
     active_ids = {c.id for c in active}
+    widest_front = 0.0
+    for c in active:
+        widest_front = max(widest_front, _front_end(c, front_budget))
     for y in active:
         if y.is_human and now < window_start:
             continue
         distances, neighbors = world.neighbors_by_distance(y)
-        n_broadcast = bisect_right(distances, config.max_broadcast_radius)
+        reach = config.max_broadcast_radius + _front_end(y, front_budget) + widest_front
+        n_broadcast = bisect_right(distances, reach)
         for d, x in zip(distances[:n_broadcast], neighbors[:n_broadcast]):
             if x.id not in active_ids or x.tech_level <= 0 or _seen_now(y, x, now):
                 continue
-            # Broadcast radius is proportional to tech.
-            critical_tech = d * x.tech_level / x.broadcast_radius if x.broadcast_radius > 0 else inf
-            tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
+            # Share what is left of the gap between whatever can close it.
+            movers = [mover for mover in (x.id, y.id) if mover in front_budget]
+            n_moving = len(movers) + (x.broadcast_radius > 0)
+            if n_moving == 0:
+                continue
+            share = (d - y.expansion_radius - x.expansion_radius - x.broadcast_radius) / n_moving
+            for mover in movers:
+                front_budget[mover] = min(front_budget[mover], share)
+            if x.broadcast_radius > 0:
+                # Broadcast radius is proportional to tech.
+                critical_tech = (x.broadcast_radius + share) * x.tech_level / x.broadcast_radius
+                tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
         # tech_budget[y.id] only changes while scanning other observers, as in a pair-by-pair scan.
         for d, x in zip(distances, neighbors):
             if d > config.max_probe_radius:
@@ -263,7 +291,49 @@ def _time_to_spend_pop_budget(civ, config, pop_budget):
 
 def _time_to_spend_tech_budget(civ, config, tech_budget, pop_budget):
     # Fastest tech growth rate reachable during the jump (population only grows).
-    r_tech = _tech_rate(civ) * (1 + max(0.0, pop_budget) / civ.population_size) if civ.population_size > 0 else 0.0
+    if civ.population_size > 0:
+        gain = (1 + max(0.0, pop_budget) / civ.population_size) ** config.tech_population_exponent
+        r_tech = _tech_rate(civ, config) * gain
+    else:
+        r_tech = 0.0
     if r_tech <= 0 or civ.tech_level >= config.tech_cap:
         return inf
     return time_to_reach(civ.tech_level, civ.tech_level + tech_budget, r_tech, _tech_growth_cap(config))
+
+
+def _front_moves(civ, config):
+    # A blocked front stays blocked until its competitor shrinks (attack) or dies (random event).
+    return (civ.colonization_aggressiveness > 0 and config.front_speed_per_tech > 0
+            and civ.tech_level > 0 and not civ.front_blocked)
+
+
+def _front_budget(civ, config, rel):
+    # Largest advance keeping the number of worlds (hence the population capacity) within rel.
+    density = _world_density(civ, config)
+    if density <= 0:
+        return inf
+    return _radius_for_nb_of_world(civ.nb_of_world * (1 + rel), density) - civ.expansion_radius
+
+
+def _front_end(civ, front_budget):
+    budget = front_budget.get(civ.id)
+    return civ.expansion_radius if budget is None else civ.expansion_radius + max(0.0, budget)
+
+
+def _colonization_budgets(world, active, front_budget):
+    # A front must not reach the Sun during a jump (see _check_silence).
+    human = world.humanity
+    for c in active:
+        if c is human or c.id not in front_budget:
+            continue
+        gap = dist(c.position, human.position) - c.expansion_radius
+        if gap > 0:
+            front_budget[c.id] = min(front_budget[c.id], gap)
+
+
+def _time_to_spend_front_budget(civ, config, front_budget, tech_budget):
+    # Fastest front reachable during the jump (front speed is proportional to tech).
+    speed = civ.colonization_aggressiveness * config.front_speed_per_tech * (civ.tech_level + max(0.0, tech_budget))
+    if front_budget == inf:
+        return inf
+    return front_budget / speed - config.dt

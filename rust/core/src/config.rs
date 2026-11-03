@@ -53,6 +53,7 @@ pub struct Config {
     pub signal_window_years: f64,
     pub artefact_window_years: f64,
     pub artefact_detection_probability: f64,
+    pub artefact_stealth_per_tech: f64,
 
     pub tech_growth_model: String,
     pub population_growth_model: String,
@@ -74,6 +75,9 @@ pub struct Config {
     pub max_probe_radius: f64,
     pub probe_lifetime_per_tech: f64,
 
+    pub front_speed_per_tech: f64,
+    pub habitable_world_density: f64,
+
     pub belief_memory_years: f64,
 
     pub share_period_years: f64,
@@ -89,6 +93,7 @@ pub struct Config {
     pub reputation_trust_drop: f64,
 
     pub natural_tech_progress_mean: f64,
+    pub tech_population_exponent: f64,
     pub natural_population_growth_mean: f64,
     pub max_natural_tech_progress: f64,
 
@@ -109,6 +114,15 @@ pub struct Config {
     pub share_trust_threshold_high: f64,
     pub colonization_aggressiveness_low: f64,
     pub colonization_aggressiveness_high: f64,
+    pub strategy_mix_random: f64,
+    pub strategy_mix_full_aggressive: f64,
+    pub strategy_mix_full_passive: f64,
+    pub strategy_mix_anti_competitors: f64,
+    pub strategy_mix_anti_weaker_competitors: f64,
+    pub strategy_mix_dark_forest: f64,
+    pub strategy_mix_broadcaster: f64,
+    pub strategy_mix_cooperative: f64,
+    pub strategy_noise: f64,
 
     #[serde(skip)]
     derived: Option<Derived>,
@@ -132,11 +146,12 @@ impl Default for Config {
             civs_per_bubble: 20.0,
             civ_birth_rate: 1e-8,
             last_grb_date_years: 1.0e9,
-            humanity_birth_date_years: 1.3799e10,
+            humanity_birth_date_years: 1.379999e10,
             present_date_years: 1.38e10,
             signal_window_years: 100.0,
             artefact_window_years: 4.5e9,
             artefact_detection_probability: 0.1,
+            artefact_stealth_per_tech: 0.0,
             tech_growth_model: "logistic".into(),
             population_growth_model: "logistic".into(),
             tech_cap: 3.0,
@@ -153,6 +168,8 @@ impl Default for Config {
             probe_speed_per_tech: 1e-4,
             max_probe_radius: 1e12,
             probe_lifetime_per_tech: 1e6,
+            front_speed_per_tech: 1e-7,
+            habitable_world_density: 0.01,
             belief_memory_years: 0.0,
             share_period_years: 1000.0,
             share_catchup: 0.5,
@@ -165,6 +182,7 @@ impl Default for Config {
             attack_cost_tech: 0.05,
             reputation_trust_drop: 0.3,
             natural_tech_progress_mean: 1e-10,
+            tech_population_exponent: 1.0,
             natural_population_growth_mean: 1e-9,
             max_natural_tech_progress: 1e-7,
             broadcast_probability: 0.5,
@@ -184,6 +202,15 @@ impl Default for Config {
             share_trust_threshold_high: 1.0,
             colonization_aggressiveness_low: 0.0,
             colonization_aggressiveness_high: 1.0,
+            strategy_mix_random: 1.0,
+            strategy_mix_full_aggressive: 0.0,
+            strategy_mix_full_passive: 0.0,
+            strategy_mix_anti_competitors: 0.0,
+            strategy_mix_anti_weaker_competitors: 0.0,
+            strategy_mix_dark_forest: 0.0,
+            strategy_mix_broadcaster: 0.0,
+            strategy_mix_cooperative: 0.0,
+            strategy_noise: 0.05,
             derived: None,
         }
     }
@@ -257,4 +284,70 @@ impl Config {
     pub fn tech_growth_cap(&self) -> Option<f64> {
         if self.derived().tech_logistic { Some(self.tech_cap) } else { None }
     }
+
+    /// Weights of the strategy archetypes, in ARCHETYPES order.
+    pub fn strategy_mix(&self) -> [f64; 8] {
+        [
+            self.strategy_mix_random,
+            self.strategy_mix_full_aggressive,
+            self.strategy_mix_full_passive,
+            self.strategy_mix_anti_competitors,
+            self.strategy_mix_anti_weaker_competitors,
+            self.strategy_mix_dark_forest,
+            self.strategy_mix_broadcaster,
+            self.strategy_mix_cooperative,
+        ]
+    }
 }
+
+/// A strategy archetype (config.ARCHETYPES): pinned broadcast and pinned traits, in
+/// config.STRATEGY_RANGES order (None: drawn uniformly in the range).
+pub struct Archetype {
+    pub name: &'static str,
+    pub broadcast: Option<bool>,
+    pub traits: [Option<f64>; 8],
+}
+
+const INF: f64 = f64::INFINITY;
+
+/// Traits: attack_gap_min, attack_gap_max, caution_k, attack_when_trust_inferior_than,
+/// trust_default_competitor, trust_default_noncompetitor, share_trust_threshold,
+/// colonization_aggressiveness (never pinned).
+pub const ARCHETYPES: [Archetype; 8] = [
+    Archetype { name: "random", broadcast: None, traits: [None; 8] },
+    Archetype {
+        name: "full_aggressive",
+        broadcast: Some(false),
+        traits: [Some(-INF), Some(INF), Some(0.0), Some(1.0), Some(0.0), Some(0.0), Some(0.8), None],
+    },
+    Archetype {
+        name: "full_passive",
+        broadcast: Some(false),
+        traits: [Some(0.5), Some(5.0), Some(1.0), Some(0.0), Some(0.2), Some(0.7), Some(0.8), None],
+    },
+    Archetype {
+        name: "anti_competitors",
+        broadcast: Some(false),
+        traits: [Some(-INF), Some(INF), Some(1.0), Some(0.3), Some(0.0), Some(1.0), Some(0.8), None],
+    },
+    Archetype {
+        name: "anti_weaker_competitors",
+        broadcast: Some(false),
+        traits: [Some(0.0), Some(INF), Some(1.5), Some(0.3), Some(0.0), Some(1.0), Some(0.8), None],
+    },
+    Archetype {
+        name: "dark_forest",
+        broadcast: Some(false),
+        traits: [Some(0.0), Some(INF), Some(2.0), Some(0.9), Some(0.0), Some(0.0), Some(0.8), None],
+    },
+    Archetype {
+        name: "broadcaster",
+        broadcast: Some(true),
+        traits: [Some(0.5), Some(5.0), Some(1.0), Some(0.0), Some(0.2), Some(0.7), Some(0.8), None],
+    },
+    Archetype {
+        name: "cooperative",
+        broadcast: Some(true),
+        traits: [Some(0.5), Some(5.0), Some(1.0), Some(0.2), Some(0.5), Some(0.9), Some(0.4), None],
+    },
+];

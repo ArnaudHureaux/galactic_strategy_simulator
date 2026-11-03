@@ -1,8 +1,9 @@
 from p0_passive_update._growth_law import grow
 
 
-def _tech_rate(civ):
-    return civ.natural_tech_progress * (1 - civ.colonization_aggressiveness) * civ.population_size
+def _tech_rate(civ, config):
+    return (civ.natural_tech_progress * (1 - civ.colonization_aggressiveness)
+            * civ.population_size ** config.tech_population_exponent)
 
 
 def _tech_growth_cap(config):
@@ -10,7 +11,7 @@ def _tech_growth_cap(config):
 
 
 def _tech_growth(civ, config, dt, exact=False):
-    r = _tech_rate(civ)
+    r = _tech_rate(civ, config)
     if exact:
         civ.tech_level = grow(civ.tech_level, r, _tech_growth_cap(config), dt)
     elif config.tech_growth_model == "logistic":

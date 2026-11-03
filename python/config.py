@@ -22,6 +22,39 @@ _UNIT_RANGES = (
     "colonization_aggressiveness",
 )
 
+# Strategy archetypes (data_model/strategies/strategy_presets.json, unspecified fields at their
+# strategy_vector.json default; +-inf stand for the bounds of the ranges). Each civ draws an
+# archetype with probability proportional to strategy_mix_<name>, then each pinned trait is the
+# archetype value plus a uniform noise of +-strategy_noise times the width of its range, clipped
+# to the range. Traits an archetype does not pin (all of them for "random", and
+# colonization_aggressiveness for every archetype) are drawn uniformly in their range, and
+# broadcast with probability broadcast_probability.
+_INF = float("inf")
+ARCHETYPES = {
+    "random": {},
+    "full_aggressive": {"broadcast": False, "attack_gap_min": -_INF, "attack_gap_max": _INF, "caution_k": 0.0,
+                        "attack_when_trust_inferior_than": 1.0, "trust_default_competitor": 0.0,
+                        "trust_default_noncompetitor": 0.0, "share_trust_threshold": 0.8},
+    "full_passive": {"broadcast": False, "attack_gap_min": 0.5, "attack_gap_max": 5.0, "caution_k": 1.0,
+                     "attack_when_trust_inferior_than": 0.0, "trust_default_competitor": 0.2,
+                     "trust_default_noncompetitor": 0.7, "share_trust_threshold": 0.8},
+    "anti_competitors": {"broadcast": False, "attack_gap_min": -_INF, "attack_gap_max": _INF, "caution_k": 1.0,
+                         "attack_when_trust_inferior_than": 0.3, "trust_default_competitor": 0.0,
+                         "trust_default_noncompetitor": 1.0, "share_trust_threshold": 0.8},
+    "anti_weaker_competitors": {"broadcast": False, "attack_gap_min": 0.0, "attack_gap_max": _INF, "caution_k": 1.5,
+                                "attack_when_trust_inferior_than": 0.3, "trust_default_competitor": 0.0,
+                                "trust_default_noncompetitor": 1.0, "share_trust_threshold": 0.8},
+    "dark_forest": {"broadcast": False, "attack_gap_min": 0.0, "attack_gap_max": _INF, "caution_k": 2.0,
+                    "attack_when_trust_inferior_than": 0.9, "trust_default_competitor": 0.0,
+                    "trust_default_noncompetitor": 0.0, "share_trust_threshold": 0.8},
+    "broadcaster": {"broadcast": True, "attack_gap_min": 0.5, "attack_gap_max": 5.0, "caution_k": 1.0,
+                    "attack_when_trust_inferior_than": 0.0, "trust_default_competitor": 0.2,
+                    "trust_default_noncompetitor": 0.7, "share_trust_threshold": 0.8},
+    "cooperative": {"broadcast": True, "attack_gap_min": 0.5, "attack_gap_max": 5.0, "caution_k": 1.0,
+                    "attack_when_trust_inferior_than": 0.2, "trust_default_competitor": 0.5,
+                    "trust_default_noncompetitor": 0.9, "share_trust_threshold": 0.4},
+}
+
 GROWTH_MODELS = ("logistic", "exponential")
 SELF_DESTRUCTION_SHAPES = ("constant", "increasing", "danger_window")
 
@@ -51,11 +84,16 @@ class Config:
     civ_birth_rate: float = 1e-8
 
     last_grb_date_years: float = 1.0e9
-    humanity_birth_date_years: float = 1.3799e10
+    # Start of human civilization: from then on, humanity can be seen by probes on site (and attacked).
+    # It only leaks signals during the last signal_window_years (see _compute_broadcast_radius).
+    humanity_birth_date_years: float = 1.379999e10
     present_date_years: float = 1.38e10
     signal_window_years: float = 100.0
     artefact_window_years: float = 4.5e9
     artefact_detection_probability: float = 0.1
+    # Advanced civs make discreet probes: the discovery probability above is multiplied by
+    # exp(-artefact_stealth_per_tech * max(0, owner tech - humanity tech)) (0 = no stealth).
+    artefact_stealth_per_tech: float = 0.0
 
     tech_growth_model: str = "logistic"
     population_growth_model: str = "logistic"
@@ -77,6 +115,13 @@ class Config:
     max_probe_radius: float = 1e12
     probe_lifetime_per_tech: float = 1e6
 
+    # Colonization front (see p0_passive_update/_advance_fronts.py): the sphere of a civ grows at
+    # colonization_aggressiveness * front_speed_per_tech * tech_level pc/year, stops where it meets
+    # the sphere of a competitor (same biochem type), and holds
+    # 1 + habitable_world_density * (fraction of worlds of its biochem type) * volume worlds.
+    front_speed_per_tech: float = 1e-7
+    habitable_world_density: float = 0.01
+
     belief_memory_years: float = 0.0
 
     # share_catchup, share_backflow, share_synergy_bonus and share_trust_gain are rates per
@@ -94,6 +139,9 @@ class Config:
     reputation_trust_drop: float = 0.3
 
     natural_tech_progress_mean: float = 1e-10
+    # Tech grows at natural_tech_progress * (1 - colonization_aggressiveness) * population ** this:
+    # expanding costs tech now but brings population, hence tech later (1 = linear returns).
+    tech_population_exponent: float = 1.0
     natural_population_growth_mean: float = 1e-9
     max_natural_tech_progress: float = 1e-7
 
@@ -115,6 +163,16 @@ class Config:
     share_trust_threshold_high: float = 1.0
     colonization_aggressiveness_low: float = 0.0
     colonization_aggressiveness_high: float = 1.0
+    # Strategy archetypes (see ARCHETYPES): relative weights, normalized when drawing.
+    strategy_mix_random: float = 1.0
+    strategy_mix_full_aggressive: float = 0.0
+    strategy_mix_full_passive: float = 0.0
+    strategy_mix_anti_competitors: float = 0.0
+    strategy_mix_anti_weaker_competitors: float = 0.0
+    strategy_mix_dark_forest: float = 0.0
+    strategy_mix_broadcaster: float = 0.0
+    strategy_mix_cooperative: float = 0.0
+    strategy_noise: float = 0.05
 
     def __post_init__(self):
         # JSON gives lists: keep tuples so configs stay hashable and comparable.
@@ -197,7 +255,8 @@ def _validate(c):
 
     for name in ("self_destruction_risk", "emit_radius_per_tech", "passive_leakage_factor",
                  "max_broadcast_radius", "probe_speed_per_tech", "max_probe_radius",
-                 "probe_lifetime_per_tech", "belief_memory_years", "share_backflow",
+                 "probe_lifetime_per_tech", "front_speed_per_tech", "habitable_world_density",
+                 "tech_population_exponent", "artefact_stealth_per_tech", "belief_memory_years", "share_backflow",
                  "share_synergy_bonus", "damage_coef", "reputation_trust_drop",
                  "natural_tech_progress_mean", "natural_population_growth_mean",
                  "max_natural_tech_progress"):
@@ -217,4 +276,7 @@ def _validate(c):
     check(c.caution_k_low >= 0, "caution_k_low must be >= 0")
     check(c.attack_gap_max_low >= c.attack_gap_min_high,
           "attack_gap_max_low must be >= attack_gap_min_high (every civ needs attack_gap_max >= attack_gap_min)")
+    mix = [getattr(c, f"strategy_mix_{name}") for name in ARCHETYPES]
+    check(all(w >= 0 for w in mix) and sum(mix) > 0, "strategy_mix_* must be >= 0 and not all 0")
+    check(c.strategy_noise >= 0, "strategy_noise must be >= 0")
     return errors

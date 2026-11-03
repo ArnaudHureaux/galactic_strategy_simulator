@@ -1,5 +1,5 @@
 {
-  "description": "EXEMPLES: strategies nommees exprimees comme reglages du StrategyVector (schema: strategy_vector.json). Seuls les champs non-defaut sont montres; les autres prennent la valeur par defaut du schema. Convention: 1e9 = +infini, -1e9 = -infini.",
+  "description": "EXEMPLES: strategies nommees exprimees comme reglages du StrategyVector (schema: strategy_vector.json). Seuls les champs non-defaut sont montres; les autres prennent la valeur par defaut du schema. Convention: 1e9 = +infini, -1e9 = -infini. Le moteur s'en sert comme archetypes (python/config.py ARCHETYPES, miroir rust/core/src/config.rs): a garder synchronises.",
   "presets": {
     "full_aggressive": {
       "_comment": "Attaque toute civ detectee et atteignable, quel que soit le type ou le tech gap. Temeraire (caution_k=0).",

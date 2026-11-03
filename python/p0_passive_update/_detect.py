@@ -4,19 +4,25 @@ from state import BeliefEntry
 
 def _detect(world, config, now):
     world.note_detection_step(now)
-    visible = {c.id for c in world.visible(now)}
+    visible_civs = world.visible(now)
+    visible = {c.id for c in visible_civs}
+    widest_front = 0.0
+    for c in visible_civs:
+        widest_front = max(widest_front, c.expansion_radius)
     for civ in world.active(now):
         if civ.is_human and now < config.present_date_years - config.signal_window_years:
             continue
-        reach = max(config.max_broadcast_radius, civ.probe_radius)
+        reach = max(config.max_broadcast_radius + civ.expansion_radius + widest_front, civ.probe_radius)
         for other, d in world.neighbor_pairs_within(civ, reach):
             if other.id not in visible:
                 continue
+            # Light delay over the distance between the two homes (an upper bound for sphere edges).
             seen_at = now - d / C_PC_PER_YEAR
             view = other.state_at(seen_at)
             if view is None:
                 continue
-            by_signal = view.broadcast_radius >= d
+            # Signals carry from sphere edge to sphere edge.
+            by_signal = view.broadcast_radius >= d - civ.expansion_radius - view.expansion_radius
             by_probe = _probe_reached(civ, seen_at, d)
             if not (by_signal or by_probe):
                 continue

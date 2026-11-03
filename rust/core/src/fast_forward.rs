@@ -3,7 +3,8 @@
 use crate::config::Config;
 use crate::decisions::{max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
-use crate::passive::{population_capacity, self_destruction_shape, tech_rate, time_to_reach};
+use crate::geometry::dist;
+use crate::passive::{population_capacity, radius_for_nb_of_world, self_destruction_shape, tech_rate, time_to_reach, world_density};
 use crate::pymath::{self, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -29,7 +30,16 @@ impl Jump {
 #[derive(PartialEq)]
 enum CivSignature {
     Dead(usize),
-    Alive { id: usize, attacked_by: Option<usize>, natural_tech_progress: f64, k: f64, tech: Option<f64>, pop: Option<f64> },
+    Alive {
+        id: usize,
+        attacked_by: Option<usize>,
+        natural_tech_progress: f64,
+        k: f64,
+        tech: Option<f64>,
+        pop: Option<f64>,
+        front: Option<f64>,
+        front_blocked: bool,
+    },
 }
 
 /// Python compares sorted tuples of ids: any fixed order of (kind, src, dst) gives the same equality.
@@ -118,9 +128,12 @@ fn quick_signature(world: &World, applied: &[Event], emitted: &[Event], tech_tou
                 id: i,
                 attacked_by: c.attacked_by,
                 natural_tech_progress: c.natural_tech_progress,
-                k: (c.tech_level * c.population_size).trunc(),
+                // The number of attacks only matters below the number of possible targets (beliefs).
+                k: pymin((c.tech_level * c.population_size).trunc(), c.belief.len() as f64),
                 tech: tech_touched[i].then_some(c.tech_level),
                 pop: pop_touched[i].then_some(c.population_size),
+                front: pop_touched[i].then_some(c.expansion_radius),
+                front_blocked: c.front_blocked,
             }
         })
         .collect();
@@ -154,10 +167,18 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
         tech_budget[i] = Some(rel * world.civs[i].tech_level);
         pop_budget[i] = Some(rel * world.civs[i].population_size);
     }
+    // Fronts of attacked civs replay one regular step per jump (see passive_update): they do not drift.
+    let mut front_budget: Vec<Option<f64>> = vec![None; n];
+    for &i in &active {
+        if !pop_touched[i] && front_moves(&world.civs[i], config) {
+            front_budget[i] = Some(initial_front_budget(&world.civs[i], config, rel));
+        }
+    }
 
     limit = pymin(limit, belief_expiry_limit(world, &active, config, now));
     decision_budgets(world, &active, config, now, &mut tech_budget, &mut pop_budget);
-    limit = pymin(limit, detection_limit(world, &active, config, now, &mut tech_budget));
+    colonization_budgets(world, &active, &mut front_budget);
+    limit = pymin(limit, detection_limit(world, &active, config, now, &mut tech_budget, &mut front_budget));
 
     for &i in &active {
         let c = &world.civs[i];
@@ -167,6 +188,9 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
         }
         if !pop_touched[i] {
             limit = pymin(limit, time_to_spend_pop_budget(c, config, pb));
+        }
+        if let Some(fb) = front_budget[i] {
+            limit = pymin(limit, time_to_spend_front_budget(c, config, fb, tb));
         }
     }
 
@@ -286,14 +310,25 @@ fn decision_budgets(world: &mut World, active: &[usize], config: &Config, now: f
     }
 }
 
-/// Unseen pairs: limit the drift of the emitter's broadcast radius and the time until the
-/// observer's probe sphere reaches the target (see fast_forward._detection_limit).
-fn detection_limit(world: &World, active: &[usize], config: &Config, now: f64, tech_budget: &mut [Option<f64>]) -> f64 {
+/// Unseen pairs: limit the drift of the emitter's broadcast radius and of both fronts, and the
+/// time until the observer's probe sphere reaches the target (see fast_forward._detection_limit).
+fn detection_limit(
+    world: &World,
+    active: &[usize],
+    config: &Config,
+    now: f64,
+    tech_budget: &mut [Option<f64>],
+    front_budget: &mut [Option<f64>],
+) -> f64 {
     let mut limit = f64::INFINITY;
     let window_start = config.present_date_years - config.signal_window_years;
     let mut is_active = vec![false; world.civs.len()];
     for &i in active {
         is_active[i] = true;
+    }
+    let mut widest_front = 0.0;
+    for &i in active {
+        widest_front = pymax(widest_front, front_end(&world.civs[i], front_budget[i]));
     }
     for &yi in active {
         let y = &world.civs[yi];
@@ -301,16 +336,29 @@ fn detection_limit(world: &World, active: &[usize], config: &Config, now: f64, t
             continue;
         }
         let (distances, neighbors) = world.neighbors_by_distance(yi);
-        let n_broadcast = distances.partition_point(|&d| d <= config.max_broadcast_radius);
+        let reach = config.max_broadcast_radius + front_end(y, front_budget[yi]) + widest_front;
+        let n_broadcast = distances.partition_point(|&d| d <= reach);
         for (&d, &xi) in distances[..n_broadcast].iter().zip(&neighbors[..n_broadcast]) {
             let xi = xi as usize;
             let x = &world.civs[xi];
             if !is_active[xi] || x.tech_level <= 0.0 || seen_now(y, xi, now) {
                 continue;
             }
-            // Broadcast radius is proportional to tech.
-            let critical_tech = if x.broadcast_radius > 0.0 { d * x.tech_level / x.broadcast_radius } else { f64::INFINITY };
-            shrink(tech_budget, xi, critical_tech - x.tech_level);
+            // Share what is left of the gap between whatever can close it.
+            let movers: Vec<usize> = [xi, yi].into_iter().filter(|&m| front_budget[m].is_some()).collect();
+            let n_moving = movers.len() + usize::from(x.broadcast_radius > 0.0);
+            if n_moving == 0 {
+                continue;
+            }
+            let share = (d - y.expansion_radius - x.expansion_radius - x.broadcast_radius) / n_moving as f64;
+            for m in movers {
+                shrink(front_budget, m, share);
+            }
+            if x.broadcast_radius > 0.0 {
+                // Broadcast radius is proportional to tech.
+                let critical_tech = (x.broadcast_radius + share) * x.tech_level / x.broadcast_radius;
+                shrink(tech_budget, xi, critical_tech - x.tech_level);
+            }
         }
         for (&d, &xi) in distances.iter().zip(neighbors) {
             if d > config.max_probe_radius {
@@ -352,7 +400,8 @@ fn time_to_spend_pop_budget(civ: &Civ, config: &Config, pop_budget: f64) -> f64 
 fn time_to_spend_tech_budget(civ: &Civ, config: &Config, tech_budget: f64, pop_budget: f64) -> f64 {
     // Fastest tech growth rate reachable during the jump (population only grows).
     let r = if civ.population_size > 0.0 {
-        tech_rate(civ) * (1.0 + pymax(0.0, pop_budget) / civ.population_size)
+        let gain = pymath::pow(1.0 + pymax(0.0, pop_budget) / civ.population_size, config.tech_population_exponent);
+        tech_rate(civ, config) * gain
     } else {
         0.0
     };
@@ -360,4 +409,49 @@ fn time_to_spend_tech_budget(civ: &Civ, config: &Config, tech_budget: f64, pop_b
         return f64::INFINITY;
     }
     time_to_reach(civ.tech_level, civ.tech_level + tech_budget, r, config.tech_growth_cap())
+}
+
+/// A blocked front stays blocked until its competitor shrinks (attack) or dies (random event).
+fn front_moves(civ: &Civ, config: &Config) -> bool {
+    civ.colonization_aggressiveness > 0.0 && config.front_speed_per_tech > 0.0 && civ.tech_level > 0.0 && !civ.front_blocked
+}
+
+/// Largest advance keeping the number of worlds (hence the population capacity) within rel.
+fn initial_front_budget(civ: &Civ, config: &Config, rel: f64) -> f64 {
+    let density = world_density(civ, config);
+    if density <= 0.0 {
+        return f64::INFINITY;
+    }
+    radius_for_nb_of_world(civ.nb_of_world * (1.0 + rel), density) - civ.expansion_radius
+}
+
+fn front_end(civ: &Civ, budget: Option<f64>) -> f64 {
+    match budget {
+        None => civ.expansion_radius,
+        Some(budget) => civ.expansion_radius + pymax(0.0, budget),
+    }
+}
+
+/// A front must not reach the Sun during a jump (see check_silence).
+fn colonization_budgets(world: &World, active: &[usize], front_budget: &mut [Option<f64>]) {
+    let human = &world.civs[world.humanity];
+    for &i in active {
+        if i == world.humanity || front_budget[i].is_none() {
+            continue;
+        }
+        let c = &world.civs[i];
+        let gap = dist(&c.position, &human.position) - c.expansion_radius;
+        if gap > 0.0 {
+            shrink(front_budget, i, gap);
+        }
+    }
+}
+
+fn time_to_spend_front_budget(civ: &Civ, config: &Config, front_budget: f64, tech_budget: f64) -> f64 {
+    // Fastest front reachable during the jump (front speed is proportional to tech).
+    let speed = civ.colonization_aggressiveness * config.front_speed_per_tech * (civ.tech_level + pymax(0.0, tech_budget));
+    if front_budget == f64::INFINITY {
+        return f64::INFINITY;
+    }
+    front_budget / speed - config.dt
 }

@@ -8,6 +8,7 @@ from p0_passive_update._self_destruction import _self_destruction
 from p0_passive_update._detect import _detect
 from p0_passive_update._check_silence import _check_silence, _received_signal_in_window, _roll_artefacts
 from p0_passive_update._advance_probes import _advance_probes
+from p0_passive_update._advance_fronts import _advance_fronts, _front_speed
 
 
 def passive_update(world, config, now, streams, dt=None, jump=None):
@@ -22,18 +23,29 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
         world.add_civ(_new_civ(f"c_{len(world.civs)}", position, config, streams.birth, now))
 
     horizon = world.history_horizon()
-    for civ in world.active(now):
+    active = world.active(now)
+    advances = []
+    for civ in active:
         # A civ born during this step only lives one regular step of it.
         step = min(dt, now - civ.birth_year + config.dt)
         exact = jump is not None and step > config.dt
         exact_tech = exact and civ.id not in jump.frozen_tech
         exact_pop = exact and civ.id not in jump.frozen_pop
         speed_before = civ.probe_speed
+        front_before = _front_speed(civ, config)
         _tech_growth(civ, config, step if exact_tech else min(step, config.dt), exact_tech)
         _population_growth(civ, config, step if exact_pop else min(step, config.dt), exact_pop)
-        civ.broadcast_radius = _compute_broadcast_radius(civ, config)
+        civ.broadcast_radius = _compute_broadcast_radius(civ, config, now)
         civ.probe_speed = _compute_probe_speed(civ, config)
         _advance_probes(civ, world.humanity, config, now, step, (speed_before + civ.probe_speed) / 2 if exact else None)
+        # The front of an attacked civ (shrunk by every attack) replays one regular step, like its population.
+        front_after = _front_speed(civ, config)
+        if exact_pop:
+            advances.append((civ, (front_before + front_after) / 2 * step))
+        else:
+            advances.append((civ, front_after * min(step, config.dt)))
+    _advance_fronts(world, config, advances)
+    for civ in active:
         civ.record(now, horizon)
 
     if jump is None:

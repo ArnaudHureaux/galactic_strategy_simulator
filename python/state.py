@@ -13,6 +13,7 @@ class Snapshot:
     broadcast_radius: float
     probe_radius: float
     attacked_by: str = None
+    expansion_radius: float = 0.0
 
 
 @dataclass
@@ -42,7 +43,7 @@ class Civilisation:
     biochem_type: str
     tech_level: float
     population_size: float
-    nb_of_world: int
+    nb_of_world: float
     natural_tech_progress: float
     natural_population_growth: float
     colonization_aggressiveness: float
@@ -51,6 +52,8 @@ class Civilisation:
     probe_speed: float = 0.0
     probe_radius: float = 0.0
     expansion_radius: float = 0.0
+    # The front had to advance during the last step but was stopped by a competitor's sphere.
+    front_blocked: bool = False
     belief: dict = field(default_factory=dict)
     # Beliefs seen recently enough to still be actionable (a superset, see recent_beliefs).
     recent: dict = field(default_factory=dict)
@@ -78,7 +81,8 @@ class Civilisation:
 
     def record(self, now, horizon):
         self.history_t.append(now)
-        self.history.append(Snapshot(now, self.tech_level, self.broadcast_radius, self.probe_radius, self.attacked_by))
+        self.history.append(Snapshot(now, self.tech_level, self.broadcast_radius, self.probe_radius, self.attacked_by,
+                                     self.expansion_radius))
         # Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         cutoff = now - horizon
         drop = 0

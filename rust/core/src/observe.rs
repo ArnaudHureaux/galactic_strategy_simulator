@@ -1,7 +1,7 @@
 //! Mirror of python/observe.py: run summary, per-civ records and final metadata.
 //! The config parameters, config_hash and seed are added on the Python side.
 
-use crate::config::Config;
+use crate::config::{ARCHETYPES, Config};
 use crate::geometry::dist;
 use crate::pymath::pymax;
 use crate::state::World;
@@ -143,6 +143,8 @@ pub fn civ_records(world: &World, config: &Config, end: f64) -> Vec<Record> {
                 ("natural_tech_progress", c.natural_tech_progress.into()),
                 ("natural_population_growth", c.natural_population_growth.into()),
                 ("probe_radius", c.probe_radius.into()),
+                ("expansion_radius_pc", c.expansion_radius.into()),
+                ("nb_of_world", c.nb_of_world.into()),
                 ("was_attacked", c.attacked_by.is_some().into()),
                 ("n_known_civs", c.belief.len().into()),
                 ("detected_humanity", c.belief_of.contains_key(&h).into()),
@@ -150,6 +152,7 @@ pub fn civ_records(world: &World, config: &Config, end: f64) -> Vec<Record> {
                 ("strategy_broadcast", c.strategy.broadcast.into()),
             ];
             record.extend(c.strategy.values().into_iter().map(|(name, v)| (name, v.into())));
+            record.push(("strategy_archetype", ARCHETYPES[c.strategy.archetype].name.into()));
             record
         })
         .collect()

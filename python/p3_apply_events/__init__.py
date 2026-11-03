@@ -2,6 +2,7 @@ from p3_apply_events._share_tech_update import _share_tech_update
 from p3_apply_events._share_trust_update import _share_trust_update
 from p3_apply_events._share_strength import _share_growth
 from p3_apply_events._attack_damage import _attack_damage
+from p0_passive_update._advance_fronts import _update_nb_of_world
 
 
 def apply_events(event, world, config):
@@ -44,6 +45,7 @@ def _apply_attack(event, target, world):
     target.tech_level *= (1 - damage)
     target.population_size *= (1 - damage)
     target.expansion_radius *= (1 - damage)
+    _update_nb_of_world(target, world.config)
     if event.src in target.belief:
         entry = target.belief[event.src]
         if entry.trust != 0.0 or not entry.attacked_me:

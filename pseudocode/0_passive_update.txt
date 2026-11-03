@@ -6,10 +6,23 @@ if rng.random() < CIV_BIRTH_RATE * dt:
 
 for civ in world.civs:
     tech_growth(civ, dt)
-    population_growth(civ, dt)
-    civ.broadcast_radius = compute_broadcast_radius(civ.tech_level, civ.strategy)
+    population_growth(civ, dt)   # capacity = POPULATION_PER_WORLD * civ.nb_of_world
+    civ.broadcast_radius = compute_broadcast_radius(civ, now)
     civ.probe_speed = compute_probe_speed(civ.tech_level, civ.probe_speed)
     advance_probes(civ, dt)  # records when the probe sphere reaches the Sun
+    advance[civ] = civ.colonization_aggressiveness * FRONT_SPEED_PER_TECH * civ.tech_level * dt
+
+# colonization fronts only take empty worlds: two competitors (same biochem) stop where their
+# spheres meet, sharing the gap in proportion to their advances (a competitor born inside a
+# sphere does not stop it and cannot grow itself)
+for civ in world.civs:
+    factor = min(1, min(max(0, d - civ.R - other.R) / (advance[civ] + advance[other])
+                        for each alive competitor other with d = dist(civ, other) > civ.R
+                        and d - civ.R - other.R < advance[civ] + advance[other]))
+    new_R[civ] = civ.R + advance[civ] * factor
+for civ in world.civs:
+    civ.R = new_R[civ]
+    civ.nb_of_world = 1 + HABITABLE_WORLD_DENSITY * fraction_of_worlds(civ.biochem) * 4/3 pi civ.R^3
     civ.record_snapshot(now)
 
 # orphan probes keep spreading for PROBE_LIFETIME_PER_TECH * tech_at_death years
@@ -19,7 +32,7 @@ for civ in world.extinct_with_live_probes(now):
 # dead civs stay visible from afar until their last light has crossed the region
 index = SpatialIndex(world.visible(now).position)
 for civ in world.active(now):
-    reach = max(MAX_BROADCAST_RADIUS, civ.probe_radius)
+    reach = max(MAX_BROADCAST_RADIUS + civ.R + widest_visible_front, civ.probe_radius)
     for other in index.neighbors_within(civ.position, reach):
         if other is civ:
             continue
@@ -27,7 +40,7 @@ for civ in world.active(now):
         view = public_view(other, at=now - d / C)  # None if not yet born or already dead at that time
         if view is None:
             continue
-        by_signal = view.broadcast_radius >= d
+        by_signal = view.broadcast_radius >= d - civ.R - view.R   # from sphere edge to sphere edge
         by_probe = public_view(civ, at=now - d / C).probe_radius >= d
         if not (by_signal or by_probe):
             continue

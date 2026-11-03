@@ -1,6 +1,6 @@
 from dataclasses import replace
 
-from config import Config, STRATEGY_RANGES
+from config import ARCHETYPES, Config, STRATEGY_RANGES
 from generate_world import generate_world
 from rng import make_streams
 
@@ -51,3 +51,23 @@ def test_strategies_are_drawn_in_the_configured_ranges():
         assert c.strategy["broadcast"] is True
         for name in STRATEGY_RANGES:
             assert narrow[f"{name}_low"] <= c.strategy[name] <= narrow[f"{name}_high"]
+
+
+def test_archetypes_pin_their_traits_up_to_the_noise():
+    config = replace(Config(), strategy_mix_random=0.0, strategy_mix_dark_forest=1.0, strategy_mix_cooperative=1.0,
+                     strategy_noise=0.0, expected_bubbles=20.0)
+    civs = [c for c in _world(config).civs if not c.is_human]
+    assert {c.strategy["archetype"] for c in civs} == {"dark_forest", "cooperative"}
+    for c in civs:
+        pinned = ARCHETYPES[c.strategy["archetype"]]
+        assert c.strategy["broadcast"] is pinned["broadcast"]
+        expected_gap_max = min(config.attack_gap_max_high, max(config.attack_gap_max_low, pinned["attack_gap_max"]))
+        assert c.strategy["attack_gap_max"] == expected_gap_max  # +inf is clipped to the range
+        assert c.strategy["caution_k"] == pinned["caution_k"]
+        assert c.strategy["trust_default_noncompetitor"] == pinned["trust_default_noncompetitor"]
+    # Unpinned for every archetype: still drawn in its range.
+    assert len({c.strategy["colonization_aggressiveness"] for c in civs}) == len(civs)
+
+    noisy = [c for c in _world(replace(config, strategy_noise=0.1)).civs if not c.is_human]
+    gaps = [abs(c.strategy["caution_k"] - ARCHETYPES[c.strategy["archetype"]]["caution_k"]) for c in noisy]
+    assert 0 < max(gaps) <= 0.1 * (config.caution_k_high - config.caution_k_low)

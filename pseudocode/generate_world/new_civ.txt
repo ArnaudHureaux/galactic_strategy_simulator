@@ -11,3 +11,17 @@ def new_civ(position, config, rng):
         strategy=sample_strategy(rng),
         belief={},
     )
+
+
+# the galaxy is a mix of archetypes (strategy_presets.json), in proportions STRATEGY_MIX_*;
+# "random" draws every trait uniformly in its range
+def sample_strategy(rng):
+    archetype = rng.weighted_choice(ARCHETYPES, weights=STRATEGY_MIX)
+    strategy = {"archetype": archetype, "broadcast": archetype.get("broadcast", rng.random() < BROADCAST_PROBABILITY)}
+    for trait, (low, high) in STRATEGY_RANGES.items():
+        if trait in archetype:   # colonization_aggressiveness is never pinned
+            noise = STRATEGY_NOISE * (high - low) * rng.uniform(-1, 1)
+            strategy[trait] = clip(archetype[trait] + noise, low, high)
+        else:
+            strategy[trait] = rng.uniform(low, high)
+    return strategy

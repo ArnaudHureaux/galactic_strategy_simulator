@@ -12,7 +12,7 @@ def _new_civ(civ_id, position, config, rng, birth_year):
         biochem_type=rng.weighted_choice(config.biochem_types, config.world_type_fractions),
         tech_level=config.initial_tech_level,
         population_size=config.initial_population,
-        nb_of_world=1,
+        nb_of_world=1.0,
         natural_tech_progress=config.natural_tech_progress_mean * rng.uniform(0.5, 1.5),
         natural_population_growth=config.natural_population_growth_mean * rng.uniform(0.5, 1.5),
         colonization_aggressiveness=strategy["colonization_aggressiveness"],

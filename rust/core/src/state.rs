@@ -15,6 +15,7 @@ pub struct Snapshot {
     pub broadcast_radius: f64,
     pub probe_radius: f64,
     pub attacked_by: Option<usize>,
+    pub expansion_radius: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -57,11 +58,13 @@ pub struct Strategy {
     pub trust_default_noncompetitor: f64,
     pub share_trust_threshold: f64,
     pub colonization_aggressiveness: f64,
+    /// Index in config::ARCHETYPES.
+    pub archetype: usize,
 }
 
 impl Strategy {
     /// Values in config.STRATEGY_RANGES order.
-    pub fn from_values(broadcast: bool, v: [f64; 8]) -> Strategy {
+    pub fn from_values(broadcast: bool, v: [f64; 8], archetype: usize) -> Strategy {
         Strategy {
             broadcast,
             attack_gap_min: v[0],
@@ -72,6 +75,7 @@ impl Strategy {
             trust_default_noncompetitor: v[5],
             share_trust_threshold: v[6],
             colonization_aggressiveness: v[7],
+            archetype,
         }
     }
 
@@ -108,6 +112,8 @@ pub struct Civ {
     pub probe_speed: f64,
     pub probe_radius: f64,
     pub expansion_radius: f64,
+    /// The front had to advance during the last step but was stopped by a competitor's sphere.
+    pub front_blocked: bool,
     /// Beliefs in insertion order (an entry's index is its `order` in Python).
     pub belief: Vec<BeliefEntry>,
     /// Target civ -> index in `belief`.
@@ -142,6 +148,7 @@ impl Civ {
             broadcast_radius: self.broadcast_radius,
             probe_radius: self.probe_radius,
             attacked_by: self.attacked_by,
+            expansion_radius: self.expansion_radius,
         });
         // Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         let cutoff = now - horizon;

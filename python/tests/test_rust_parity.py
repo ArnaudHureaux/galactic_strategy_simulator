@@ -16,7 +16,7 @@ import rust_engine  # noqa: E402
 import simulation  # noqa: E402
 from compare_engines import differences  # noqa: E402
 from compare_fast_forward import scenario  # noqa: E402
-from config import Config  # noqa: E402
+from config import ARCHETYPES, Config  # noqa: E402
 
 SHORT = scenario(1.0e6)
 CASES = {
@@ -31,6 +31,11 @@ CASES = {
                         artefact_window_years=1.0e6),
     "intractable": replace(SHORT, max_civs=10),
     "max_steps": replace(SHORT, max_steps=5),
+    "colonization": replace(SHORT, front_speed_per_tech=1e-3, tech_population_exponent=0.7),
+    "colonization_jumps": replace(scenario(1.0e7), max_steps=1500, front_speed_per_tech=1e-4),
+    "archetypes": replace(SHORT, strategy_noise=0.2, **{f"strategy_mix_{name}": 1.0 for name in ARCHETYPES}),
+    "stealth": replace(SHORT, artefact_detection_probability=0.8, probe_speed_per_tech=1.0,
+                       artefact_window_years=1.0e6, artefact_stealth_per_tech=3.0),
 }
 
 

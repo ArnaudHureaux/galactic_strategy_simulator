@@ -44,6 +44,19 @@ def test_rejected_runs_keep_their_cause_and_date():
     assert log.civs
 
 
+def test_discreet_probes_of_advanced_civs_are_not_found():
+    # Owners far more advanced than humanity: fast tech growth, no late births at humanity's level,
+    # and attacks cost nothing and do no damage (both lower tech).
+    config = replace(scenario(SHORT), artefact_detection_probability=1.0, probe_speed_per_tech=1.0,
+                     artefact_window_years=SHORT, artefact_stealth_per_tech=1e3,
+                     natural_tech_progress_mean=1e-4, civ_birth_rate=0.0, attack_cost_tech=0.0, damage_coef=0.0,
+                     max_steps=50)
+    log = simulation.run(config, 1)
+    assert log.run["humanity_reached_by_probe"]
+    assert log.run["rejection_reason"] != "artefact"
+    assert simulation.run(replace(config, artefact_stealth_per_tech=0.0), 1).run["rejection_reason"] == "artefact"
+
+
 def test_batch_round_trips_through_parquet(tmp_path):
     config = scenario(SHORT)
     runs, civs = run_batch(config, [1, 2], workers=1)

@@ -5,9 +5,9 @@ def tech_growth(civ, dt):
         tech_growth_exponential(civ, dt)
 
 def tech_growth_logistic(civ, dt):
-    r = civ.natural_tech_progress * (1 - civ.colonization_aggressiveness) * civ.population_size
+    r = civ.natural_tech_progress * (1 - civ.colonization_aggressiveness) * civ.population_size ** TECH_POPULATION_EXPONENT
     civ.tech_level += r * civ.tech_level * (1 - civ.tech_level / TECH_CAP) * dt
 
 def tech_growth_exponential(civ, dt):
-    r = civ.natural_tech_progress * (1 - civ.colonization_aggressiveness) * civ.population_size
+    r = civ.natural_tech_progress * (1 - civ.colonization_aggressiveness) * civ.population_size ** TECH_POPULATION_EXPONENT
     civ.tech_level += r * civ.tech_level * dt

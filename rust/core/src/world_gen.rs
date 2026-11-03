@@ -2,9 +2,9 @@
 
 use std::f64::consts::PI;
 
-use crate::config::Config;
+use crate::config::{ARCHETYPES, Config};
 use crate::geometry::Position;
-use crate::pymath;
+use crate::pymath::{self, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, Strategy, World};
 
@@ -59,12 +59,20 @@ fn sample_ball(radius: f64, rng: &mut Rng) -> Position {
 }
 
 fn sample_strategy(config: &Config, rng: &mut Rng) -> Strategy {
-    let broadcast = rng.random() < config.broadcast_probability;
-    let mut values = [0.0; 8];
-    for (value, (low, high)) in values.iter_mut().zip(config.strategy_ranges()) {
-        *value = rng.uniform(low, high);
+    let archetype = rng.weighted_index(&config.strategy_mix());
+    let pinned = &ARCHETYPES[archetype];
+    let mut broadcast = rng.random() < config.broadcast_probability;
+    if let Some(b) = pinned.broadcast {
+        broadcast = b;
     }
-    Strategy::from_values(broadcast, values)
+    let mut values = [0.0; 8];
+    for ((value, (low, high)), pin) in values.iter_mut().zip(config.strategy_ranges()).zip(pinned.traits) {
+        *value = match pin {
+            Some(v) => pymin(high, pymax(low, v + config.strategy_noise * (high - low) * rng.uniform(-1.0, 1.0))),
+            None => rng.uniform(low, high),
+        };
+    }
+    Strategy::from_values(broadcast, values, archetype)
 }
 
 pub fn new_civ(id: String, position: Position, config: &Config, rng: &mut Rng, birth_year: f64) -> Civ {
@@ -89,6 +97,7 @@ pub fn new_civ(id: String, position: Position, config: &Config, rng: &mut Rng, b
         probe_speed: 0.0,
         probe_radius: 0.0,
         expansion_radius: 0.0,
+        front_blocked: false,
         belief: Vec::new(),
         belief_of: Default::default(),
         recent: Default::default(),

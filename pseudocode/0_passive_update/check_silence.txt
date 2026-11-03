@@ -1,7 +1,10 @@
 def check_silence(world, now):
     human = world.humanity
     contacted = len(human.belief) > 0 or human.attacked_by is not None
-    if now < PRESENT_DATE and contacted:
+    # Hart's argument: a colonization front holding the Sun since the Solar System exists would be seen
+    colonized = now >= PRESENT_DATE - ARTEFACT_WINDOW and any(
+        civ.R >= dist(civ, human) for civ in world.active(now) - {human})
+    if now < PRESENT_DATE and (contacted or colonized):
         world.rejected = True
 
 
@@ -11,7 +14,9 @@ def roll_artefacts(world, until):
         presence = [civ.probe_arrived_at_human, civ.probes_end_at]  # end = inf while creator alive
         if not civ.artefact_rolled and overlaps(presence, [PRESENT_DATE - ARTEFACT_WINDOW, until]):
             civ.artefact_rolled = True
-            if rng.random() < ARTEFACT_DETECTION_PROBABILITY:
+            # advanced owners make discreet probes; humanity's own tech sets how well we search
+            stealth = ARTEFACT_STEALTH_PER_TECH * max(0, tech_at_first_presence(civ) - world.humanity.tech_level)
+            if rng.random() < ARTEFACT_DETECTION_PROBABILITY * exp(-stealth):
                 world.rejected = True
 
 
@@ -19,7 +24,7 @@ def roll_artefacts(world, until):
 def final_silence_check(world):
     roll_artefacts(world, until=PRESENT_DATE)
     for civ in world.civs - {world.humanity}:
-        d = dist(civ, world.humanity)
-        emitted = [PRESENT_DATE - SIGNAL_WINDOW - d / C, PRESENT_DATE - d / C]
-        if any(view.broadcast_radius >= d for view in public_views(civ, during=emitted)):
+        d = dist(civ, world.humanity) - world.humanity.R
+        emitted = [PRESENT_DATE - SIGNAL_WINDOW - dist(civ, world.humanity) / C, PRESENT_DATE - dist(civ, world.humanity) / C]
+        if any(view.broadcast_radius >= d - view.R for view in public_views(civ, during=emitted)):
             world.rejected = True

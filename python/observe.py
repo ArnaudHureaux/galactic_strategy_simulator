@@ -121,6 +121,8 @@ def civ_records(world, config, seed, end):
             "natural_tech_progress": c.natural_tech_progress,
             "natural_population_growth": c.natural_population_growth,
             "probe_radius": c.probe_radius,
+            "expansion_radius_pc": c.expansion_radius,
+            "nb_of_world": c.nb_of_world,
             "was_attacked": c.attacked_by is not None,
             "n_known_civs": len(c.belief),
             "detected_humanity": human.id in c.belief,
