@@ -2,7 +2,7 @@
   "config_hash": "sha256:...",
   "seed": 42,
   "time_step_years": 1000,
-  "share_period_years": 1000,
+  "interaction_period_years": 1000,
   "region_radius_pc": 1000,
   "scale_height_pc": 300,
   "star_density_pc3": 0.08,
@@ -24,7 +24,7 @@
   "expected_bubbles": 5,
   "civs_per_bubble": 20,
   "civ_birth_rate": 1e-8,
-  "last_grb_date_years": 1.0e9,
+  "start_lookback_years": 1.0e9,
   "self_destruction_shape": "danger_window",
   "humanity_birth_date_years": 1.30e10,
   "present_date_years": 1.38e10

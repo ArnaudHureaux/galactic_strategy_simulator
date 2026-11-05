@@ -18,8 +18,13 @@ pub fn sort_scored(scored: &mut [(f64, usize)], world: &World) {
 }
 
 /// _compute_max_number_of_attack, as a float (Python ints compare exactly with it).
-pub fn max_number_of_attack(civ: &Civ) -> f64 {
-    pymax(1.0, (civ.tech_level * civ.population_size).trunc())
+pub fn max_number_of_attack(civ: &Civ, config: &Config) -> f64 {
+    pymax(1.0, attack_capacity(civ.tech_level, civ.population_size, config).trunc())
+}
+
+/// _attack_capacity: attacks_per_tech_population * tech * population.
+pub fn attack_capacity(tech_level: f64, population_size: f64, config: &Config) -> f64 {
+    config.attacks_per_tech_population * tech_level * population_size
 }
 
 fn attack_interest_score(civ: &Civ, entry: &BeliefEntry) -> f64 {
@@ -54,7 +59,7 @@ pub fn decide(world: &mut World, i: usize, config: &Config, now: f64, out: &mut 
         }
     }
     sort_scored(&mut scored, world);
-    let k = max_number_of_attack(civ);
+    let k = max_number_of_attack(civ, config);
     let n_attacks = if (scored.len() as f64) <= k { scored.len() } else { k as usize };
 
     let position = civ.position;
@@ -73,7 +78,7 @@ pub fn decide(world: &mut World, i: usize, config: &Config, now: f64, out: &mut 
     for &(_, target) in &scored[..n_attacks] {
         let arrival = now + dist(&position, &world.civs[target].position) / C_PC_PER_YEAR;
         let civ = &mut world.civs[i];
-        civ.tech_level -= config.attack_cost_tech * civ.tech_level;
+        civ.tech_level -= config.derived().attack_cost_fraction * civ.tech_level;
         out.push(Event { kind: Kind::Attack, src: i, dst: target, t: arrival, power: civ.tech_level, shared_tech_level: 0.0 });
     }
 }

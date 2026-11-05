@@ -15,7 +15,7 @@ def apply_share(event, world):
 
 def apply_share_relationship(event, world):
     receiver = world.civ(event.dst)
-    synergy = (1 + SHARE_SYNERGY_BONUS) ** (DT / SHARE_PERIOD_YEARS)
+    synergy = (1 + SHARE_SYNERGY_BONUS) ** (DT / INTERACTION_PERIOD_YEARS)
     receiver.tech_progress_rate *= synergy
     world.civ(event.src).tech_progress_rate *= synergy
     receiver.belief[event.src].trust = share_trust_update(
@@ -34,3 +34,4 @@ def apply_attack(event, world):
     target.belief[event.src].trust = 0
     target.belief[event.src].attacked_me = True
     target.attacked_by = event.src
+    target.attacked_at = event.t

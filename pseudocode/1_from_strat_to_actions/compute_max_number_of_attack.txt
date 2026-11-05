@@ -1,2 +1,3 @@
 def compute_max_number_of_attack(my_civ.tech_level, my_civ.population):
-    return ...int(tech_level x population / X)
+    # number of wars waged at once (at least one); ATTACKS_PER_TECH_POPULATION scales the capacity
+    return max(1, int(ATTACKS_PER_TECH_POPULATION * tech_level * population))

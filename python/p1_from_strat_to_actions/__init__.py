@@ -22,7 +22,7 @@ def from_strat_to_actions(civ, config, now):
             actions.append(("implicit_share" if _both_at_tech_cap(civ, entry, config) else "share", target_id))
 
     scored.sort(reverse=True)
-    for _, target_id in scored[: _compute_max_number_of_attack(civ)]:
+    for _, target_id in scored[: _compute_max_number_of_attack(civ, config)]:
         actions.append(("attack", target_id))
 
     return actions

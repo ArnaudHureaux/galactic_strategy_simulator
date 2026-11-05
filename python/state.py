@@ -14,6 +14,7 @@ class Snapshot:
     probe_radius: float
     attacked_by: str = None
     expansion_radius: float = 0.0
+    attacked_at: float = None
 
 
 @dataclass
@@ -58,6 +59,8 @@ class Civilisation:
     # Beliefs seen recently enough to still be actionable (a superset, see recent_beliefs).
     recent: dict = field(default_factory=dict)
     attacked_by: str = None
+    # Arrival date of the last attack (attacked_by's).
+    attacked_at: float = None
     is_human: bool = False
     extinct_at: float = None
     extinction_cause: str = None
@@ -82,7 +85,7 @@ class Civilisation:
     def record(self, now, horizon):
         self.history_t.append(now)
         self.history.append(Snapshot(now, self.tech_level, self.broadcast_radius, self.probe_radius, self.attacked_by,
-                                     self.expansion_radius))
+                                     self.expansion_radius, self.attacked_at))
         # Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         cutoff = now - horizon
         drop = 0

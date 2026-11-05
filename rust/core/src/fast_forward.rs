@@ -1,7 +1,7 @@
 //! Mirror of python/fast_forward.py (see its docstring for the method).
 
 use crate::config::Config;
-use crate::decisions::{max_number_of_attack, sort_scored};
+use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
 use crate::passive::{population_capacity, radius_for_nb_of_world, self_destruction_shape, tech_rate, time_to_reach, world_density};
@@ -71,7 +71,7 @@ impl FastForward {
         let (tech_touched, pop_touched) = touched(world.civs.len(), applied, emitted);
         // Consumed at every step, so that it always compares with the previous step.
         let beliefs_changed = world.beliefs_changed();
-        let quick = quick_signature(world, applied, emitted, &tech_touched, &pop_touched);
+        let quick = quick_signature(world, applied, emitted, &tech_touched, &pop_touched, config);
         if self.quick.as_ref() != Some(&quick) {
             self.quick = Some(quick);
             self.beliefs_tracked = false;
@@ -109,7 +109,7 @@ fn touched(n: usize, applied: &[Event], emitted: &[Event]) -> (Vec<bool>, Vec<bo
     (tech, pop)
 }
 
-fn quick_signature(world: &World, applied: &[Event], emitted: &[Event], tech_touched: &[bool], pop_touched: &[bool]) -> QuickSignature {
+fn quick_signature(world: &World, applied: &[Event], emitted: &[Event], tech_touched: &[bool], pop_touched: &[bool], config: &Config) -> QuickSignature {
     let key = |e: &Event| (e.kind, e.src, e.dst);
     let mut applied: Vec<_> = applied.iter().map(key).collect();
     applied.sort_unstable();
@@ -129,7 +129,7 @@ fn quick_signature(world: &World, applied: &[Event], emitted: &[Event], tech_tou
                 attacked_by: c.attacked_by,
                 natural_tech_progress: c.natural_tech_progress,
                 // The number of attacks only matters below the number of possible targets (beliefs).
-                k: pymin((c.tech_level * c.population_size).trunc(), c.belief.len() as f64),
+                k: pymin(attack_capacity(c.tech_level, c.population_size, config).trunc(), c.belief.len() as f64),
                 // Compared at 1e-9 (see fast_forward._quick_signature).
                 tech: tech_touched[i].then_some(pymath::round9(c.tech_level)),
                 pop: pop_touched[i].then_some(c.population_size),
@@ -292,7 +292,7 @@ fn decision_budgets(world: &mut World, active: &[usize], config: &Config, now: f
             }
         }
 
-        let k = max_number_of_attack(civ);
+        let k = max_number_of_attack(civ, config);
         if (scored.len() as f64) > k {
             sort_scored(&mut scored, world);
             let k = k as usize;
@@ -302,11 +302,14 @@ fn decision_budgets(world: &mut World, active: &[usize], config: &Config, now: f
                 shrink(tech_budget, target, margin / 2.0);
             }
             // The number of attacks k grows with tech * population: keep both below the next integer.
-            let next = k as f64 + 1.0;
-            let ceiling = next / (civ.tech_level + pymax(0.0, tech_budget[a].expect("active"))) - civ.population_size;
-            pop_budget[a] = Some(pymin(pop_budget[a].expect("active"), ceiling));
-            let value = next / (civ.population_size + pymax(0.0, pop_budget[a].expect("active"))) - civ.tech_level;
-            shrink(tech_budget, a, value);
+            let rate = config.attacks_per_tech_population;
+            if rate > 0.0 {
+                let next = k as f64 + 1.0;
+                let ceiling = next / (rate * (civ.tech_level + pymax(0.0, tech_budget[a].expect("active")))) - civ.population_size;
+                pop_budget[a] = Some(pymin(pop_budget[a].expect("active"), ceiling));
+                let value = next / (rate * (civ.population_size + pymax(0.0, pop_budget[a].expect("active")))) - civ.tech_level;
+                shrink(tech_budget, a, value);
+            }
         }
     }
 }

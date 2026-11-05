@@ -41,7 +41,7 @@ pub fn run(config: &Config, seed: i64, time_budget_s: Option<f64>, keep_rows: bo
     let mut rows = Vec::new();
     let (mut n_steps, mut n_jumps) = (0u64, 0u64);
     let mut budget_exhausted = None;
-    let mut now = config.last_grb_date_years;
+    let mut now = config.start_date_years();
     let mut dt = config.dt;
     let mut jump = None;
     let mut fast_forward = config.fast_forward.then(FastForward::default);

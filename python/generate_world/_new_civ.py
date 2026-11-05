@@ -13,8 +13,13 @@ def _new_civ(civ_id, position, config, rng, birth_year):
         tech_level=config.initial_tech_level,
         population_size=config.initial_population,
         nb_of_world=1.0,
-        natural_tech_progress=config.natural_tech_progress_mean * rng.uniform(0.5, 1.5),
-        natural_population_growth=config.natural_population_growth_mean * rng.uniform(0.5, 1.5),
+        natural_tech_progress=config.natural_tech_progress_mean * _spread(config.natural_tech_progress_spread, rng),
+        natural_population_growth=config.natural_population_growth_mean * _spread(
+            config.natural_population_growth_spread, rng),
         colonization_aggressiveness=strategy["colonization_aggressiveness"],
         strategy=strategy,
     )
+
+
+def _spread(spread, rng):
+    return rng.uniform(1 - spread, 1 + spread)

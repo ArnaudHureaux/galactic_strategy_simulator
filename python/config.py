@@ -83,7 +83,9 @@ class Config:
     civs_per_bubble: float = 20.0
     civ_birth_rate: float = 1e-8
 
-    last_grb_date_years: float = 1.0e9
+    # The simulation starts start_lookback_years before the present, at the last sterilizing event
+    # (galactic GRB, Annis 1999); the initial civs are all born then.
+    start_lookback_years: float = 1.0e9
     # Start of human civilization: from then on, humanity can be seen by probes on site (and attacked).
     # It only leaks signals during the last signal_window_years (see _compute_broadcast_radius).
     humanity_birth_date_years: float = 1.379999e10
@@ -124,9 +126,10 @@ class Config:
 
     belief_memory_years: float = 0.0
 
-    # share_catchup, share_backflow, share_synergy_bonus and share_trust_gain are rates per
-    # share_period_years of continuous sharing; each share event applies one dt worth of them.
-    share_period_years: float = 1000.0
+    # Shares and wars are continuous processes: share_catchup, share_backflow, share_synergy_bonus,
+    # share_trust_gain, damage_coef, attack_cost_tech and reputation_trust_drop are rates per
+    # interaction_period_years; each event (or observation) applies one dt worth of them.
+    interaction_period_years: float = 1000.0
     share_catchup: float = 0.5
     share_backflow: float = 0.05
     share_decay: float = 0.5
@@ -135,10 +138,15 @@ class Config:
     forgiveness: float = 0.2
 
     damage_coef: float = 0.3
+    # A civ wages war on at most max(1, int(attacks_per_tech_population * tech * population)) targets at once.
+    attacks_per_tech_population: float = 1.0
     attack_cost_tech: float = 0.05
     reputation_trust_drop: float = 0.3
 
     natural_tech_progress_mean: float = 1e-10
+    # Each civ draws its own rates uniformly in mean * [1 - spread, 1 + spread].
+    natural_tech_progress_spread: float = 0.5
+    natural_population_growth_spread: float = 0.5
     # Tech grows at natural_tech_progress * (1 - colonization_aggressiveness) * population ** this:
     # expanding costs tech now but brings population, hence tech later (1 = linear returns).
     tech_population_exponent: float = 1.0
@@ -186,6 +194,10 @@ class Config:
 
     def to_dict(self):
         return asdict(self)
+
+    @property
+    def start_date_years(self):
+        return self.present_date_years - self.start_lookback_years
 
     def config_hash(self):
         canonical = json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
@@ -236,8 +248,10 @@ def _validate(c):
     for name in ("panspermia_range_pc", "expected_bubbles", "civs_per_bubble", "civ_birth_rate"):
         check(getattr(c, name) >= 0, f"{name} must be >= 0")
 
-    check(c.last_grb_date_years <= c.humanity_birth_date_years < c.present_date_years,
-          "dates must satisfy last_grb_date_years <= humanity_birth_date_years < present_date_years")
+    check(c.start_lookback_years > 0, "start_lookback_years must be > 0")
+    check(c.start_date_years <= c.humanity_birth_date_years < c.present_date_years,
+          "dates must satisfy present_date_years - start_lookback_years <= humanity_birth_date_years"
+          " < present_date_years")
     check(c.signal_window_years > 0, "signal_window_years must be > 0")
     check(c.artefact_window_years >= 0, "artefact_window_years must be >= 0")
 
@@ -250,21 +264,22 @@ def _validate(c):
     check(c.initial_population > 0, "initial_population must be > 0")
     check(c.population_per_world > 0, "population_per_world must be > 0")
     check(c.danger_window_width > 0, "danger_window_width must be > 0")
-    check(c.share_period_years > 0, "share_period_years must be > 0")
+    check(c.interaction_period_years > 0, "interaction_period_years must be > 0")
     check(c.share_decay > 0, "share_decay must be > 0")
 
     for name in ("self_destruction_risk", "emit_radius_per_tech", "passive_leakage_factor",
                  "max_broadcast_radius", "probe_speed_per_tech", "max_probe_radius",
                  "probe_lifetime_per_tech", "front_speed_per_tech", "habitable_world_density",
                  "tech_population_exponent", "artefact_stealth_per_tech", "belief_memory_years", "share_backflow",
-                 "share_synergy_bonus", "damage_coef", "reputation_trust_drop",
+                 "share_synergy_bonus", "damage_coef", "attacks_per_tech_population", "reputation_trust_drop",
                  "natural_tech_progress_mean", "natural_population_growth_mean",
                  "max_natural_tech_progress"):
         check(getattr(c, name) >= 0, f"{name} must be >= 0")
-    # These rates are fractions closed per share period (log1p(-rate) must exist).
+    # These rates are fractions closed per interaction period (log1p(-rate) must exist).
     for name in ("share_catchup", "share_trust_gain"):
         check(0 <= getattr(c, name) < 1, f"{name} must be in [0, 1)")
-    for name in ("forgiveness", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability"):
+    for name in ("forgiveness", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability",
+                 "natural_tech_progress_spread", "natural_population_growth_spread"):
         check(0 <= getattr(c, name) <= 1, f"{name} must be in [0, 1]")
 
     for name in STRATEGY_RANGES:

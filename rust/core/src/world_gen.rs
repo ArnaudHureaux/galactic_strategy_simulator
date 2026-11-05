@@ -22,7 +22,7 @@ fn seed_life_in_bubbles(config: &Config, rng: &mut Rng) -> Vec<Civ> {
             let offset = sample_ball(config.panspermia_range_pc, rng);
             let position = [center[0] + offset[0], center[1] + offset[1], center[2] + offset[2]];
             let id = format!("c_{}", civs.len());
-            civs.push(new_civ(id, position, config, rng, config.last_grb_date_years));
+            civs.push(new_civ(id, position, config, rng, config.start_date_years()));
         }
     }
     civs
@@ -78,8 +78,8 @@ fn sample_strategy(config: &Config, rng: &mut Rng) -> Strategy {
 pub fn new_civ(id: String, position: Position, config: &Config, rng: &mut Rng, birth_year: f64) -> Civ {
     let strategy = sample_strategy(config, rng);
     let biochem = rng.weighted_index(&config.world_type_fractions);
-    let natural_tech_progress = config.natural_tech_progress_mean * rng.uniform(0.5, 1.5);
-    let natural_population_growth = config.natural_population_growth_mean * rng.uniform(0.5, 1.5);
+    let natural_tech_progress = config.natural_tech_progress_mean * spread(config.natural_tech_progress_spread, rng);
+    let natural_population_growth = config.natural_population_growth_mean * spread(config.natural_population_growth_spread, rng);
     Civ {
         id,
         position,
@@ -102,6 +102,7 @@ pub fn new_civ(id: String, position: Position, config: &Config, rng: &mut Rng, b
         belief_of: Default::default(),
         recent: Default::default(),
         attacked_by: None,
+        attacked_at: f64::NEG_INFINITY,
         is_human: false,
         extinct_at: None,
         extinction_cause: None,
@@ -109,4 +110,9 @@ pub fn new_civ(id: String, position: Position, config: &Config, rng: &mut Rng, b
         artefact_rolled: false,
         history: Default::default(),
     }
+}
+
+/// _spread: a civ's own rate is the mean times U(1 - spread, 1 + spread).
+fn spread(spread: f64, rng: &mut Rng) -> f64 {
+    rng.uniform(1.0 - spread, 1.0 + spread)
 }

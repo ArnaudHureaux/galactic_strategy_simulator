@@ -18,11 +18,24 @@ pub struct Derived {
     pub tech_logistic: bool,
     pub population_logistic: bool,
     pub shape: SelfDestructionShape,
+    /// dt / interaction_period_years.
+    pub interaction_step: f64,
     pub share_catchup_fraction: f64,
     pub share_backflow_additive: f64,
     pub share_trust_fraction: f64,
     pub share_trust_fraction_forgiven: f64,
     pub share_synergy: f64,
+    pub attack_cost_fraction: f64,
+    pub reputation_drop_additive: f64,
+}
+
+/// p3_apply_events._rates._fraction: fraction done in one step (`step` interaction periods)
+/// when `rate` is the fraction done per interaction period.
+pub fn step_fraction(rate: f64, step: f64) -> f64 {
+    if rate >= 1.0 {
+        return 1.0;
+    }
+    -pymath::expm1(step * pymath::log1p(-rate))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -47,7 +60,7 @@ pub struct Config {
     pub civs_per_bubble: f64,
     pub civ_birth_rate: f64,
 
-    pub last_grb_date_years: f64,
+    pub start_lookback_years: f64,
     pub humanity_birth_date_years: f64,
     pub present_date_years: f64,
     pub signal_window_years: f64,
@@ -80,7 +93,7 @@ pub struct Config {
 
     pub belief_memory_years: f64,
 
-    pub share_period_years: f64,
+    pub interaction_period_years: f64,
     pub share_catchup: f64,
     pub share_backflow: f64,
     pub share_decay: f64,
@@ -89,10 +102,13 @@ pub struct Config {
     pub forgiveness: f64,
 
     pub damage_coef: f64,
+    pub attacks_per_tech_population: f64,
     pub attack_cost_tech: f64,
     pub reputation_trust_drop: f64,
 
     pub natural_tech_progress_mean: f64,
+    pub natural_tech_progress_spread: f64,
+    pub natural_population_growth_spread: f64,
     pub tech_population_exponent: f64,
     pub natural_population_growth_mean: f64,
     pub max_natural_tech_progress: f64,
@@ -145,7 +161,7 @@ impl Default for Config {
             expected_bubbles: 5.0,
             civs_per_bubble: 20.0,
             civ_birth_rate: 1e-8,
-            last_grb_date_years: 1.0e9,
+            start_lookback_years: 1.0e9,
             humanity_birth_date_years: 1.379999e10,
             present_date_years: 1.38e10,
             signal_window_years: 100.0,
@@ -171,7 +187,7 @@ impl Default for Config {
             front_speed_per_tech: 1e-7,
             habitable_world_density: 0.01,
             belief_memory_years: 0.0,
-            share_period_years: 1000.0,
+            interaction_period_years: 1000.0,
             share_catchup: 0.5,
             share_backflow: 0.05,
             share_decay: 0.5,
@@ -179,9 +195,12 @@ impl Default for Config {
             share_trust_gain: 0.3,
             forgiveness: 0.2,
             damage_coef: 0.3,
+            attacks_per_tech_population: 1.0,
             attack_cost_tech: 0.05,
             reputation_trust_drop: 0.3,
             natural_tech_progress_mean: 1e-10,
+            natural_tech_progress_spread: 0.5,
+            natural_population_growth_spread: 0.5,
             tech_population_exponent: 1.0,
             natural_population_growth_mean: 1e-9,
             max_natural_tech_progress: 1e-7,
@@ -245,18 +264,21 @@ impl Config {
         if self.biochem_types.is_empty() || self.biochem_types.len() != self.world_type_fractions.len() {
             return Err("world_type_fractions must have one entry per biochem type".into());
         }
-        // p3_apply_events._share_strength: rates per share period rescaled to one step.
-        let step = self.dt / self.share_period_years;
-        let fraction = |rate: f64| -pymath::expm1(step * pymath::log1p(-rate));
+        // p3_apply_events._rates: rates per interaction period rescaled to one step.
+        let step = self.dt / self.interaction_period_years;
+        let fraction = |rate: f64| step_fraction(rate, step);
         let derived = Derived {
             tech_logistic: logistic("tech_growth_model", &self.tech_growth_model)?,
             population_logistic: logistic("population_growth_model", &self.population_growth_model)?,
             shape,
+            interaction_step: step,
             share_catchup_fraction: fraction(self.share_catchup),
             share_backflow_additive: self.share_backflow * step,
             share_trust_fraction: fraction(self.share_trust_gain),
             share_trust_fraction_forgiven: fraction(self.share_trust_gain * self.forgiveness),
             share_synergy: pymath::pow(1.0 + self.share_synergy_bonus, step),
+            attack_cost_fraction: fraction(self.attack_cost_tech),
+            reputation_drop_additive: self.reputation_trust_drop * step,
         };
         self.derived = Some(derived);
         Ok(())
@@ -265,6 +287,11 @@ impl Config {
     #[inline]
     pub fn derived(&self) -> &Derived {
         self.derived.as_ref().expect("Config::prepare must be called first")
+    }
+
+    #[inline]
+    pub fn start_date_years(&self) -> f64 {
+        self.present_date_years - self.start_lookback_years
     }
 
     /// (low, high) of each strategy parameter, in config.STRATEGY_RANGES order.

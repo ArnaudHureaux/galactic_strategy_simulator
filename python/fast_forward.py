@@ -30,6 +30,7 @@ from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
 from p0_passive_update._advance_fronts import _radius_for_nb_of_world, _world_density
+from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capacity, _compute_max_number_of_attack
 
 
 @dataclass
@@ -94,7 +95,7 @@ def _quick_signature(world, applied, emitted, tech_touched, pop_touched):
         front = c.expansion_radius if c.id in pop_touched else None
         # The number of attacks only matters below the number of possible targets (beliefs):
         # populous civs would otherwise change it at almost every step.
-        k = min(int(c.tech_level * c.population_size), len(c.belief))
+        k = min(int(_attack_capacity(c.tech_level, c.population_size, world.config)), len(c.belief))
         civs.append((c.id, c.status, c.attacked_by, c.natural_tech_progress, k, tech, pop, front, c.front_blocked))
     # Events are emitted civ by civ (world.civs order) and, within a civ, shares in belief order,
     # then attacks by score: only attacks need sorting to compare the emitted sets. Arrivals
@@ -214,7 +215,7 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
             if safe_delta > s["attack_gap_min"] and delta < s["attack_gap_max"] and safe_delta > 0:
                 scored.append((safe_delta, target_id))
 
-        k = max(1, int(a.tech_level * a.population_size))
+        k = _compute_max_number_of_attack(a, config)
         if len(scored) > k:
             scored.sort(reverse=True)
             # The attacker's own tech shifts every score equally: only the targets can reorder them.
@@ -222,9 +223,11 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
             for _, target_id in scored:
                 shrink(target_id, margin / 2)
             # The number of attacks k grows with tech * population: keep both below the next integer.
-            ceiling = (k + 1) / (a.tech_level + max(0.0, tech_budget[a.id])) - a.population_size
-            pop_budget[a.id] = min(pop_budget[a.id], ceiling)
-            shrink(a.id, (k + 1) / (a.population_size + max(0.0, pop_budget[a.id])) - a.tech_level)
+            rate = config.attacks_per_tech_population
+            if rate > 0:
+                ceiling = (k + 1) / (rate * (a.tech_level + max(0.0, tech_budget[a.id]))) - a.population_size
+                pop_budget[a.id] = min(pop_budget[a.id], ceiling)
+                shrink(a.id, (k + 1) / (rate * (a.population_size + max(0.0, pop_budget[a.id]))) - a.tech_level)
 
 
 def _detection_limit(world, active, config, now, tech_budget, front_budget):

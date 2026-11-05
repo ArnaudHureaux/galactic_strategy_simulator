@@ -1,0 +1,642 @@
+{
+  "description": "Registre des hypothèses : statut et justification de chaque paramètre de Config et de chaque règle codée en dur. Voir ROADMAP.md (règle d'or) et MODEL_CHOICES.md. Un test (python/tests/test_registry.py) vérifie que chaque champ de Config y figure, et HYPOTHESES.md est généré depuis ce fichier (python registry.py doc).",
+  "statuses": {
+    "E": "exploré : varie dans l'étude, intervalle justifié par la littérature ou déclaré inconnu",
+    "S": "sourcé : fixé à une valeur de la littérature",
+    "N": "numérique : paramètre de calcul, sans effet sur les résultats (test de convergence)",
+    "D": "définition : convention d'unité ou donnée d'observation",
+    "I": "non influent : fixé car le criblage de Morris montre qu'il ne pèse pas",
+    "M": "choix de modèle : forme d'une loi ou règle, alternatives testées en robustesse"
+  },
+  "range_bases": {
+    "littérature": "bornes tirées de sources citées",
+    "inconnu": "aucune contrainte connue : intervalle large déclaré comme tel",
+    "provisoire": "bornes de travail, à justifier en phase 5"
+  },
+  "parameters": {
+    "dt": {
+      "status": "N", "unit": "an",
+      "description": "Pas de temps de la simulation.",
+      "justification": "Paramètre de calcul : les taux sont définis par an ou par période d'interaction (interaction_period_years), donc indépendants du pas.",
+      "todo": ["Phase 3 : convergence en dt (1000, 100, 10 ans)."]
+    },
+    "max_civs": {
+      "status": "N", "unit": "civs",
+      "description": "Nombre maximal de civs avant d'arrêter le run comme intraitable.",
+      "justification": "Garde-fou de calcul.",
+      "todo": ["Phase 3 : vérifier qu'aucun run de l'étude ne l'atteint."]
+    },
+    "max_steps": {
+      "status": "N", "unit": "pas",
+      "description": "Budget de calcul déterministe (0 = sans limite) ; au-delà, le run est classé timeout.",
+      "justification": "Garde-fou de calcul.",
+      "todo": ["Phase 4 : ramener les timeouts à environ 0 %, car ce sont des données censurées corrélées aux paramètres."]
+    },
+    "fast_forward": {
+      "status": "N", "unit": "booléen",
+      "description": "Saut des régimes stationnaires.",
+      "justification": "Accélération : les sauts reproduisent la loi des tirages pas à pas (compare_fast_forward.py).",
+      "todo": ["Phase 3 : comparer les distributions de résultats avec et sans fast-forward."]
+    },
+    "max_jump_years": {
+      "status": "N", "unit": "an",
+      "description": "Durée maximale d'un saut.",
+      "justification": "Paramètre de calcul du fast-forward.",
+      "todo": ["Phase 3 : convergence."]
+    },
+    "jump_max_relative_change": {
+      "status": "N", "unit": "sans dimension",
+      "description": "Variation relative maximale d'une variable lente pendant un saut.",
+      "justification": "Paramètre de calcul du fast-forward.",
+      "todo": ["Phase 3 : convergence."]
+    },
+    "region_radius_pc": {
+      "status": "M", "unit": "pc",
+      "description": "Rayon de la région simulée (disque).",
+      "justification": "Choix de l'échelle simulée : une région autour du Soleil, pas la Galaxie entière.",
+      "todo": ["Phase 2, point 6 : justifier la taille.", "Phase 3 : effets de bord à densité constante."]
+    },
+    "scale_height_pc": {
+      "status": "S", "unit": "pc",
+      "description": "Hauteur d'échelle du profil vertical exponentiel des positions.",
+      "justification": "Hauteur d'échelle du disque mince d'environ 300 pc.",
+      "source": "Jurić et al. 2008, ApJ 673, 864 (disque mince H ≈ 300 pc).",
+      "todo": ["Vérifier la référence avant citation."]
+    },
+    "biochem_types": {
+      "status": "M", "unit": "liste",
+      "description": "Types de biochimie ; deux civs du même type sont concurrentes.",
+      "justification": "Représente la non-concurrence pour les mêmes mondes entre formes de vie différentes.",
+      "todo": ["Phase 2 : justifier la concurrence binaire par biochimie."]
+    },
+    "world_type_fractions": {
+      "status": "M", "unit": "fractions",
+      "description": "Probabilité de chaque type de biochimie.",
+      "justification": "Fixe la part de paires concurrentes. Valeurs 70/20/10 non sourcées.",
+      "todo": ["Phase 2 : réduire à un paramètre explorable (par exemple la probabilité que deux civs soient concurrentes)."]
+    },
+    "panspermia_range_pc": {
+      "status": "E", "unit": "pc",
+      "description": "Rayon des bulles de vie autour de leur centre.",
+      "justification": "Regroupement spatial de la vie (Forgan 2009 : apparition en amas). Valeur inconnue.",
+      "range": {"low": 30.0, "high": 1000.0, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle."]
+    },
+    "expected_bubbles": {
+      "status": "E", "unit": "bulles",
+      "description": "Nombre moyen de bulles de vie dans la région (loi de Poisson).",
+      "justification": "Fréquence de l'apparition de la vie : inconnue (Sandberg, Drexler & Ord 2018).",
+      "range": {"low": 1.0, "high": 10.0, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle (zéro bulle inclus ?)."]
+    },
+    "civs_per_bubble": {
+      "status": "E", "unit": "civs",
+      "description": "Nombre moyen de civs initiales par bulle (loi de Poisson).",
+      "justification": "Fréquence de l'émergence de l'intelligence : inconnue.",
+      "range": {"low": 5.0, "high": 40.0, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle."]
+    },
+    "civ_birth_rate": {
+      "status": "E", "unit": "civs/an",
+      "description": "Taux de naissance de nouvelles civs après le départ.",
+      "justification": "Inconnu.",
+      "range": {"low": 1e-10, "high": 1e-7, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle."]
+    },
+    "start_lookback_years": {
+      "status": "E", "unit": "an (avant le présent)",
+      "description": "Début de la simulation, compté avant le présent : dernier épisode stérilisant (sursaut gamma galactique). Les civs initiales y naissent toutes.",
+      "justification": "Annis 1999 : des sursauts gamma stérilisent périodiquement la Galaxie et resynchronisent l'apparition de l'intelligence ; intervalle actuel entre sursauts ≈ 10^8 ans (borne basse). Piran & Jimenez 2014 : la vie telle que sur Terre n'a pas pu exister à z > 0,5, soit ≈ 5,2 Ga avant le présent en cosmologie Planck (borne haute). Aucune civ n'existant avant ce départ, aucune sonde plus ancienne n'est possible : la fenêtre d'artefacts (4,5 Ga) couvre donc toute la simulation dès que le départ est plus récent.",
+      "source": "Annis, J. 1999, JBIS (janvier 1999), arXiv:astro-ph/9901322 ; Piran, T. & Jimenez, R. 2014, PRL 113, 231102 (arXiv:1409.2506). Âge à z = 0,5 calculé avec H0 = 67,66, Ωm = 0,3111 (Planck 2018).",
+      "range": {"low": 1e8, "high": 5.2e9, "scale": "log"}, "range_basis": "littérature",
+      "todo": ["Phase 2, point 3 : cohorte synchrone."]
+    },
+    "humanity_birth_date_years": {
+      "status": "D", "unit": "an (depuis le Big Bang)",
+      "description": "Début de la civilisation humaine (présent - 10 000 ans) : à partir de là, l'humanité peut être vue par des sondes et attaquée.",
+      "justification": "Début du Néolithique, environ 10 000 à 12 000 ans avant le présent.",
+      "source": "À sourcer (révolution néolithique).",
+      "todo": ["Phase 2, point 5 : place de l'humanité sur l'échelle de tech."]
+    },
+    "present_date_years": {
+      "status": "D", "unit": "an (depuis le Big Bang)",
+      "description": "Date du présent.",
+      "justification": "Âge de l'Univers.",
+      "source": "Planck Collaboration 2020 (13,787 ± 0,020 Ga)."
+    },
+    "signal_window_years": {
+      "status": "D", "unit": "an",
+      "description": "Fenêtre pendant laquelle l'humanité émet et écoute.",
+      "justification": "Durée des technosignatures humaines, environ un siècle.",
+      "todo": ["Phase 2, point 11 : remplacer par deux fenêtres (détectable depuis les années 1930, écoute depuis 1960)."]
+    },
+    "artefact_window_years": {
+      "status": "D", "unit": "an",
+      "description": "Fenêtre des critères « colonized » et « artefact » : âge du Système solaire.",
+      "justification": "Le Système solaire aurait gardé la trace d'une occupation ou d'une sonde depuis sa formation (« Fait A » de Hart).",
+      "source": "Âge du Système solaire 4,567 Ga (à sourcer) ; Hart 1975."
+    },
+    "artefact_detection_probability": {
+      "status": "E", "unit": "probabilité",
+      "description": "Probabilité de trouver la sonde d'une civ qui a visité le Système solaire.",
+      "justification": "Dépend de la part du Système solaire fouillée.",
+      "range": {"low": 0.001, "high": 0.5, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 2, point 11 : borner par la recherche réelle (Haqq-Misra & Kopparapu 2012 ; Benford 2019)."]
+    },
+    "artefact_stealth_per_tech": {
+      "status": "E", "unit": "1/tech",
+      "description": "Discrétion des sondes : probabilité de découverte multipliée par exp(-k × écart de tech avec l'humanité).",
+      "justification": "Une civ avancée peut faire des sondes discrètes. Forme et intensité inconnues.",
+      "range": {"low": 0.0, "high": 5.0, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "tech_growth_model": {
+      "status": "M", "unit": "choix",
+      "description": "Loi de croissance de la tech.",
+      "justification": "Logistique : croissance bornée par un plafond.",
+      "alternatives": ["exponential"],
+      "todo": ["Phase 7 : robustesse."]
+    },
+    "population_growth_model": {
+      "status": "M", "unit": "choix",
+      "description": "Loi de croissance de la population.",
+      "justification": "Logistique : bornée par la capacité des mondes occupés.",
+      "alternatives": ["exponential"],
+      "todo": ["Phase 7 : robustesse."]
+    },
+    "tech_cap": {
+      "status": "D", "unit": "tech",
+      "description": "Plafond de tech.",
+      "justification": "Convention : fixe l'unité de l'échelle de tech, qui est abstraite (MODEL_CHOICES.md, point 4). Les effets sont calés par deux ancres : niveau humain et plafond."
+    },
+    "population_per_world": {
+      "status": "D", "unit": "population/monde",
+      "description": "Capacité d'un monde.",
+      "justification": "Convention : unité de population (un monde plein = 1)."
+    },
+    "initial_tech_level": {
+      "status": "E", "unit": "tech",
+      "description": "Tech d'une civ à sa naissance (y compris l'humanité).",
+      "justification": "Niveau où une civ devient technologique, relatif au plafond : inconnu.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 2, point 5 : placer l'humanité sur l'échelle."]
+    },
+    "initial_population": {
+      "status": "M", "unit": "population",
+      "description": "Population d'une civ à sa naissance.",
+      "justification": "Une civ naît avec son monde d'origine peuplé (= population_per_world)."
+    },
+    "self_destruction_risk": {
+      "status": "E", "unit": "1/an",
+      "description": "Taux d'autodestruction au pic de la fenêtre de danger.",
+      "justification": "Inconnu (Ćirković 2009, scénario « catastrophique »).",
+      "range": {"low": 1e-10, "high": 1e-6, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle."]
+    },
+    "self_destruction_shape": {
+      "status": "M", "unit": "choix",
+      "description": "Forme du risque d'autodestruction en fonction de la tech.",
+      "justification": "Fenêtre de danger : risque maximal à un niveau de tech intermédiaire (filtre lié à la technologie).",
+      "alternatives": ["constant", "increasing"],
+      "todo": ["Phase 7 : robustesse."]
+    },
+    "danger_window_center": {
+      "status": "E", "unit": "tech",
+      "description": "Niveau de tech du pic de risque d'autodestruction.",
+      "justification": "Inconnu.",
+      "range": {"low": 0.2, "high": 2.8, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "danger_window_width": {
+      "status": "E", "unit": "tech",
+      "description": "Largeur de la fenêtre de danger.",
+      "justification": "Inconnu.",
+      "range": {"low": 0.1, "high": 1.5, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "emit_radius_per_tech": {
+      "status": "E", "unit": "pc/tech",
+      "description": "Portée des signaux d'une civ qui émet volontairement, par niveau de tech.",
+      "justification": "Mélange puissance et sensibilité.",
+      "range": {"low": 1.0, "high": 30.0, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 2, point 11 : remplacer par une puissance émise (EIRP) et un seuil de sensibilité sourcé."]
+    },
+    "passive_leakage_factor": {
+      "status": "E", "unit": "sans dimension",
+      "description": "Portée des fuites d'une civ qui n'émet pas volontairement, relative à l'émission volontaire.",
+      "justification": "Inconnu.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 2, point 11 : devient un rapport de puissance (EIRP) entre fuites et émission volontaire.", "Phase 5 : intervalle."]
+    },
+    "max_broadcast_radius": {
+      "status": "M", "unit": "pc",
+      "description": "Plafond dur de la portée des signaux.",
+      "justification": "Plafond sans justification.",
+      "todo": ["Phase 2, point 11 : disparaît avec le modèle EIRP."]
+    },
+    "probe_speed_per_tech": {
+      "status": "E", "unit": "pc/an/tech",
+      "description": "Vitesse d'expansion de la sphère des sondes, par niveau de tech.",
+      "justification": "À caler par deux ancres : vitesse humaine (Voyager ≈ 5·10⁻⁵ c) et vitesse au plafond (0,01 à 0,5 c, Armstrong & Sandberg 2013 ; Bjork 2007).",
+      "range": {"low": 1e-5, "high": 1e-3, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 2, point 4 : recaler sur les ancres."]
+    },
+    "max_probe_radius": {
+      "status": "N", "unit": "pc",
+      "description": "Plafond technique du rayon des sondes.",
+      "justification": "Valeur jamais atteinte (10¹² pc) : sans effet."
+    },
+    "probe_lifetime_per_tech": {
+      "status": "E", "unit": "an/tech",
+      "description": "Durée de vie des sondes, par niveau de tech.",
+      "justification": "Inconnu.",
+      "range": {"low": 1e5, "high": 1e8, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 2, point 4 : recaler sur les ancres."]
+    },
+    "front_speed_per_tech": {
+      "status": "E", "unit": "pc/an/tech",
+      "description": "Vitesse du front de colonisation par niveau de tech, pour une agressivité de 1.",
+      "justification": "Fronts de colonisation : Carroll-Nellenback et al. 2019 ; Newman & Sagan 1981.",
+      "range": {"low": 1e-10, "high": 1e-6, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 2, point 4 : recaler sur les ancres.", "Phase 5 : sourcer."]
+    },
+    "habitable_world_density": {
+      "status": "E", "unit": "mondes/pc³",
+      "description": "Densité de mondes habitables (tous types de biochimie).",
+      "justification": "À sourcer : densité stellaire locale (≈ 0,1 étoile/pc³) × η⊕ (Kepler).",
+      "range": {"low": 1e-4, "high": 0.1, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : sourcer η⊕."]
+    },
+    "belief_memory_years": {
+      "status": "E", "unit": "an",
+      "description": "Durée pendant laquelle une civ continue d'agir envers une cible qu'elle ne voit plus.",
+      "justification": "Comportemental : inconnu (0 = n'agit que sur ce qu'elle voit).",
+      "range": {"low": 0.0, "high": 1e5, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "interaction_period_years": {
+      "status": "D", "unit": "an",
+      "description": "Période de référence des taux d'interaction : partages (share_*), guerre (damage_coef, attack_cost_tech) et réputation (reputation_trust_drop).",
+      "justification": "Convention : unité de temps de ces taux, qui sont explorés. Chaque événement applique un pas dt de ces taux, si bien que leur effet annuel ne dépend pas de dt (phase 2, point 12)."
+    },
+    "share_catchup": {
+      "status": "E", "unit": "fraction/période",
+      "description": "Part de l'écart de tech comblée par le receveur d'un partage, par période.",
+      "justification": "Comportemental : inconnu.",
+      "range": {"low": 0.05, "high": 0.95, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "share_backflow": {
+      "status": "E", "unit": "fraction/période",
+      "description": "Gain de tech du plus avancé lors d'un partage.",
+      "justification": "Comportemental : inconnu.",
+      "range": {"low": 0.0, "high": 0.2, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "share_decay": {
+      "status": "E", "unit": "tech",
+      "description": "Échelle de décroissance du gain du plus avancé avec l'écart de tech.",
+      "justification": "Comportemental : inconnu.",
+      "range": {"low": 0.1, "high": 2.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "share_synergy_bonus": {
+      "status": "E", "unit": "fraction/période",
+      "description": "Gain du rythme de progrès techno par période de partage continu.",
+      "justification": "Comportemental : inconnu.",
+      "range": {"low": 0.0, "high": 0.5, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "share_trust_gain": {
+      "status": "E", "unit": "fraction/période",
+      "description": "Part de la confiance manquante gagnée par période de partage.",
+      "justification": "Comportemental : inconnu.",
+      "range": {"low": 0.05, "high": 0.9, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "forgiveness": {
+      "status": "E", "unit": "sans dimension",
+      "description": "Facteur sur le gain de confiance envers une civ qui nous a attaqués.",
+      "justification": "Comportemental : inconnu.",
+      "range": {"low": 0.0, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "damage_coef": {
+      "status": "E", "unit": "fraction/période",
+      "description": "Une guerre détruit min(1, damage_coef × tech attaquant / tech cible) de la cible par période d'interaction ; 1 = destruction immédiate.",
+      "justification": "Inconnu.",
+      "range": {"low": 0.05, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu",
+      "todo": ["Phase 2, point 7 : forme de la loi de dégâts."]
+    },
+    "attacks_per_tech_population": {
+      "status": "E", "unit": "guerres/(tech × population)",
+      "description": "Nombre maximal de guerres menées en même temps = max(1, int(coef × tech × population)).",
+      "justification": "Capacité offensive : inconnue. Constante cachée sortie en phase 1.",
+      "range": {"low": 0.1, "high": 10.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "attack_cost_tech": {
+      "status": "E", "unit": "fraction/période",
+      "description": "Fraction de sa tech qu'une civ dépense par période d'interaction, pour chaque guerre en cours.",
+      "justification": "Inconnu.",
+      "range": {"low": 0.0, "high": 0.3, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "reputation_trust_drop": {
+      "status": "E", "unit": "confiance/période",
+      "description": "Baisse de confiance envers un attaquant connu, par période d'interaction, chez les civs qui voient sa victime subir une guerre en cours.",
+      "justification": "Comportemental : inconnu.",
+      "range": {"low": 0.0, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "natural_tech_progress_mean": {
+      "status": "E", "unit": "1/an",
+      "description": "Rythme moyen de progrès techno.",
+      "justification": "Inconnu.",
+      "range": {"low": 3e-11, "high": 3e-10, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle."]
+    },
+    "natural_tech_progress_spread": {
+      "status": "E", "unit": "sans dimension",
+      "description": "Dispersion du rythme de progrès entre civs : moyenne × U(1 - s, 1 + s).",
+      "justification": "Hétérogénéité des civs : inconnue. Constante cachée sortie en phase 1.",
+      "range": {"low": 0.0, "high": 0.9, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "natural_population_growth_spread": {
+      "status": "E", "unit": "sans dimension",
+      "description": "Dispersion du taux de croissance démographique entre civs : moyenne × U(1 - s, 1 + s).",
+      "justification": "Hétérogénéité des civs : inconnue. Constante cachée sortie en phase 1.",
+      "range": {"low": 0.0, "high": 0.9, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "tech_population_exponent": {
+      "status": "E", "unit": "sans dimension",
+      "description": "Rendement de la population sur le progrès techno (rythme × population^exposant).",
+      "justification": "Inconnu : de 0 (tech indépendante de la population) à 1 (rendement linéaire).",
+      "range": {"low": 0.0, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "natural_population_growth_mean": {
+      "status": "E", "unit": "1/an",
+      "description": "Taux moyen de croissance démographique.",
+      "justification": "Inconnu.",
+      "range": {"low": 1e-10, "high": 1e-8, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle."]
+    },
+    "max_natural_tech_progress": {
+      "status": "E", "unit": "1/an",
+      "description": "Plafond du rythme de progrès atteignable par synergie de partage.",
+      "justification": "Inconnu.",
+      "range": {"low": 1e-9, "high": 1e-6, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle (doit rester au-dessus du rythme naturel maximal)."]
+    },
+    "broadcast_probability": {
+      "status": "E", "unit": "probabilité",
+      "description": "Probabilité d'émettre volontairement pour une civ de l'archétype « random ».",
+      "justification": "Inconnu.",
+      "range": {"low": 0.0, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "attack_gap_min_low": {
+      "status": "M", "unit": "tech",
+      "description": "Borne basse du trait attack_gap_min (écart de tech minimal pour attaquer).",
+      "justification": "Définition de l'espace des stratégies : couvre de « attaque même plus fort que soi » à « attaque seulement nettement plus faible ».",
+      "todo": ["Phase 2, point 7 : écart ou rapport de tech."]
+    },
+    "attack_gap_min_high": {
+      "status": "M", "unit": "tech",
+      "description": "Borne haute du trait attack_gap_min.",
+      "justification": "Définition de l'espace des stratégies."
+    },
+    "attack_gap_max_low": {
+      "status": "M", "unit": "tech",
+      "description": "Borne basse du trait attack_gap_max (écart de tech maximal pour attaquer).",
+      "justification": "Définition de l'espace des stratégies."
+    },
+    "attack_gap_max_high": {
+      "status": "M", "unit": "tech",
+      "description": "Borne haute du trait attack_gap_max.",
+      "justification": "Définition de l'espace des stratégies."
+    },
+    "caution_k_low": {
+      "status": "M", "unit": "sans dimension",
+      "description": "Borne basse du trait caution_k (prudence face à l'incertitude).",
+      "justification": "Définition de l'espace des stratégies.",
+      "todo": ["Phase 2, point 1 : sans effet tant que l'incertitude sur la tech vaut 0."]
+    },
+    "caution_k_high": {
+      "status": "M", "unit": "sans dimension",
+      "description": "Borne haute du trait caution_k.",
+      "justification": "Définition de l'espace des stratégies.",
+      "todo": ["Phase 2, point 1."]
+    },
+    "attack_when_trust_inferior_than_low": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne basse du seuil de confiance sous lequel une civ attaque.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "attack_when_trust_inferior_than_high": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne haute du seuil de confiance sous lequel une civ attaque.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "trust_default_competitor_low": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne basse de la confiance initiale envers un concurrent.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "trust_default_competitor_high": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne haute de la confiance initiale envers un concurrent.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "trust_default_noncompetitor_low": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne basse de la confiance initiale envers un non-concurrent.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "trust_default_noncompetitor_high": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne haute de la confiance initiale envers un non-concurrent.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "share_trust_threshold_low": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne basse du seuil de confiance au-dessus duquel une civ partage.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "share_trust_threshold_high": {
+      "status": "D", "unit": "confiance",
+      "description": "Borne haute du seuil de confiance au-dessus duquel une civ partage.",
+      "justification": "Convention : la confiance est dans [0, 1]."
+    },
+    "colonization_aggressiveness_low": {
+      "status": "D", "unit": "fraction",
+      "description": "Borne basse de l'agressivité de colonisation.",
+      "justification": "Convention : fraction dans [0, 1]."
+    },
+    "colonization_aggressiveness_high": {
+      "status": "D", "unit": "fraction",
+      "description": "Borne haute de l'agressivité de colonisation.",
+      "justification": "Convention : fraction dans [0, 1]."
+    },
+    "strategy_mix_random": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « random » (tous les traits tirés uniformément).",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu",
+      "todo": ["Phase 6 : couvrir aussi les galaxies dominées par un seul archétype (plan de mélange)."]
+    },
+    "strategy_mix_full_aggressive": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « full_aggressive ».",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "strategy_mix_full_passive": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « full_passive ».",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "strategy_mix_anti_competitors": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « anti_competitors ».",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "strategy_mix_anti_weaker_competitors": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « anti_weaker_competitors ».",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "strategy_mix_dark_forest": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « dark_forest ».",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "strategy_mix_broadcaster": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « broadcaster ».",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "strategy_mix_cooperative": {
+      "status": "E", "unit": "poids",
+      "description": "Poids de l'archétype « cooperative ».",
+      "justification": "Composition stratégique de la galaxie : inconnue.",
+      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
+    "strategy_noise": {
+      "status": "E", "unit": "fraction de l'intervalle du trait",
+      "description": "Dispersion des civs autour de leur archétype.",
+      "justification": "Inconnu.",
+      "range": {"low": 0.0, "high": 0.3, "scale": "linear"}, "range_basis": "inconnu"
+    }
+  },
+  "rules": {
+    "light_speed": {
+      "status": "D", "where": "python/constants.py",
+      "description": "Vitesse de la lumière : 1/3,262 pc/an ; aucune information ne voyage plus vite.",
+      "justification": "Constante physique. Pas de voyage plus rapide que la lumière."
+    },
+    "home_world": {
+      "status": "M", "where": "python/generate_world/_new_civ.py",
+      "description": "Une civ naît avec un seul monde.",
+      "justification": "Point de départ de la colonisation."
+    },
+    "synchronized_cohort": {
+      "status": "M", "where": "python/generate_world/_seed_life_in_bubbles.py",
+      "description": "Toutes les civs initiales naissent au départ (présent - start_lookback_years), avec la même tech.",
+      "justification": "Partielle : Annis 1999 justifie une resynchronisation par le dernier sursaut gamma, mais pas une naissance simultanée avec la même tech (l'évolution vers l'intelligence prend du temps et varie).",
+      "todo": ["Phase 2, point 3 : étaler les naissances."]
+    },
+    "bubble_geometry": {
+      "status": "M", "where": "python/generate_world/_sample_lens_position.py, _seed_life_in_bubbles.py",
+      "description": "Centres des bulles et humanité : disque uniforme en surface, profil vertical exponentiel. Civs uniformes dans une boule autour du centre.",
+      "justification": "Approximation du disque mince.",
+      "todo": ["Phase 2, point 6."]
+    },
+    "humanity_strategy": {
+      "status": "M", "where": "python/generate_world/_make_humanity.py",
+      "description": "L'humanité tire une stratégie, puis n'attaque jamais et n'émet jamais volontairement.",
+      "justification": "Comportement historique de l'humanité.",
+      "todo": ["Phase 2, point 5."]
+    },
+    "competition_by_biochem": {
+      "status": "M", "where": "python/p0_passive_update/_detect.py, _advance_fronts.py",
+      "description": "Deux civs sont concurrentes si et seulement si elles ont la même biochimie.",
+      "justification": "Compétition pour les mêmes mondes habitables.",
+      "todo": ["Phase 2."]
+    },
+    "tech_uncertainty_zero": {
+      "status": "M", "where": "python/p0_passive_update/_detect.py",
+      "description": "Une civ connaît exactement la tech des civs qu'elle voit (tech_level_uncertainty = 0).",
+      "justification": "Aucune : rend caution_k sans effet.",
+      "todo": ["Phase 2, point 1."]
+    },
+    "deterministic_detection": {
+      "status": "M", "where": "python/p0_passive_update/_detect.py",
+      "description": "Détection entre civs certaine dès qu'une sphère (signal ou sondes) atteint l'autre.",
+      "justification": "Simplification.",
+      "todo": ["Phase 2, points 9 et 11."]
+    },
+    "attack_decision": {
+      "status": "M", "where": "python/p1_from_strat_to_actions/_compute_attack_interest_score.py",
+      "description": "Une civ attaque si l'écart de tech est dans [attack_gap_min, attack_gap_max] et la confiance sous son seuil ; elle attaque d'abord les plus grands écarts.",
+      "justification": "Formalise les stratégies nommées (Forêt sombre, etc.).",
+      "todo": ["Phase 2, point 7 : écart pour décider mais rapport pour les dégâts."]
+    },
+    "min_one_attack": {
+      "status": "M", "where": "python/p1_from_strat_to_actions/_compute_max_number_of_attack.py",
+      "description": "Toute civ peut mener au moins une guerre à la fois.",
+      "justification": "Une civ jeune peut quand même agir."
+    },
+    "war_as_rate": {
+      "status": "M", "where": "python/p3_apply_events/_attack_damage.py, python/p2_from_actions_to_events.py, python/p3_apply_events/_rates.py",
+      "description": "La guerre est un processus continu : tant que la décision d'attaquer tient, chaque pas envoie un événement d'attaque qui applique un pas dt des dégâts et du coût (1 - (1 - taux)^(dt/période)).",
+      "justification": "Rend l'effet annuel indépendant de dt, comme pour les partages ; garde le fast-forward applicable (décision du 2026-11, phase 2, point 12). Alternative écartée : frappes discrètes à cadence fixe, périodiques sur plusieurs pas, donc incompatibles avec le fast-forward."
+    },
+    "reputation_witness": {
+      "status": "M", "where": "python/p0_passive_update/_detect.py",
+      "description": "Un témoin perd confiance envers l'attaquant tant qu'il voit la victime subir une guerre en cours (frappée pendant le pas observé) ; la baisse s'arrête avec la guerre.",
+      "justification": "Décision du 2026-11 (phase 2, point 12). Auparavant, la marque du dernier attaquant restait à vie et la confiance baissait à chaque pas, indéfiniment."
+    },
+    "attack_damage_law": {
+      "status": "M", "where": "python/p3_apply_events/_attack_damage.py",
+      "description": "Dégâts = min(1, damage_coef × rapport de tech), appliqués à la tech, la population et le rayon colonisé ; mort seulement si dégâts = 1. Déterministe.",
+      "justification": "Le plus fort fait plus de dégâts.",
+      "todo": ["Phase 2, point 7 : forme, aléa, coût de la défense."]
+    },
+    "attack_attribution": {
+      "status": "M", "where": "python/p3_apply_events/__init__.py, python/p0_passive_update/_detect.py",
+      "description": "La victime n'identifie l'attaquant que si elle le connaissait déjà ; les témoins ne voient que le dernier attaquant de la victime.",
+      "justification": "Simplification.",
+      "todo": ["Phase 2, point 7 : probabilité d'attribution."]
+    },
+    "share_laws": {
+      "status": "M",       "where": "python/p3_apply_events/_share_tech_update.py, _share_trust_update.py, _rates.py",
+      "description": "Partage : le receveur comble une fraction de l'écart, le donneur gagne un peu (décroissance exponentielle avec l'écart), synergie multiplicative du rythme de progrès, confiance qui tend vers 1.",
+      "justification": "Formes simples, coefficients explorés."
+    },
+    "tech_cost_of_expansion": {
+      "status": "M", "where": "python/p0_passive_update/_tech_growth.py",
+      "description": "Le progrès techno est multiplié par (1 - colonization_aggressiveness).",
+      "justification": "S'étendre coûte du progrès maintenant mais apporte de la population, donc du progrès plus tard (décision du 2026-11)."
+    },
+    "front_blocking": {
+      "status": "M", "where": "python/p0_passive_update/_advance_fronts.py",
+      "description": "Un front bloqué par un concurrent s'arrête dans toutes les directions.",
+      "justification": "Simplification de la V1 de la colonisation.",
+      "todo": ["Phase 2, point 8."]
+    },
+    "fixed_strategies": {
+      "status": "M", "where": "python/generate_world/_sample_strategy.py",
+      "description": "Une civ garde sa stratégie toute sa vie (pas d'apprentissage ni d'imitation).",
+      "justification": "Hypothèse déclarée.",
+      "todo": ["Phase 2, point 10."]
+    },
+    "archetype_definitions": {
+      "status": "M", "where": "python/config.py (ARCHETYPES), data_model/strategies/strategy_presets.json",
+      "description": "Valeurs des traits de chaque archétype.",
+      "justification": "Traduction des stratégies nommées de la littérature ; strategy_noise explore autour."
+    },
+    "artefact_single_draw": {
+      "status": "M", "where": "python/p0_passive_update/_check_silence.py",
+      "description": "Un seul tirage de découverte par civ, à la première arrivée de ses sondes pendant la fenêtre, avec la tech de la civ à ce moment.",
+      "justification": "Simplification.",
+      "todo": ["Phase 2, point 11."]
+    },
+    "colonized_criterion": {
+      "status": "M", "where": "python/p0_passive_update/_check_silence.py",
+      "description": "Rejet si un front de colonisation couvre le Soleil à un moment de la fenêtre d'artefacts.",
+      "justification": "« Fait A » de Hart 1975 : le Système solaire n'est pas occupé."
+    }
+  }
+}

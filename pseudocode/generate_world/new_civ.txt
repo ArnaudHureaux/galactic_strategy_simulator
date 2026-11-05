@@ -1,13 +1,14 @@
 def new_civ(position, config, rng):
     return Civilisation(
         position=position,
-        birth_year=config.last_grb_date_years,
+        birth_year=PRESENT_DATE_YEARS - START_LOOKBACK_YEARS,   # last sterilizing GRB
         status="alive",
         biochem_type=sample_biochem(config, rng),
         tech_level=INITIAL_TECH_LEVEL,
         population_size=INITIAL_POPULATION,
-        natural_tech_progress=sample_natural_tech_progress(rng),
-        natural_population_growth=sample_natural_population_growth(rng),
+        # each civ's own rates: mean * U(1 - SPREAD, 1 + SPREAD)
+        natural_tech_progress=NATURAL_TECH_PROGRESS_MEAN * rng.uniform(1 - NATURAL_TECH_PROGRESS_SPREAD, 1 + NATURAL_TECH_PROGRESS_SPREAD),
+        natural_population_growth=NATURAL_POPULATION_GROWTH_MEAN * rng.uniform(1 - NATURAL_POPULATION_GROWTH_SPREAD, 1 + NATURAL_POPULATION_GROWTH_SPREAD),
         strategy=sample_strategy(rng),
         belief={},
     )

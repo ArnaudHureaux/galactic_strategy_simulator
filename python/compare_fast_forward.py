@@ -27,14 +27,17 @@ from config import Config
 
 
 def scenario(span, base=None):
+    """Same scenario shortened to `span` years: same start date, same share of the run inside the
+    artefact window."""
     base = base or Config()
-    start = base.last_grb_date_years
+    start = base.start_date_years
     present = start + span
     return replace(
         base,
         present_date_years=present,
+        start_lookback_years=span,
         humanity_birth_date_years=present - (base.present_date_years - base.humanity_birth_date_years),
-        artefact_window_years=span * base.artefact_window_years / (base.present_date_years - start),
+        artefact_window_years=span * min(1.0, base.artefact_window_years / base.start_lookback_years),
         artefact_detection_probability=0.0,
     )
 

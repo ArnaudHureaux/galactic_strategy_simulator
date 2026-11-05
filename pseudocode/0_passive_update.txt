@@ -50,8 +50,9 @@ for civ in world.active(now):
             civ.belief[other].refresh_estimates(view)
         civ.belief[other].last_seen_at = now
         civ.belief[other].channel = "signal" if by_signal else "probe"
-        if view.attacked_by in civ.belief:
-            civ.belief[view.attacked_by].trust = max(0, civ.belief[view.attacked_by].trust - REPUTATION_TRUST_DROP)
+        # witness of an ongoing war (victim hit during the step of the view): REPUTATION_TRUST_DROP per interaction period
+        if view.attacked_by in civ.belief and view.attacked_at > view.t - DT:
+            civ.belief[view.attacked_by].trust = max(0, civ.belief[view.attacked_by].trust - REPUTATION_TRUST_DROP * DT / INTERACTION_PERIOD_YEARS)
 
 for civ in world.active(now):
     if self_destruction(civ, rng) or civ.tech_level <= 0 or civ.population_size <= 0:

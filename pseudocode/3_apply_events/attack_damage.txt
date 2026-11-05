@@ -1,3 +1,5 @@
+# A war destroys min(1, DAMAGE_COEF * ratio) of the target per interaction period; an attack
+# event stands for one step of it (step_fraction: see share_tech_update.txt). 1 = destroyed at once.
 def attack_damage(power, target_tech_level):
     ratio = power / target_tech_level
-    return min(1, DAMAGE_COEF * ratio)
+    return step_fraction(min(1, DAMAGE_COEF * ratio))

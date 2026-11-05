@@ -306,11 +306,14 @@ fn detect(world: &mut World, config: &Config, now: f64) {
                 continue;
             }
             observe(world, i, j, &view, if by_signal { Channel::Signal } else { Channel::Probe }, now);
+            // A witness of an ongoing war (the victim was hit during the step of the view) loses
+            // trust in the attacker at reputation_trust_drop per interaction period.
             if let Some(attacker) = view.attacked_by
+                && view.attacked_at > view.t - config.dt
                 && let Some(&b) = world.civs[i].belief_of.get(&attacker)
             {
                 let entry = &mut world.civs[i].belief[b];
-                let trust = pymax(0.0, entry.trust - config.reputation_trust_drop);
+                let trust = pymax(0.0, entry.trust - config.derived().reputation_drop_additive);
                 if trust != entry.trust {
                     entry.trust = trust;
                     world.note_trust(i, b);

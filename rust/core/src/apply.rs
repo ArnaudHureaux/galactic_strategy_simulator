@@ -1,6 +1,6 @@
 //! Mirror of python/p3_apply_events.
 
-use crate::config::Config;
+use crate::config::{Config, step_fraction};
 use crate::events::{Event, Kind};
 use crate::passive::update_nb_of_world;
 use crate::pymath::{self, pymin};
@@ -62,10 +62,13 @@ fn apply_share_relationship(event: &Event, world: &mut World, config: &Config) {
 
 fn apply_attack(event: &Event, world: &mut World, config: &Config) {
     let target = &mut world.civs[event.dst];
+    // A war destroys min(1, damage_coef * tech ratio) of the target per interaction period;
+    // an attack event stands for one regular step of it.
     let damage = if target.tech_level <= 0.0 {
         1.0
     } else {
-        pymin(1.0, config.damage_coef * (event.power / target.tech_level))
+        let per_period = pymin(1.0, config.damage_coef * (event.power / target.tech_level));
+        step_fraction(per_period, config.derived().interaction_step)
     };
     target.tech_level *= 1.0 - damage;
     target.population_size *= 1.0 - damage;
@@ -81,6 +84,7 @@ fn apply_attack(event: &Event, world: &mut World, config: &Config) {
     }
     let target = &mut world.civs[event.dst];
     target.attacked_by = Some(event.src);
+    target.attacked_at = event.t;
     if target.tech_level <= 0.0 || target.population_size <= 0.0 {
         target.go_extinct(event.t, "attack");
     }

@@ -16,6 +16,7 @@ pub struct Snapshot {
     pub probe_radius: f64,
     pub attacked_by: Option<usize>,
     pub expansion_radius: f64,
+    pub attacked_at: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -121,6 +122,8 @@ pub struct Civ {
     /// Beliefs seen recently enough to still be actionable (indices in `belief`).
     pub recent: BTreeSet<usize>,
     pub attacked_by: Option<usize>,
+    /// Arrival date of the last attack (attacked_by's); -inf before any.
+    pub attacked_at: f64,
     pub is_human: bool,
     pub extinct_at: Option<f64>,
     pub extinction_cause: Option<&'static str>,
@@ -149,6 +152,7 @@ impl Civ {
             probe_radius: self.probe_radius,
             attacked_by: self.attacked_by,
             expansion_radius: self.expansion_radius,
+            attacked_at: self.attacked_at,
         });
         // Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         let cutoff = now - horizon;

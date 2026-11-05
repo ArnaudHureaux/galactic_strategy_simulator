@@ -7,4 +7,4 @@ def generate_world(config, streams):
     civs = _seed_life_in_bubbles(config, streams.world)
     humanity = _make_humanity(config, streams.humanity)
     civs.append(humanity)
-    return World(civs=civs, humanity=humanity, now=config.last_grb_date_years, config=config)
+    return World(civs=civs, humanity=humanity, now=config.start_date_years, config=config)

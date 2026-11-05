@@ -1,4 +1,5 @@
 from constants import C_PC_PER_YEAR
+from p3_apply_events._rates import _step_additive
 from state import BeliefEntry
 
 
@@ -27,9 +28,11 @@ def _detect(world, config, now):
             if not (by_signal or by_probe):
                 continue
             _observe(world, civ, other, view, "signal" if by_signal else "probe", now)
-            if view.attacked_by in civ.belief:
+            # A witness of an ongoing war (the victim was hit during the step of the view) loses
+            # trust in the attacker at reputation_trust_drop per interaction period.
+            if view.attacked_by in civ.belief and view.attacked_at > view.t - config.dt:
                 entry = civ.belief[view.attacked_by]
-                trust = max(0.0, entry.trust - config.reputation_trust_drop)
+                trust = max(0.0, entry.trust - _step_additive(config.reputation_trust_drop, config))
                 if trust != entry.trust:
                     entry.trust = trust
                     world.note_trust(entry)

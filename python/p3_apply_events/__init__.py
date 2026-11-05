@@ -1,6 +1,6 @@
 from p3_apply_events._share_tech_update import _share_tech_update
 from p3_apply_events._share_trust_update import _share_trust_update
-from p3_apply_events._share_strength import _share_growth
+from p3_apply_events._rates import _step_growth
 from p3_apply_events._attack_damage import _attack_damage
 from p0_passive_update._advance_fronts import _update_nb_of_world
 
@@ -27,7 +27,7 @@ def _apply_share_relationship(event, target, world, config):
     source = world.civ(event.src)
     # Most relationships are saturated: skip the synergy update when it cannot change anything.
     if target.natural_tech_progress != cap or (source is not None and source.natural_tech_progress != cap):
-        synergy = _share_growth(config.share_synergy_bonus, config)
+        synergy = _step_growth(config.share_synergy_bonus, config)
         target.natural_tech_progress = min(cap, target.natural_tech_progress * synergy)
         if source is not None:
             source.natural_tech_progress = min(cap, source.natural_tech_progress * synergy)
@@ -53,5 +53,6 @@ def _apply_attack(event, target, world):
             entry.attacked_me = True
             world.note_trust(entry)
     target.attacked_by = event.src
+    target.attacked_at = event.t
     if target.tech_level <= 0 or target.population_size <= 0:
         target.go_extinct(event.t, "attack")
