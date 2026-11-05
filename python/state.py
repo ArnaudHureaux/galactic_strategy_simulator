@@ -15,6 +15,8 @@ class Snapshot:
     attacked_by: str = None
     expansion_radius: float = 0.0
     attacked_at: float = None
+    # Tech growth rate at t (see _tech_growth._tech_rate): observers project progress with it.
+    tech_rate: float = 0.0
 
 
 @dataclass
@@ -82,10 +84,10 @@ class Civilisation:
             return list(recent.values())
         return sorted(recent.values(), key=_entry_order)
 
-    def record(self, now, horizon):
+    def record(self, now, horizon, tech_rate):
         self.history_t.append(now)
         self.history.append(Snapshot(now, self.tech_level, self.broadcast_radius, self.probe_radius, self.attacked_by,
-                                     self.expansion_radius, self.attacked_at))
+                                     self.expansion_radius, self.attacked_at, tech_rate))
         # Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         cutoff = now - horizon
         drop = 0
@@ -102,6 +104,10 @@ class Civilisation:
         if i < 0:
             return None
         return self.history[i]
+
+    def states_since(self, t):
+        # Snapshots that describe the state at t or later.
+        return self.history[max(0, bisect_right(self.history_t, t) - 1):]
 
     def go_extinct(self, t, cause):
         if self.status != "extinct":

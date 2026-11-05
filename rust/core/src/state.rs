@@ -17,6 +17,8 @@ pub struct Snapshot {
     pub attacked_by: Option<usize>,
     pub expansion_radius: f64,
     pub attacked_at: f64,
+    /// Tech growth rate at t (passive::tech_rate): observers project progress with it.
+    pub tech_rate: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -144,7 +146,7 @@ impl Civ {
         self.recent.iter().copied().collect()
     }
 
-    pub fn record(&mut self, now: f64, horizon: f64) {
+    pub fn record(&mut self, now: f64, horizon: f64, tech_rate: f64) {
         self.history.push_back(Snapshot {
             t: now,
             tech_level: self.tech_level,
@@ -153,6 +155,7 @@ impl Civ {
             attacked_by: self.attacked_by,
             expansion_radius: self.expansion_radius,
             attacked_at: self.attacked_at,
+            tech_rate,
         });
         // Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         let cutoff = now - horizon;
@@ -167,6 +170,12 @@ impl Civ {
         }
         let i = self.history.partition_point(|s| s.t <= t);
         if i == 0 { None } else { Some(self.history[i - 1]) }
+    }
+
+    /// Snapshots that describe the state at t or later.
+    pub fn states_since(&self, t: f64) -> impl Iterator<Item = &Snapshot> {
+        let i = self.history.partition_point(|s| s.t <= t);
+        self.history.range(i.saturating_sub(1)..)
     }
 
     pub fn go_extinct(&mut self, t: f64, cause: &'static str) {

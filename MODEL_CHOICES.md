@@ -44,6 +44,31 @@ Livrable de la phase 2 de la [roadmap](ROADMAP.md). Un paragraphe par choix : d�
 - La parité Python/Rust est contrôlée.
 - La convergence globale en dt reste à faire en phase 3.
 
+### Point 1 : information imparfaite (« explosion technologique »)
+
+*Décidé le 2026-11-05.*
+
+**Constat.** Une civ connaissait exactement la tech de sa cible, telle qu'elle était au départ de la lumière. `tech_level_uncertainty` valait toujours 0, donc le trait `caution_k` n'avait aucun effet.
+
+**Décision.** L'incertitude est le progrès que la cible a pu faire pendant le trajet de la lumière :
+
+u = grow(T_vue, r_vue, cap, d/c) − T_vue
+
+où `grow` est la solution exacte de la loi de croissance techno, et `r_vue` le rythme de la cible vu en même temps que sa tech. Une civ attaque si l'écart diminué de `caution_k × u` dépasse `attack_gap_min`. On peut lire `caution_k` ainsi :
+- 0 : la civ ignore le retard de la lumière ;
+- 1 : elle suppose que la cible a progressé au rythme vu ;
+- au-delà : elle est de plus en plus prudente.
+
+**Justification.** C'est l'argument d'« explosion technologique » de la Forêt sombre : on ne sait pas de combien la cible a progressé depuis. Une cible lointaine ou en forte croissance paraît donc plus risquée. Le modèle est déterministe et n'ajoute aucun paramètre. On suppose seulement que le rythme de la cible est observable, à partir de l'historique vu.
+
+**Alternatives écartées.**
+- Retirer `caution_k` : c'est parcimonieux, mais on perd la nuance de la Forêt sombre.
+- Ajouter un bruit aléatoire sur la tech estimée : cela introduit deux paramètres inconnus (un σ par canal) et casse le fast-forward si le bruit est retiré à chaque observation.
+
+**Fast-forward.** Pendant un saut, l'incertitude peut varier entre 0 et une borne. La marge de décision et la marge de classement des cibles retranchent donc `caution_k × borne`. La borne est le maximum exact de grow(x) − x sur l'intervalle des tech possibles (fonction concave dans le cas logistique, maximum en x* = cap·√q/(1+√q), avec q = e^(−rτ)).
+
+**Constat quantitatif.** Avec l'intervalle actuel du rythme de progrès (3·10⁻¹¹ à 3·10⁻¹⁰ par an), u vaut environ 10⁻⁶. Les écarts de tech qui décident d'une attaque sont, eux, de l'ordre de 0,1 à 1. Une civ progresse en milliards d'années, alors que la lumière met au plus quelques milliers d'années à traverser la région : l'effet de `caution_k` est donc négligeable. Sur 80 runs du pilote, activer ou désactiver la prudence ne change aucune issue. Ce sera à confirmer au criblage de Morris, et à revoir avec l'intervalle du rythme de progrès (point 5 et phase 5).
+
 ## Décidés, à implémenter
 
 ### Point 11 : observation SETI réaliste (point 4 : la tech reste abstraite)
@@ -89,4 +114,4 @@ Cela impose de **placer l'humanité sur l'échelle**. Aujourd'hui, elle part de 
 
 ## À décider
 
-Points 1, 3 et 5 à 10 de la phase 2.
+Points 3 et 5 à 10 de la phase 2.

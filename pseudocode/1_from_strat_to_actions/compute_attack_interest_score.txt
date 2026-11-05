@@ -1,14 +1,9 @@
-def compute_attack_interest_score(
-        my_civ,
-        belief_civ,
-        attack_gap_min,
-        attack_gap_max,
-        caution_k,
-        attack_when_trust_inferior_than
-    ):
-    tech_gap = belief_civ.tech_level - my_civ.tech_level
-    tech_gap_after_caution_k_consideration = ...caution_k...tech_gap...
-    if tech_gap_after_caution_k_consideration in [attack_gap_min,attack_gap_max] and 
-    belief_civ < attack_when_trust_inferior_than:
-        return 
-        
+def compute_attack_interest_score(my_civ, belief):
+    delta = my_civ.tech_level - belief.estimated_tech_level
+    # the estimate is as old as the light; caution_k weighs the progress the target may have
+    # made since (belief.tech_level_uncertainty, see 0_passive_update.txt)
+    safe_delta = delta - my_civ.caution_k * belief.tech_level_uncertainty
+    if safe_delta > my_civ.attack_gap_min and delta < my_civ.attack_gap_max \
+            and belief.trust < my_civ.attack_when_trust_inferior_than:
+        return safe_delta   # attack the largest margins first (only if > 0)
+    return 0

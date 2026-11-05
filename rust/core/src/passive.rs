@@ -47,7 +47,8 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
     }
     advance_fronts(world, config, &active, &advances);
     for &i in &active {
-        world.civs[i].record(now, horizon);
+        let rate = tech_rate(&world.civs[i], config);
+        world.civs[i].record(now, horizon, rate);
     }
 
     match jump {
@@ -305,7 +306,8 @@ fn detect(world: &mut World, config: &Config, now: f64) {
             if !(by_signal || by_probe) {
                 continue;
             }
-            observe(world, i, j, &view, if by_signal { Channel::Signal } else { Channel::Probe }, now);
+            let uncertainty = projected_progress(view.tech_level, view.tech_rate, d / C_PC_PER_YEAR, config);
+            observe(world, i, j, &view, uncertainty, if by_signal { Channel::Signal } else { Channel::Probe }, now);
             // A witness of an ongoing war (the victim was hit during the step of the view) loses
             // trust in the attacker at reputation_trust_drop per interaction period.
             if let Some(attacker) = view.attacked_by
@@ -328,7 +330,13 @@ fn probe_reached(civ: &Civ, seen_at: f64, d: f64) -> bool {
     civ.state_at(seen_at).is_some_and(|own| own.probe_radius >= d)
 }
 
-fn observe(world: &mut World, i: usize, j: usize, view: &Snapshot, channel: Channel, now: f64) {
+/// Technological explosion: the tech a target may have gained while its light travelled to the
+/// observer, at the growth rate seen with it. Cautious civs discount their advantage by it.
+pub fn projected_progress(tech_level: f64, tech_rate: f64, delay: f64, config: &Config) -> f64 {
+    grow(tech_level, tech_rate, config.tech_growth_cap(), delay) - tech_level
+}
+
+fn observe(world: &mut World, i: usize, j: usize, view: &Snapshot, uncertainty: f64, channel: Channel, now: f64) {
     let is_competitor = world.civs[i].biochem == world.civs[j].biochem;
     let civ = &mut world.civs[i];
     let (b, previous_seen) = match civ.belief_of.get(&j) {
@@ -342,7 +350,7 @@ fn observe(world: &mut World, i: usize, j: usize, view: &Snapshot, channel: Chan
             civ.belief.push(BeliefEntry {
                 target: j,
                 estimated_tech_level: view.tech_level,
-                tech_level_uncertainty: 0.0,
+                tech_level_uncertainty: uncertainty,
                 is_competitor,
                 trust,
                 channel,
@@ -357,6 +365,7 @@ fn observe(world: &mut World, i: usize, j: usize, view: &Snapshot, channel: Chan
             let entry = &mut civ.belief[b];
             let previous = entry.last_seen_at;
             entry.estimated_tech_level = view.tech_level;
+            entry.tech_level_uncertainty = uncertainty;
             entry.channel = channel;
             entry.last_seen_at = now;
             (b, Some(previous))

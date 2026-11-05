@@ -4,8 +4,8 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{population_capacity, radius_for_nb_of_world, self_destruction_shape, tech_rate, time_to_reach, world_density};
-use crate::pymath::{self, pymax, pymin};
+use crate::passive::{grow, population_capacity, radius_for_nb_of_world, self_destruction_shape, tech_rate, time_to_reach, world_density};
+use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
 
@@ -271,6 +271,8 @@ fn decision_budgets(world: &mut World, active: &[usize], config: &Config, now: f
         let civ = &world.civs[a];
         let s = &civ.strategy;
         let mut scored = Vec::new();
+        // Largest drift of a score of `scored` through its target's uncertainty.
+        let mut widest_drift = 0.0;
         for b in recent {
             let entry = &civ.belief[b];
             if now - entry.last_seen_at > memory {
@@ -283,12 +285,19 @@ fn decision_budgets(world: &mut World, active: &[usize], config: &Config, now: f
             let lag = pymax(0.0, world.civs[target].tech_level - entry.estimated_tech_level);
             let delta = civ.tech_level - entry.estimated_tech_level;
             let safe_delta = delta - s.caution_k * entry.tech_level_uncertainty;
+            // The uncertainty is refreshed at each observation and stays within [0, bound].
+            let drift = if s.caution_k > 0.0 && world.civs[target].alive {
+                s.caution_k * projected_progress_bound(civ, &world.civs[target], config, now)
+            } else {
+                0.0
+            };
             // The score (safe_delta) must also stay on the same side of 0 (attack only if > 0).
-            let margin = pymin(pymin((safe_delta - s.attack_gap_min).abs(), (s.attack_gap_max - delta).abs()), safe_delta.abs()) - lag;
+            let margin = pymin(pymin((safe_delta - s.attack_gap_min).abs(), (s.attack_gap_max - delta).abs()), safe_delta.abs()) - lag - drift;
             shrink(tech_budget, a, margin / 2.0);
             shrink(tech_budget, target, margin / 2.0);
             if safe_delta > s.attack_gap_min && delta < s.attack_gap_max && safe_delta > 0.0 {
                 scored.push((safe_delta, target));
+                widest_drift = pymax(widest_drift, drift);
             }
         }
 
@@ -297,7 +306,7 @@ fn decision_budgets(world: &mut World, active: &[usize], config: &Config, now: f
             sort_scored(&mut scored, world);
             let k = k as usize;
             // The attacker's own tech shifts every score equally: only the targets can reorder them.
-            let margin = scored[k - 1].0 - scored[k].0;
+            let margin = scored[k - 1].0 - scored[k].0 - 2.0 * widest_drift;
             for &(_, target) in &scored {
                 shrink(tech_budget, target, margin / 2.0);
             }
@@ -310,6 +319,35 @@ fn decision_budgets(world: &mut World, active: &[usize], config: &Config, now: f
                 let value = next / (rate * (civ.population_size + pymax(0.0, pop_budget[a].expect("active")))) - civ.tech_level;
                 shrink(tech_budget, a, value);
             }
+        }
+    }
+}
+
+/// Largest uncertainty (passive::projected_progress) the observer may compute during the jump:
+/// from the snapshots it can still see, or from the target's state within the relative budgets.
+fn projected_progress_bound(observer: &Civ, target: &Civ, config: &Config, now: f64) -> f64 {
+    let rel = config.jump_max_relative_change;
+    let delay = dist(&observer.position, &target.position) / C_PC_PER_YEAR;
+    let mut low = target.tech_level * (1.0 - rel);
+    let mut high = target.tech_level * (1.0 + rel);
+    let mut rate = tech_rate(target, config) * pymath::pow(1.0 + rel, config.tech_population_exponent);
+    for snapshot in target.states_since(now - delay) {
+        low = pymin(low, snapshot.tech_level);
+        high = pymax(high, snapshot.tech_level);
+        rate = pymax(rate, snapshot.tech_rate);
+    }
+    max_progress(low, high, rate, delay, config)
+}
+
+/// Largest grow(x) - x for x in [low, high] (see fast_forward._max_progress).
+fn max_progress(low: f64, high: f64, rate: f64, delay: f64, config: &Config) -> f64 {
+    match config.tech_growth_cap() {
+        None => grow(high, rate, None, delay) - high,
+        Some(cap) => {
+            let high = pymin(high, cap);
+            let root = pymath::exp(-rate * delay).sqrt();
+            let x = pymin(pymax(cap * root / (1.0 + root), low), high);
+            grow(x, rate, Some(cap), delay) - x
         }
     }
 }

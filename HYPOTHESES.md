@@ -12,7 +12,7 @@ Statuts :
 - **M** choix de modèle : forme d'une loi ou règle, alternatives testées en robustesse
 
 83 paramètres : 44 E, 1 S, 7 N, 17 D, 14 M.
-21 règles codées en dur. 53 points ouverts.
+21 règles codées en dur. 51 points ouverts.
 
 ## E : exploré
 
@@ -119,8 +119,8 @@ Statuts :
 | `attack_gap_min_high` | 2 | tech |  | Borne haute du trait attack_gap_min. | Définition de l'espace des stratégies. |  |
 | `attack_gap_max_low` | 2 | tech |  | Borne basse du trait attack_gap_max (écart de tech maximal pour attaquer). | Définition de l'espace des stratégies. |  |
 | `attack_gap_max_high` | 10 | tech |  | Borne haute du trait attack_gap_max. | Définition de l'espace des stratégies. |  |
-| `caution_k_low` | 0 | sans dimension |  | Borne basse du trait caution_k (prudence face à l'incertitude). | Définition de l'espace des stratégies. | Phase 2, point 1 : sans effet tant que l'incertitude sur la tech vaut 0. |
-| `caution_k_high` | 3 | sans dimension |  | Borne haute du trait caution_k. | Définition de l'espace des stratégies. | Phase 2, point 1. |
+| `caution_k_low` | 0 | sans dimension |  | Borne basse du trait caution_k : poids donné au progrès possible de la cible pendant le trajet de la lumière (0 = l'ignore). | Définition de l'espace des stratégies : 0 = naïf, ignore le retard de la lumière. |  |
+| `caution_k_high` | 3 | sans dimension |  | Borne haute du trait caution_k. | Définition de l'espace des stratégies : 1 = suppose que la cible a progressé au rythme vu ; au-delà, prudence croissante (3 = triple de ce progrès). |  |
 
 ## Règles codées en dur
 
@@ -132,7 +132,7 @@ Statuts :
 | `bubble_geometry` | M | python/generate_world/_sample_lens_position.py, _seed_life_in_bubbles.py | Centres des bulles et humanité : disque uniforme en surface, profil vertical exponentiel. Civs uniformes dans une boule autour du centre. | Approximation du disque mince. | Phase 2, point 6. |
 | `humanity_strategy` | M | python/generate_world/_make_humanity.py | L'humanité tire une stratégie, puis n'attaque jamais et n'émet jamais volontairement. | Comportement historique de l'humanité. | Phase 2, point 5. |
 | `competition_by_biochem` | M | python/p0_passive_update/_detect.py, _advance_fronts.py | Deux civs sont concurrentes si et seulement si elles ont la même biochimie. | Compétition pour les mêmes mondes habitables. | Phase 2. |
-| `tech_uncertainty_zero` | M | python/p0_passive_update/_detect.py | Une civ connaît exactement la tech des civs qu'elle voit (tech_level_uncertainty = 0). | Aucune : rend caution_k sans effet. | Phase 2, point 1. |
+| `tech_uncertainty_projection` | M | python/p0_passive_update/_detect.py, python/p1_from_strat_to_actions/_compute_attack_interest_score.py | Une civ voit la tech exacte de sa cible, mais retardée par la lumière. Son incertitude est le progrès que la cible a pu faire pendant ce trajet, au rythme de croissance vu en même temps : u = grow(T_vue, r_vue, cap, d/c) − T_vue. Une civ attaque si l'écart diminué de caution_k × u dépasse attack_gap_min. | « Explosion technologique » de la Forêt sombre (Liu 2008) : on ne sait pas de combien la cible a progressé depuis le départ de la lumière ; une cible lointaine ou en forte croissance paraît plus risquée. Déterministe et sans paramètre nouveau (décision du 2026-11, phase 2, point 1). On suppose le rythme de la cible observable, à partir de l'historique vu.       Alternatives écartées : retirer caution_k (perd la nuance de la Forêt sombre) ; bruit aléatoire sur l'estimation (2 paramètres inconnus, casse le fast-forward). | Point 5 et phase 5 : avec un rythme de progrès entre 3e-11 et 3e-10 par an, u ≈ 1e-6, donc caution_k est sans effet en pratique ; à revoir avec l'intervalle du rythme de progrès. |
 | `deterministic_detection` | M | python/p0_passive_update/_detect.py | Détection entre civs certaine dès qu'une sphère (signal ou sondes) atteint l'autre. | Simplification. | Phase 2, points 9 et 11. |
 | `attack_decision` | M | python/p1_from_strat_to_actions/_compute_attack_interest_score.py | Une civ attaque si l'écart de tech est dans [attack_gap_min, attack_gap_max] et la confiance sous son seuil ; elle attaque d'abord les plus grands écarts. | Formalise les stratégies nommées (Forêt sombre, etc.). | Phase 2, point 7 : écart pour décider mais rapport pour les dégâts. |
 | `min_one_attack` | M | python/p1_from_strat_to_actions/_compute_max_number_of_attack.py | Toute civ peut mener au moins une guerre à la fois. | Une civ jeune peut quand même agir. |  |

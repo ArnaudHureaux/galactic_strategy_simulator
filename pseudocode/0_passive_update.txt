@@ -48,6 +48,9 @@ for civ in world.active(now):
             civ.belief[other] = new_belief(view, trust=default_trust(civ, other))
         else:
             civ.belief[other].refresh_estimates(view)
+        # technological explosion: what the target may have gained while its light travelled,
+        # at the growth rate seen with it (exact solution of the tech growth law)
+        civ.belief[other].tech_level_uncertainty = grow(view.tech_level, view.tech_rate, TECH_CAP, d / C) - view.tech_level
         civ.belief[other].last_seen_at = now
         civ.belief[other].channel = "signal" if by_signal else "probe"
         # witness of an ongoing war (victim hit during the step of the view): REPUTATION_TRUST_DROP per interaction period

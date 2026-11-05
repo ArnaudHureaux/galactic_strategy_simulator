@@ -22,10 +22,11 @@ looks exactly like the next regular step of the stationary regime.
 
 from bisect import bisect_right
 from dataclasses import dataclass
-from math import floor, inf, log, log1p
+from math import exp, floor, inf, log, log1p, sqrt
 
+from constants import C_PC_PER_YEAR
 from geometry import dist
-from p0_passive_update._growth_law import time_to_reach
+from p0_passive_update._growth_law import grow, time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
@@ -197,6 +198,8 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
     for a in active:
         s = a.strategy
         scored = []
+        # Largest drift of a score of `scored` through its target's uncertainty.
+        widest_drift = 0.0
         # Order does not matter here: budgets are minima and scored is fully sorted below.
         for entry in a.recent_beliefs(now, config.belief_memory_years, ordered=False):
             if now - entry.last_seen_at > config.belief_memory_years:
@@ -208,18 +211,23 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
             lag = max(0.0, target.tech_level - entry.estimated_tech_level) if target is not None else 0.0
             delta = a.tech_level - entry.estimated_tech_level
             safe_delta = delta - s["caution_k"] * entry.tech_level_uncertainty
+            # The uncertainty is refreshed at each observation and stays within [0, bound].
+            drift = 0.0
+            if s["caution_k"] > 0 and target is not None and target.status == "alive":
+                drift = s["caution_k"] * _projected_progress_bound(a, target, config, now)
             # The score (safe_delta) must also stay on the same side of 0 (attack only if > 0).
-            margin = min(abs(safe_delta - s["attack_gap_min"]), abs(s["attack_gap_max"] - delta), abs(safe_delta)) - lag
+            margin = min(abs(safe_delta - s["attack_gap_min"]), abs(s["attack_gap_max"] - delta), abs(safe_delta)) - lag - drift
             shrink(a.id, margin / 2)
             shrink(target_id, margin / 2)
             if safe_delta > s["attack_gap_min"] and delta < s["attack_gap_max"] and safe_delta > 0:
                 scored.append((safe_delta, target_id))
+                widest_drift = max(widest_drift, drift)
 
         k = _compute_max_number_of_attack(a, config)
         if len(scored) > k:
             scored.sort(reverse=True)
             # The attacker's own tech shifts every score equally: only the targets can reorder them.
-            margin = scored[k - 1][0] - scored[k][0]
+            margin = scored[k - 1][0] - scored[k][0] - 2 * widest_drift
             for _, target_id in scored:
                 shrink(target_id, margin / 2)
             # The number of attacks k grows with tech * population: keep both below the next integer.
@@ -228,6 +236,34 @@ def _decision_budgets(active, world, config, now, tech_budget, pop_budget):
                 ceiling = (k + 1) / (rate * (a.tech_level + max(0.0, tech_budget[a.id]))) - a.population_size
                 pop_budget[a.id] = min(pop_budget[a.id], ceiling)
                 shrink(a.id, (k + 1) / (rate * (a.population_size + max(0.0, pop_budget[a.id]))) - a.tech_level)
+
+
+def _projected_progress_bound(observer, target, config, now):
+    # Largest uncertainty (_detect._projected_progress) observer may compute during the jump: from
+    # the snapshots it can still see, or from the target's state within the relative budgets.
+    rel = config.jump_max_relative_change
+    delay = dist(observer.position, target.position) / C_PC_PER_YEAR
+    low = target.tech_level * (1 - rel)
+    high = target.tech_level * (1 + rel)
+    rate = _tech_rate(target, config) * (1 + rel) ** config.tech_population_exponent
+    for snapshot in target.states_since(now - delay):
+        low = min(low, snapshot.tech_level)
+        high = max(high, snapshot.tech_level)
+        rate = max(rate, snapshot.tech_rate)
+    return _max_progress(low, high, rate, delay, config)
+
+
+def _max_progress(low, high, rate, delay, config):
+    # Largest grow(x) - x for x in [low, high] (the progress grows with the rate): increasing in
+    # x without cap; concave when logistic, with its maximum at cap * sqrt(q) / (1 + sqrt(q)),
+    # q = exp(-rate * delay).
+    cap = _tech_growth_cap(config)
+    if cap is None:
+        return grow(high, rate, None, delay) - high
+    high = min(high, cap)
+    root = sqrt(exp(-rate * delay))
+    x = min(max(cap * root / (1 + root), low), high)
+    return grow(x, rate, cap, delay) - x
 
 
 def _detection_limit(world, active, config, now, tech_budget, front_budget):

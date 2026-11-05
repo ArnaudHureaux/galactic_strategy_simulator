@@ -1,6 +1,6 @@
 from generate_world._sample_lens_position import _sample_lens_position
 from generate_world._new_civ import _new_civ
-from p0_passive_update._tech_growth import _tech_growth
+from p0_passive_update._tech_growth import _tech_growth, _tech_rate
 from p0_passive_update._population_growth import _population_growth
 from p0_passive_update._compute_broadcast_radius import _compute_broadcast_radius
 from p0_passive_update._compute_probe_speed import _compute_probe_speed
@@ -46,7 +46,7 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
             advances.append((civ, front_after * min(step, config.dt)))
     _advance_fronts(world, config, advances)
     for civ in active:
-        civ.record(now, horizon)
+        civ.record(now, horizon, _tech_rate(civ, config))
 
     if jump is None:
         for civ in world.orphan_probes(now):

@@ -404,15 +404,13 @@
     },
     "caution_k_low": {
       "status": "M", "unit": "sans dimension",
-      "description": "Borne basse du trait caution_k (prudence face à l'incertitude).",
-      "justification": "Définition de l'espace des stratégies.",
-      "todo": ["Phase 2, point 1 : sans effet tant que l'incertitude sur la tech vaut 0."]
+      "description": "Borne basse du trait caution_k : poids donné au progrès possible de la cible pendant le trajet de la lumière (0 = l'ignore).",
+      "justification": "Définition de l'espace des stratégies : 0 = naïf, ignore le retard de la lumière."
     },
     "caution_k_high": {
       "status": "M", "unit": "sans dimension",
       "description": "Borne haute du trait caution_k.",
-      "justification": "Définition de l'espace des stratégies.",
-      "todo": ["Phase 2, point 1."]
+      "justification": "Définition de l'espace des stratégies : 1 = suppose que la cible a progressé au rythme vu ; au-delà, prudence croissante (3 = triple de ce progrès)."
     },
     "attack_when_trust_inferior_than_low": {
       "status": "D", "unit": "confiance",
@@ -555,12 +553,12 @@
       "justification": "Compétition pour les mêmes mondes habitables.",
       "todo": ["Phase 2."]
     },
-    "tech_uncertainty_zero": {
-      "status": "M", "where": "python/p0_passive_update/_detect.py",
-      "description": "Une civ connaît exactement la tech des civs qu'elle voit (tech_level_uncertainty = 0).",
-      "justification": "Aucune : rend caution_k sans effet.",
-      "todo": ["Phase 2, point 1."]
-    },
+    "tech_uncertainty_projection": {
+      "status": "M", "where": "python/p0_passive_update/_detect.py, python/p1_from_strat_to_actions/_compute_attack_interest_score.py",
+      "description": "Une civ voit la tech exacte de sa cible, mais retardée par la lumière. Son incertitude est le progrès que la cible a pu faire pendant ce trajet, au rythme de croissance vu en même temps : u = grow(T_vue, r_vue, cap, d/c) − T_vue. Une civ attaque si l'écart diminué de caution_k × u dépasse attack_gap_min.",
+      "justification": "« Explosion technologique » de la Forêt sombre (Liu 2008) : on ne sait pas de combien la cible a progressé depuis le départ de la lumière ; une cible lointaine ou en forte croissance paraît plus risquée. Déterministe et sans paramètre nouveau (décision du 2026-11, phase 2, point 1). On suppose le rythme de la cible observable, à partir de l'historique vu.       Alternatives écartées : retirer caution_k (perd la nuance de la Forêt sombre) ; bruit aléatoire sur l'estimation (2 paramètres inconnus, casse le fast-forward).",
+            "todo": ["Point 5 et phase 5 : avec un rythme de progrès entre 3e-11 et 3e-10 par an, u ≈ 1e-6, donc caution_k est sans effet en pratique ; à revoir avec l'intervalle du rythme de progrès."]
+          },
     "deterministic_detection": {
       "status": "M", "where": "python/p0_passive_update/_detect.py",
       "description": "Détection entre civs certaine dès qu'une sphère (signal ou sondes) atteint l'autre.",

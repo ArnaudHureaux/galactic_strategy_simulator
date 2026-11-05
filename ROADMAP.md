@@ -58,7 +58,7 @@ Sans question précise, impossible de savoir quels paramètres comptent.
 
 Chaque point se décide avec toi, puis est implémenté en Python, reporté en Rust, avec tests de parité.
 
-1. **Information imparfaite.** `tech_level_uncertainty` vaut toujours 0, donc `caution_k` n'a aucun effet. Il faut soit une incertitude (fonction de la distance, du canal et de l'écart de tech), soit retirer le trait.
+1. **Information imparfaite.** ✅ Fait : l'incertitude est le progrès que la cible a pu faire pendant le trajet de la lumière (« explosion technologique »), et `caution_k` la pondère. Voir [MODEL_CHOICES.md](MODEL_CHOICES.md). Avec l'intervalle actuel du rythme de progrès, l'effet est négligeable (u ≈ 10⁻⁶) : à revoir avec le point 5 et en phase 5.
 2. **Date de départ.** ✅ Fait : le départ était une date absolue (1 Ga après le Big Bang), donc la simulation démarrait il y a 12,8 Ga au lieu d'il y a 1 Ga. Le paramètre devient `start_lookback_years` (défaut 1 Ga), exploré entre 0,1 Ga (Annis 1999) et 5,2 Ga (Piran & Jimenez 2014), en échelle log. Voir [MODEL_CHOICES.md](MODEL_CHOICES.md).
 3. **Cohorte synchrone.** Toutes les civs initiales naissent au départ avec la même tech. La resynchronisation par un sursaut gamma est justifiée (Annis 1999), mais pas une naissance simultanée avec la même tech : il faudrait étaler les naissances.
 4. **Unité de tech sans ancrage physique.** ✅ Décidé : la tech reste abstraite, ses conséquences sont calées par deux ancres (niveau humain observé, plafond tiré de la littérature) ; Kardashev en indicateur de sortie (voir [MODEL_CHOICES.md](MODEL_CHOICES.md)). Ainsi les intervalles explorés peuvent être sourcés.

@@ -1,4 +1,6 @@
 from constants import C_PC_PER_YEAR
+from p0_passive_update._growth_law import grow
+from p0_passive_update._tech_growth import _tech_growth_cap
 from p3_apply_events._rates import _step_additive
 from state import BeliefEntry
 
@@ -27,7 +29,8 @@ def _detect(world, config, now):
             by_probe = _probe_reached(civ, seen_at, d)
             if not (by_signal or by_probe):
                 continue
-            _observe(world, civ, other, view, "signal" if by_signal else "probe", now)
+            uncertainty = _projected_progress(view.tech_level, view.tech_rate, d / C_PC_PER_YEAR, config)
+            _observe(world, civ, other, view, uncertainty, "signal" if by_signal else "probe", now)
             # A witness of an ongoing war (the victim was hit during the step of the view) loses
             # trust in the attacker at reputation_trust_drop per interaction period.
             if view.attacked_by in civ.belief and view.attacked_at > view.t - config.dt:
@@ -44,13 +47,19 @@ def _probe_reached(civ, seen_at, d):
     return own is not None and own.probe_radius >= d
 
 
-def _observe(world, civ, other, view, channel, now):
+def _projected_progress(tech_level, tech_rate, delay, config):
+    # Technological explosion: the tech a target may have gained while its light travelled to
+    # the observer, at the growth rate seen with it. Cautious civs discount their advantage by it.
+    return grow(tech_level, tech_rate, _tech_growth_cap(config), delay) - tech_level
+
+
+def _observe(world, civ, other, view, uncertainty, channel, now):
     is_competitor = civ.biochem_type == other.biochem_type
     if other.id not in civ.belief:
         entry = BeliefEntry(
             target_id=other.id,
             estimated_tech_level=view.tech_level,
-            tech_level_uncertainty=0.0,
+            tech_level_uncertainty=uncertainty,
             estimated_biochem=other.biochem_type,
             is_competitor=is_competitor,
             trust=_default_trust(civ, is_competitor),
@@ -65,6 +74,7 @@ def _observe(world, civ, other, view, channel, now):
         entry = civ.belief[other.id]
         world.note_seen(entry, created=False)
         entry.estimated_tech_level = view.tech_level
+        entry.tech_level_uncertainty = uncertainty
         entry.channel = channel
         entry.position = other.position
         entry.last_seen_at = now
