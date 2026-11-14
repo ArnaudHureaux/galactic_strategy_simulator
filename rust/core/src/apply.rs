@@ -2,7 +2,7 @@
 
 use crate::config::{Config, step_fraction};
 use crate::events::{Event, Kind};
-use crate::passive::update_nb_of_world;
+use crate::passive::shrink_worlds;
 use crate::pymath::{self, pymin};
 use crate::state::World;
 
@@ -77,8 +77,7 @@ fn apply_attack(event: &Event, world: &mut World, config: &Config) {
     };
     target.tech_level *= 1.0 - damage;
     target.population_size *= 1.0 - damage;
-    target.expansion_radius *= 1.0 - damage;
-    update_nb_of_world(target, config);
+    shrink_worlds(target, 1.0 - damage);
     if let Some(&b) = target.belief_of.get(&event.src) {
         let entry = &mut target.belief[b];
         if entry.trust != 0.0 || !entry.attacked_me {

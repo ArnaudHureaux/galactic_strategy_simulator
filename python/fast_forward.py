@@ -30,7 +30,7 @@ from p0_passive_update._growth_law import grow, time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
-from p0_passive_update._advance_fronts import _radius_for_nb_of_world, _world_density
+from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _world_density
 from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capacity, _compute_max_number_of_attack
 
 
@@ -343,7 +343,7 @@ def _time_to_spend_tech_budget(civ, config, tech_budget, pop_budget):
 
 
 def _front_moves(civ, config):
-    # A blocked front stays blocked until its competitor shrinks (attack) or dies (random event).
+    # An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
     return (civ.colonization_aggressiveness > 0 and config.front_speed_per_tech > 0
             and civ.tech_level > 0 and not civ.front_blocked)
 
@@ -354,10 +354,13 @@ def _front_budget(civ, config, rel):
     # of the capacity, kept within rel (a civ far below its capacity can expand a lot).
     density = _world_density(civ, config)
     capacity = _population_capacity(civ, config)
-    if density <= 0 or capacity is None or civ.population_size <= 0:
+    if density <= 0 or capacity is None or civ.population_size <= 0 or civ.free_fraction <= 0:
         return inf
     growth = rel * capacity / civ.population_size
-    return _radius_for_nb_of_world(civ.nb_of_world * (1 + growth), density) - civ.expansion_radius
+    # The territory grows by free_fraction of the shell swept by the front (see _advance_fronts).
+    radius = civ.expansion_radius
+    extra = civ.nb_of_world * growth / (density * civ.free_fraction * FOUR_THIRDS_PI)
+    return (radius * radius * radius + extra) ** (1.0 / 3.0) - radius
 
 
 def _front_end(civ, front_budget):
@@ -374,6 +377,29 @@ def _colonization_budgets(world, active, front_budget):
         gap = dist(c.position, human.position) - c.expansion_radius
         if gap > 0:
             front_budget[c.id] = min(front_budget[c.id], gap)
+    # Nor two competitors come into contact (see _advance_fronts): the moving fronts share the gap.
+    active_ids = {c.id for c in active}
+    widest_front = 0.0
+    for c in active:
+        widest_front = max(widest_front, _front_end(c, front_budget))
+    for x in active:
+        if x.id not in front_budget:
+            continue
+        distances, neighbors = world.neighbors_by_distance(x)
+        reach = _front_end(x, front_budget) + widest_front
+        for d, y in zip(distances, neighbors):
+            if d > reach:
+                break
+            if (y.id not in active_ids or y.biochem_type != x.biochem_type or y.id in x.contacts
+                    or y is human):
+                continue
+            gap = d - x.expansion_radius - y.expansion_radius
+            if gap <= 0:
+                continue
+            movers = [m for m in (x.id, y.id) if m in front_budget]
+            share = gap / len(movers)
+            for m in movers:
+                front_budget[m] = min(front_budget[m], share)
 
 
 def _time_to_spend_front_budget(civ, config, front_budget, tech_budget):

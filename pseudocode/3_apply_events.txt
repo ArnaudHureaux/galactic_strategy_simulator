@@ -32,7 +32,7 @@ def apply_attack(event, world):
     target.tech_level *= (1 - damage)
     target.population_size *= (1 - damage)
     target.expansion_radius *= (1 - damage)
-    target.nb_of_world = nb_of_world(target.expansion_radius)
+    target.nb_of_world = 1 + (target.nb_of_world - 1) * (1 - damage)^3   # homothetic shrink
     target.belief[event.src].trust = 0
     target.belief[event.src].attacked_me = True
     target.attacked_by = event.src

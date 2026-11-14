@@ -123,6 +123,7 @@ def civ_records(world, config, seed, end):
             "probe_radius": c.probe_radius,
             "expansion_radius_pc": c.expansion_radius,
             "nb_of_world": c.nb_of_world,
+            "free_fraction": c.free_fraction,
             "was_attacked": c.attacked_by is not None,
             "n_known_civs": len(c.belief),
             "detected_humanity": human.id in c.belief,

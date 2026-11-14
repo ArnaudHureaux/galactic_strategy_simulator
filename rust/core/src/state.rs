@@ -115,8 +115,11 @@ pub struct Civ {
     pub probe_speed: f64,
     pub probe_radius: f64,
     pub expansion_radius: f64,
-    /// The front had to advance during the last step but was stopped by a competitor's sphere.
+    /// The front had to advance during the last step but could not (an enclave).
     pub front_blocked: bool,
+    /// Share of the sky still open to the front (see _advance_fronts) and competitors in contact.
+    pub free_fraction: f64,
+    pub contacts: BTreeSet<usize>,
     /// Beliefs in insertion order (an entry's index is its `order` in Python).
     pub belief: Vec<BeliefEntry>,
     /// Target civ -> index in `belief`.

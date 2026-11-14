@@ -55,8 +55,11 @@ class Civilisation:
     probe_speed: float = 0.0
     probe_radius: float = 0.0
     expansion_radius: float = 0.0
-    # The front had to advance during the last step but was stopped by a competitor's sphere.
+    # The front had to advance during the last step but could not (an enclave).
     front_blocked: bool = False
+    # Share of the sky still open to the front (see _advance_fronts) and competitors in contact.
+    free_fraction: float = 1.0
+    contacts: set = field(default_factory=set)
     belief: dict = field(default_factory=dict)
     # Beliefs seen recently enough to still be actionable (a superset, see recent_beliefs).
     recent: dict = field(default_factory=dict)

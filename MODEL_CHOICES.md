@@ -102,6 +102,26 @@ où `grow` est la solution exacte de la loi de croissance techno, et `r_vue` le 
 - Toutes les civs naissent au niveau humain actuel : cela ignore le passage du Néolithique à la radio.
 - Contraindre le rythme des autres civs à inclure le rythme humain (principe de médiocrité) : ce rythme reste un paramètre exploré comme un autre.
 
+### Point 8 : fronts de colonisation bloqués par direction
+
+*Décidé le 2026-11-14.*
+
+**Constat.** Chaque civ n'avait qu'un rayon d'expansion. Au premier contact avec un concurrent (même biochimie), les deux fronts s'arrêtaient dans toutes les directions, même à l'opposé du concurrent.
+
+**Décision : suivre la part libre du ciel, une variable par civ.**
+- Deux concurrents dont les sphères se touchent restent **en contact**. Vu du centre de A, B (à la distance d, de rayon R_B) cache une calotte de demi-angle θ = asin(R_B / d), soit une part du ciel f_B = (1 − cos θ) / 2. Elle grandit quand B s'étend, et rétrécit s'il est attaqué.
+- Les calottes peuvent se chevaucher. Au lieu de calculer leurs intersections, on les suppose indépendantes : **free_fraction** φ = Π (1 − f_i). C'est l'approximation classique des obstacles placés au hasard, et φ reste dans [0 ; 1].
+- Le rayon R est la portée du front dans les directions libres. Il avance au rythme habituel, et le territoire ne croît que dans la part libre : dN = densité × φ × 4πR² dR. Une attaque réduit le territoire de façon homothétique : R × (1 − dégâts), et N − 1 × (1 − dégâts)³.
+- **Enclave** : une civ née dans la sphère d'un concurrent qu'elle n'a jamais rencontré ne peut pas croître, et ne bloque pas l'autre. C'est la règle d'avant.
+- **Critère « colonized »** : le Soleil est tenu s'il est à portée du front et hors de l'ombre (le cône de demi-angle θ) d'un concurrent en contact.
+- Fast-forward : un saut s'arrête avant que deux concurrents ne se touchent, et le budget de rayon tient compte de φ.
+
+**Conséquence.** Les fronts ne se figent plus au premier contact. Sur le scénario de test du fast-forward (fronts rapides, 8 seeds), les runs sont rejetés plus tôt qu'avant ; la cause (Soleil atteint ou contact) reste à mesurer au pilote.
+
+**Alternatives écartées.**
+- Calcul exact des recouvrements : il demande une géométrie détaillée pour un gain faible. Il est gardé pour comparaison en phase 7.
+- Tessellation (Voronoï) du voisinage : trop lourde pour un gain d'interprétation faible.
+
 ## Décidés, à implémenter
 
 ### Point 11 : observation SETI réaliste (point 4 : la tech reste abstraite)
@@ -146,4 +166,4 @@ Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_
 
 ## À décider
 
-Points 3 et 6 à 10 de la phase 2.
+Points 3, 6, 7, 9 et 10 de la phase 2 (décidés le 2026-11-14, en cours d'implémentation).

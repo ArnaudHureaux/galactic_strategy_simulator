@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{grow, population_capacity, radius_for_nb_of_world, self_destruction_shape, tech_rate, time_to_reach, world_density};
+use crate::passive::{FOUR_THIRDS_PI, grow, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -453,7 +453,7 @@ fn time_to_spend_tech_budget(civ: &Civ, config: &Config, tech_budget: f64, pop_b
     time_to_reach(civ.tech_level, civ.tech_level + tech_budget, r, config.tech_growth_cap())
 }
 
-/// A blocked front stays blocked until its competitor shrinks (attack) or dies (random event).
+/// An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
 fn front_moves(civ: &Civ, config: &Config) -> bool {
     civ.colonization_aggressiveness > 0.0 && config.front_speed_per_tech > 0.0 && civ.tech_level > 0.0 && !civ.front_blocked
 }
@@ -464,11 +464,14 @@ fn initial_front_budget(civ: &Civ, config: &Config, rel: f64) -> f64 {
     let density = world_density(civ, config);
     let capacity = population_capacity(civ, config);
     let Some(capacity) = capacity else { return f64::INFINITY };
-    if density <= 0.0 || civ.population_size <= 0.0 {
+    if density <= 0.0 || civ.population_size <= 0.0 || civ.free_fraction <= 0.0 {
         return f64::INFINITY;
     }
     let growth = rel * capacity / civ.population_size;
-    radius_for_nb_of_world(civ.nb_of_world * (1.0 + growth), density) - civ.expansion_radius
+    // The territory grows by free_fraction of the shell swept by the front (see _advance_fronts).
+    let radius = civ.expansion_radius;
+    let extra = civ.nb_of_world * growth / (density * civ.free_fraction * FOUR_THIRDS_PI);
+    pymath::pow(radius * radius * radius + extra, 1.0 / 3.0) - radius
 }
 
 fn front_end(civ: &Civ, budget: Option<f64>) -> f64 {
@@ -489,6 +492,42 @@ fn colonization_budgets(world: &World, active: &[usize], front_budget: &mut [Opt
         let gap = dist(&c.position, &human.position) - c.expansion_radius;
         if gap > 0.0 {
             shrink(front_budget, i, gap);
+        }
+    }
+    // Nor two competitors come into contact (see advance_fronts): the moving fronts share the gap.
+    let mut is_active = vec![false; world.civs.len()];
+    for &i in active {
+        is_active[i] = true;
+    }
+    let mut widest_front = 0.0;
+    for &i in active {
+        widest_front = pymax(widest_front, front_end(&world.civs[i], front_budget[i]));
+    }
+    for &xi in active {
+        if front_budget[xi].is_none() {
+            continue;
+        }
+        let x = &world.civs[xi];
+        let (distances, neighbors) = world.neighbors_by_distance(xi);
+        let reach = front_end(x, front_budget[xi]) + widest_front;
+        for (&d, &yi) in distances.iter().zip(neighbors) {
+            if d > reach {
+                break;
+            }
+            let yi = yi as usize;
+            let y = &world.civs[yi];
+            if !is_active[yi] || y.biochem != x.biochem || x.contacts.contains(&yi) || yi == world.humanity {
+                continue;
+            }
+            let gap = d - x.expansion_radius - y.expansion_radius;
+            if gap <= 0.0 {
+                continue;
+            }
+            let movers: Vec<usize> = [xi, yi].into_iter().filter(|&m| front_budget[m].is_some()).collect();
+            let share = gap / movers.len() as f64;
+            for m in movers {
+                shrink(front_budget, m, share);
+            }
         }
     }
 }

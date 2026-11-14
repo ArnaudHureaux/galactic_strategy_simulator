@@ -103,6 +103,8 @@ pub fn new_civ(id: String, position: Position, config: &Config, rng: &mut Rng, b
         probe_radius: 0.0,
         expansion_radius: 0.0,
         front_blocked: false,
+        free_fraction: 1.0,
+        contacts: Default::default(),
         belief: Vec::new(),
         belief_of: Default::default(),
         recent: Default::default(),

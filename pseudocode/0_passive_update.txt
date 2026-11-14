@@ -12,17 +12,24 @@ for civ in world.civs:
     advance_probes(civ, dt)  # records when the probe sphere reaches the Sun
     advance[civ] = civ.colonization_aggressiveness * FRONT_SPEED_PER_TECH * civ.tech_level * dt
 
-# colonization fronts only take empty worlds: two competitors (same biochem) stop where their
-# spheres meet, sharing the gap in proportion to their advances (a competitor born inside a
-# sphere does not stop it and cannot grow itself)
+# colonization fronts only take empty worlds. R is the reach of the front in the free directions.
+# Two competitors (same biochem) whose spheres meet stay in contact; each hides from the other the
+# cap its sphere covers. The territory only grows in the free share of the sky (caps taken as
+# independent). A civ inside the sphere of a competitor it never met (an enclave) cannot grow.
 for civ in world.civs:
-    factor = min(1, min(max(0, d - civ.R - other.R) / (advance[civ] + advance[other])
-                        for each alive competitor other with d = dist(civ, other) > civ.R
-                        and d - civ.R - other.R < advance[civ] + advance[other]))
-    new_R[civ] = civ.R + advance[civ] * factor
-for civ in world.civs:
+    new_R[civ] = civ.R + advance[civ]
+for civ in world.civs with advance[civ] > 0:
+    free[civ] = 1
+    for each active competitor other with d = dist(civ, other):
+        if other not in civ.contacts:
+            if d <= other.R: free[civ] = 0 (enclave); stop
+            if d <= civ.R or d > new_R[civ] + new_R[other]: skip
+            civ.contacts += other; other.contacts += civ
+        s = min(1, new_R[other] / d)
+        free[civ] *= 1 - (1 - sqrt(1 - s^2)) / 2
+for civ in world.civs with advance[civ] > 0 and free[civ] > 0:
+    civ.nb_of_world += free[civ] * HABITABLE_WORLD_DENSITY * fraction_of_worlds(civ.biochem) * 4/3 pi (new_R[civ]^3 - civ.R^3)
     civ.R = new_R[civ]
-    civ.nb_of_world = 1 + HABITABLE_WORLD_DENSITY * fraction_of_worlds(civ.biochem) * 4/3 pi civ.R^3
     civ.record_snapshot(now)
 
 # orphan probes keep spreading for PROBE_LIFETIME_PER_TECH * tech_at_death years

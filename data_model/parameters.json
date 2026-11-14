@@ -631,9 +631,9 @@
     },
     "front_blocking": {
       "status": "M", "where": "python/p0_passive_update/_advance_fronts.py",
-      "description": "Un front bloqué par un concurrent s'arrête dans toutes les directions.",
-      "justification": "Simplification de la V1 de la colonisation.",
-      "todo": ["Phase 2, point 8."]
+      "description": "Deux concurrents dont les sphères se touchent restent en contact. Chacun cache à l'autre la calotte de ciel que couvre sa sphère, de demi-angle asin(R_autre / d), soit une part (1 - cos) / 2. Le territoire ne croît que dans la part libre du ciel, free_fraction = produit des (1 - calotte), calottes supposées indépendantes. Le rayon R reste la portée du front dans les directions libres. Une civ née dans la sphère d'un concurrent jamais rencontré (une enclave) ne croît pas et ne le bloque pas. Le Soleil caché par un concurrent en contact n'est pas tenu.",
+      "justification": "Un concurrent ne bloque que les directions qu'il occupe : une seule variable par civ, sans géométrie détaillée. Auparavant, le premier contact arrêtait le front dans toutes les directions (décision du 2026-11, phase 2, point 8).",
+      "todo": ["Phase 7 : comparer avec un calcul exact des recouvrements entre calottes."]
     },
     "fixed_strategies": {
       "status": "M", "where": "python/generate_world/_sample_strategy.py",
@@ -654,7 +654,7 @@
     },
     "colonized_criterion": {
       "status": "M", "where": "python/p0_passive_update/_check_silence.py",
-      "description": "Rejet si un front de colonisation couvre le Soleil à un moment de la fenêtre d'artefacts.",
+      "description": "Rejet si un territoire couvre le Soleil à un moment de la fenêtre d'artefacts : le Soleil est à portée du front, hors de l'ombre d'un concurrent en contact.",
       "justification": "« Fait A » de Hart 1975 : le Système solaire n'est pas occupé."
     }
   }

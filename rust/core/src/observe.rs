@@ -145,6 +145,7 @@ pub fn civ_records(world: &World, config: &Config, end: f64) -> Vec<Record> {
                 ("probe_radius", c.probe_radius.into()),
                 ("expansion_radius_pc", c.expansion_radius.into()),
                 ("nb_of_world", c.nb_of_world.into()),
+                ("free_fraction", c.free_fraction.into()),
                 ("was_attacked", c.attacked_by.is_some().into()),
                 ("n_known_civs", c.belief.len().into()),
                 ("detected_humanity", c.belief_of.contains_key(&h).into()),

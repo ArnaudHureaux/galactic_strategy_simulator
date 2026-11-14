@@ -2,6 +2,7 @@ from math import exp, inf
 
 from constants import C_PC_PER_YEAR
 from geometry import dist
+from p0_passive_update._advance_fronts import _holds
 
 
 def _check_silence(world, config, now):
@@ -22,7 +23,7 @@ def _colonized(world, now):
     # Hart's argument: a colonization front holding the Sun since the Solar System exists would be seen.
     human = world.humanity
     for civ in world.active(now):
-        if civ is not human and civ.expansion_radius >= dist(civ.position, human.position):
+        if civ is not human and _holds(world, civ, human.position, now):
             return True
     return False
 

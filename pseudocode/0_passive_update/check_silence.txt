@@ -3,7 +3,9 @@ def check_silence(world, now):
     contacted = len(human.belief) > 0 or human.attacked_by is not None
     # Hart's argument: a colonization front holding the Sun since the Solar System exists would be seen
     colonized = now >= PRESENT_DATE - ARTEFACT_WINDOW and any(
-        civ.R >= dist(civ, human) for civ in world.active(now) - {human})
+        holds(civ, human.position) for civ in world.active(now) - {human})
+    # holds: dist(civ, point) <= civ.R and point outside the shadow cone, asin(other.R / d) wide,
+    # of every active competitor other in contact with civ
     if now < PRESENT_DATE and (contacted or colonized):
         world.rejected = True
 

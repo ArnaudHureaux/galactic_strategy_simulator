@@ -189,7 +189,7 @@ fn compute_broadcast_radius(civ: &Civ, config: &Config, now: f64) -> f64 {
 
 // _advance_fronts
 
-const FOUR_THIRDS_PI: f64 = 4.0 / 3.0 * std::f64::consts::PI;
+pub const FOUR_THIRDS_PI: f64 = 4.0 / 3.0 * std::f64::consts::PI;
 
 pub fn front_speed(civ: &Civ, config: &Config) -> f64 {
     civ.colonization_aggressiveness * config.front_speed_per_tech * civ.tech_level
@@ -200,58 +200,110 @@ pub fn world_density(civ: &Civ, config: &Config) -> f64 {
     config.habitable_world_density * config.world_type_fractions[civ.biochem]
 }
 
-fn nb_of_world(radius: f64, density: f64) -> f64 {
-    1.0 + density * (FOUR_THIRDS_PI * radius * radius * radius)
+fn shell_worlds(radius: f64, new_radius: f64, density: f64) -> f64 {
+    density * (FOUR_THIRDS_PI * (new_radius * new_radius * new_radius - radius * radius * radius))
 }
 
-pub fn radius_for_nb_of_world(nb: f64, density: f64) -> f64 {
-    pymath::pow((nb - 1.0) / density / FOUR_THIRDS_PI, 1.0 / 3.0)
+/// Share of the sky that a sphere of radius other_radius at distance d hides from the observer.
+pub fn cap_fraction(other_radius: f64, d: f64) -> f64 {
+    let s = pymin(1.0, other_radius / d);
+    let s2 = s * s;
+    s2 / (2.0 * (1.0 + (1.0 - s2).sqrt()))
 }
 
-pub fn update_nb_of_world(civ: &mut Civ, config: &Config) {
-    civ.nb_of_world = nb_of_world(civ.expansion_radius, world_density(civ, config));
+/// An attack shrinks the territory homothetically: kept is the share of the radius left.
+pub fn shrink_worlds(civ: &mut Civ, kept: f64) {
+    civ.expansion_radius *= kept;
+    civ.nb_of_world = 1.0 + (civ.nb_of_world - 1.0) * (kept * kept * kept);
 }
 
-/// Grows the sphere of each active civ by its proposed advance (see _advance_fronts.py):
-/// competitor fronts stop where they meet, sharing the gap in proportion to their advances.
+/// Whether the territory of civ covers point: within its front's reach, and not in the shadow
+/// of an active competitor in contact (see _advance_fronts._holds).
+pub fn holds(world: &World, i: usize, point: &Position, now: f64) -> bool {
+    let civ = &world.civs[i];
+    let d_point = dist(&civ.position, point);
+    if civ.expansion_radius < d_point {
+        return false;
+    }
+    for &j in &civ.contacts {
+        let other = &world.civs[j];
+        if !other.alive || now < other.birth_year {
+            continue;
+        }
+        let d = dist(&civ.position, &other.position);
+        let s = pymin(1.0, other.expansion_radius / d);
+        let mut dot = 0.0;
+        for k in 0..3 {
+            dot += (other.position[k] - civ.position[k]) * (point[k] - civ.position[k]);
+        }
+        if d_point > 0.0 && dot > d * d_point * (1.0 - s * s).sqrt() {
+            return false;
+        }
+    }
+    true
+}
+
+/// Grows the territory of each active civ by its proposed advance (see _advance_fronts.py):
+/// competitors in contact hide caps of the sky from each other; enclaves cannot grow.
 fn advance_fronts(world: &mut World, config: &Config, active: &[usize], advances: &[f64]) {
-    let mut proposed: Vec<Option<f64>> = vec![None; world.civs.len()];
+    let mut new_radius: Vec<Option<f64>> = vec![None; world.civs.len()];
     let mut reach = 0.0;
     for (&i, &advance) in active.iter().zip(advances) {
-        proposed[i] = Some(advance);
-        reach = pymax(reach, world.civs[i].expansion_radius + advance);
+        let radius = world.civs[i].expansion_radius + advance;
+        new_radius[i] = Some(radius);
+        reach = pymax(reach, radius);
     }
-    let mut radii = Vec::with_capacity(active.len());
+    let mut fractions = Vec::with_capacity(active.len());
     for (&i, &advance) in active.iter().zip(advances) {
-        let civ = &world.civs[i];
-        let radius = civ.expansion_radius;
-        let mut factor = 1.0;
+        let mut free = 1.0;
         if advance > 0.0 {
-            let (distances, neighbors) = world.neighbors_by_distance(i);
-            let limit = radius + advance + reach;
-            for (&d, &j) in distances.iter().zip(neighbors) {
-                if d > limit {
-                    break;
-                }
-                let j = j as usize;
-                let other = &world.civs[j];
-                let Some(other_advance) = proposed[j] else { continue };
-                if other.biochem != civ.biochem || d <= radius {
-                    continue;
-                }
-                let gap = d - radius - other.expansion_radius;
-                if gap < advance + other_advance {
-                    factor = pymin(factor, pymax(0.0, gap) / (advance + other_advance));
+            let radius = new_radius[i].unwrap();
+            let limit = radius + reach;
+            let mut new_contacts = Vec::new();
+            {
+                let civ = &world.civs[i];
+                let (distances, neighbors) = world.neighbors_by_distance(i);
+                for (&d, &j) in distances.iter().zip(neighbors) {
+                    if d > limit {
+                        break;
+                    }
+                    let j = j as usize;
+                    let other = &world.civs[j];
+                    let Some(other_radius) = new_radius[j] else { continue };
+                    if other.biochem != civ.biochem {
+                        continue;
+                    }
+                    if !civ.contacts.contains(&j) {
+                        if d <= other.expansion_radius {
+                            free = 0.0;
+                            break;
+                        }
+                        if d <= civ.expansion_radius || d > radius + other_radius {
+                            continue;
+                        }
+                        new_contacts.push(j);
+                    }
+                    free *= 1.0 - cap_fraction(other_radius, d);
                 }
             }
+            // Contact is symmetric, so recording it now does not depend on the order.
+            for j in new_contacts {
+                world.civs[i].contacts.insert(j);
+                world.civs[j].contacts.insert(i);
+            }
         }
-        world.civs[i].front_blocked = advance > 0.0 && factor == 0.0;
-        radii.push(radius + advance * factor);
+        fractions.push(free);
     }
-    for (&i, &radius) in active.iter().zip(&radii) {
+    for ((&i, &advance), &free) in active.iter().zip(advances).zip(&fractions) {
+        let density = world_density(&world.civs[i], config);
         let civ = &mut world.civs[i];
-        civ.expansion_radius = radius;
-        update_nb_of_world(civ, config);
+        civ.front_blocked = advance > 0.0 && free == 0.0;
+        civ.free_fraction = free;
+        if advance > 0.0 && free > 0.0 {
+            let radius = new_radius[i].unwrap();
+            civ.nb_of_world += free * shell_worlds(civ.expansion_radius, radius, density);
+            civ.expansion_radius = radius;
+        }
     }
 }
 
@@ -410,10 +462,7 @@ fn check_silence(world: &mut World, config: &Config, now: f64) {
 /// Hart's argument: a colonization front holding the Sun since the Solar System exists would be seen.
 fn colonized(world: &World, now: f64) -> bool {
     let human = &world.civs[world.humanity];
-    world.active(now).into_iter().any(|i| {
-        let civ = &world.civs[i];
-        i != world.humanity && civ.expansion_radius >= dist(&civ.position, &human.position)
-    })
+    world.active(now).into_iter().any(|i| i != world.humanity && holds(world, i, &human.position, now))
 }
 
 /// Exact, dt-independent test: did any light reaching humanity during the instrumental
