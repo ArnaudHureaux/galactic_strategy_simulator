@@ -1,5 +1,7 @@
 def apply_event(event, world):
-    if event.kind == "share":
+    if event.kind in ("share", "implicit_share") and event.dst == world.humanity:
+        world.reject("contact_share")  # receiving technology is a contact we would have noticed
+    elif event.kind == "share":
         apply_share(event, world)
     elif event.kind == "implicit_share":
         apply_share_relationship(event, world)

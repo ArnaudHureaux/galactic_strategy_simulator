@@ -10,6 +10,11 @@ pub fn apply_event(event: &Event, world: &mut World, config: &Config) {
     if !world.civs[event.dst].alive {
         return;
     }
+    if event.dst == world.humanity && matches!(event.kind, Kind::Share | Kind::ImplicitShare) {
+        // Receiving technology is a contact humanity would have noticed.
+        world.reject("contact_share".into(), event.t);
+        return;
+    }
     match event.kind {
         Kind::Share => {
             let target = &mut world.civs[event.dst];

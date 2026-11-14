@@ -9,6 +9,10 @@ def apply_events(event, world, config):
     target = world.civ(event.dst)
     if target is None or target.status != "alive":
         return
+    if event.kind in ("share", "implicit_share") and target is world.humanity:
+        # Receiving technology is a contact humanity would have noticed.
+        world.reject("contact_share", event.t)
+        return
     if event.kind == "share":
         _apply_share(event, target, world, config)
     elif event.kind == "implicit_share":

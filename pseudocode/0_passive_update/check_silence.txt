@@ -14,8 +14,8 @@ def roll_artefacts(world, until):
         presence = [civ.probe_arrived_at_human, civ.probes_end_at]  # end = inf while creator alive
         if not civ.artefact_rolled and overlaps(presence, [PRESENT_DATE - ARTEFACT_WINDOW, until]):
             civ.artefact_rolled = True
-            # advanced owners make discreet probes; humanity's own tech sets how well we search
-            stealth = ARTEFACT_STEALTH_PER_TECH * max(0, tech_at_first_presence(civ) - world.humanity.tech_level)
+            # advanced owners make discreet probes; humanity searches today, with its present tech
+            stealth = ARTEFACT_STEALTH_PER_TECH * max(0, tech_at_first_presence(civ) - HUMANITY_PRESENT_TECH)
             if rng.random() < ARTEFACT_DETECTION_PROBABILITY * exp(-stealth):
                 world.rejected = True
 

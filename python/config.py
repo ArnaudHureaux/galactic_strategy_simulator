@@ -1,7 +1,7 @@
 import hashlib
 import json
 from dataclasses import asdict, dataclass, fields
-from math import isfinite
+from math import isfinite, log
 
 # Strategy parameters drawn uniformly per civ in [<name>_low, <name>_high].
 STRATEGY_RANGES = (
@@ -73,6 +73,8 @@ class Config:
 
     region_radius_pc: float = 1000.0
     scale_height_pc: float = 300.0
+    # Humanity sits at the centre of the region, sun_height_pc above the mid-plane.
+    sun_height_pc: float = 20.8
 
     biochem_types: tuple = ("water", "ammonia", "silicon")
     # Probability for a civ to arise on each biochem type (same order as biochem_types).
@@ -94,7 +96,7 @@ class Config:
     artefact_window_years: float = 4.5e9
     artefact_detection_probability: float = 0.1
     # Advanced civs make discreet probes: the discovery probability above is multiplied by
-    # exp(-artefact_stealth_per_tech * max(0, owner tech - humanity tech)) (0 = no stealth).
+    # exp(-artefact_stealth_per_tech * max(0, owner tech - humanity_present_tech)) (0 = no stealth).
     artefact_stealth_per_tech: float = 0.0
 
     tech_growth_model: str = "logistic"
@@ -103,6 +105,9 @@ class Config:
     population_per_world: float = 1.0
 
     initial_tech_level: float = 0.1
+    # Humanity follows its observed trajectory: born at initial_tech_level, it reaches
+    # humanity_present_tech today, humanity_tech_fraction of the way to tech_cap in orders of magnitude.
+    humanity_tech_fraction: float = 1e-3
     initial_population: float = 1.0
 
     self_destruction_risk: float = 1e-8
@@ -199,6 +204,22 @@ class Config:
     def start_date_years(self):
         return self.present_date_years - self.start_lookback_years
 
+    @property
+    def humanity_present_tech(self):
+        return self.initial_tech_level * (self.tech_cap / self.initial_tech_level) ** self.humanity_tech_fraction
+
+    @property
+    def humanity_tech_rate(self):
+        # Rate taking humanity from initial_tech_level to humanity_present_tech since its birth
+        # (inverse of time_to_reach in p0_passive_update/_growth_law.py).
+        x, target = self.initial_tech_level, self.humanity_present_tech
+        if target <= x:
+            return 0.0
+        span = self.present_date_years - self.humanity_birth_date_years
+        if self.tech_growth_model == "logistic":
+            return log((self.tech_cap / x - 1) / (self.tech_cap / target - 1)) / span
+        return log(target / x) / span
+
     def config_hash(self):
         canonical = json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
         return hashlib.sha256(canonical.encode()).hexdigest()[:16]
@@ -261,6 +282,7 @@ def _validate(c):
           f"self_destruction_shape must be one of {SELF_DESTRUCTION_SHAPES}")
     check(c.tech_cap > 0, "tech_cap must be > 0")
     check(0 < c.initial_tech_level <= c.tech_cap, "initial_tech_level must be in (0, tech_cap]")
+    check(0 < c.humanity_tech_fraction < 1, "humanity_tech_fraction must be in (0, 1)")
     check(c.initial_population > 0, "initial_population must be > 0")
     check(c.population_per_world > 0, "population_per_world must be > 0")
     check(c.danger_window_width > 0, "danger_window_width must be > 0")

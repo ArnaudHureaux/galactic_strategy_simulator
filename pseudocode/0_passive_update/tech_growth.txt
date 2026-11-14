@@ -1,5 +1,8 @@
 def tech_growth(civ, dt):
-    if TECH_GROWTH_MODEL == "logistic":
+    if civ.is_human:
+        # observed trajectory, exact solution of the growth law (no Euler step: its rate can reach 5e-4 / year)
+        civ.tech_level = grow(INITIAL_TECH_LEVEL, civ.tech_progress_rate, TECH_CAP, now - civ.birth_year)
+    elif TECH_GROWTH_MODEL == "logistic":
         tech_growth_logistic(civ, dt)
     else:
         tech_growth_exponential(civ, dt)

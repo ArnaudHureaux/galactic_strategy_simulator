@@ -1,6 +1,6 @@
 from generate_world._sample_lens_position import _sample_lens_position
 from generate_world._new_civ import _new_civ
-from p0_passive_update._tech_growth import _tech_growth, _tech_rate
+from p0_passive_update._tech_growth import _tech_growth, _tech_rate, _human_tech
 from p0_passive_update._population_growth import _population_growth
 from p0_passive_update._compute_broadcast_radius import _compute_broadcast_radius
 from p0_passive_update._compute_probe_speed import _compute_probe_speed
@@ -33,7 +33,10 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
         exact_pop = exact and civ.id not in jump.frozen_pop
         speed_before = civ.probe_speed
         front_before = _front_speed(civ, config)
-        _tech_growth(civ, config, step if exact_tech else min(step, config.dt), exact_tech)
+        if civ.is_human:
+            _human_tech(civ, config, now)
+        else:
+            _tech_growth(civ, config, step if exact_tech else min(step, config.dt), exact_tech)
         _population_growth(civ, config, step if exact_pop else min(step, config.dt), exact_pop)
         civ.broadcast_radius = _compute_broadcast_radius(civ, config, now)
         civ.probe_speed = _compute_probe_speed(civ, config)

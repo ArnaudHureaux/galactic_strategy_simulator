@@ -1,6 +1,10 @@
 def make_humanity(config, rng):
-    civ = new_civ(sample_lens_position(config, rng), config, rng)
+    # observed, not drawn: the Sun at the centre of the region, no colonization beyond Earth
+    civ = new_civ((0, 0, SUN_HEIGHT_PC), config, rng)
     civ.is_human = True
     civ.birth_year = config.humanity_birth_date_years
-    civ.strategy = config.humanity_strategy
+    civ.strategy = config.humanity_strategy  # never attacks, never broadcasts, colonization_aggressiveness = 0
+    # from INITIAL_TECH_LEVEL (Neolithic) to HUMANITY_PRESENT_TECH today, exactly on the growth law
+    HUMANITY_PRESENT_TECH = INITIAL_TECH_LEVEL * (TECH_CAP / INITIAL_TECH_LEVEL) ** HUMANITY_TECH_FRACTION
+    civ.tech_progress_rate = rate_to_reach(INITIAL_TECH_LEVEL, HUMANITY_PRESENT_TECH, PRESENT_DATE - civ.birth_year)
     return civ

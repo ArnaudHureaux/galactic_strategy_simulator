@@ -69,6 +69,39 @@ où `grow` est la solution exacte de la loi de croissance techno, et `r_vue` le 
 
 **Constat quantitatif.** Avec l'intervalle actuel du rythme de progrès (3·10⁻¹¹ à 3·10⁻¹⁰ par an), u vaut environ 10⁻⁶. Les écarts de tech qui décident d'une attaque sont, eux, de l'ordre de 0,1 à 1. Une civ progresse en milliards d'années, alors que la lumière met au plus quelques milliers d'années à traverser la région : l'effet de `caution_k` est donc négligeable. Sur 80 runs du pilote, activer ou désactiver la prudence ne change aucune issue. Ce sera à confirmer au criblage de Morris, et à revoir avec l'intervalle du rythme de progrès (point 5 et phase 5).
 
+### Point 5 : position et tech de l'humanité
+
+*Décidé le 2026-11-05.*
+
+**Constat.** L'humanité était tirée au hasard dans la région, comme une civ quelconque. Sa tech partait de 0,1 et croissait pendant 10 000 ans au rythme d'une civ ordinaire, donc ne bougeait pratiquement pas. Or sa tech sert de référence pour la discrétion des sondes, et servira d'ancre « niveau humain » aux lois tech → effet (point 4).
+
+**Décision : l'humanité est observée, pas tirée.**
+- **Position** : au centre de la région, à sun_height_pc = 20,8 pc au-dessus du plan médian (Bennett & Bovy 2019, Gaia DR2). La région représente le voisinage du Soleil, et toutes les observations (silence, couverture SETI selon la distance) sont centrées sur la Terre. Cela supprime aussi un effet de bord artificiel.
+- **Trajectoire de tech** : l'humanité naît il y a 10 000 ans (Néolithique) au niveau de naissance commun initial_tech_level = T₀. Elle atteint aujourd'hui T_h = T₀ · (plafond / T₀)^f, où f = humanity_tech_fraction est la fraction du chemin parcouru, en ordres de grandeur. Son rythme n'est pas tiré : on le déduit pour relier ces deux points sur la loi de croissance (logistique ou exponentielle). Sa tech suit la solution exacte de cette loi, pas un pas d'Euler, car le rythme humain peut atteindre 5·10⁻⁴ par an.
+- **Pas de colonisation** : colonization_aggressiveness = 0 pour l'humanité (aucun monde colonisé hors de la Terre).
+- Le rythme des autres civs reste tiré dans la loi explorée (`natural_tech_progress_mean`, `natural_tech_progress_spread`, `tech_growth_model`, `tech_population_exponent`), sans contrainte liée au rythme humain.
+
+**Intervalle de f : [10⁻⁶ ; 0,95], en échelle log, déclaré inconnu.** La question « sommes-nous loin du plafond technologique ? » est réellement ouverte. Au rythme humain déduit, le plafond est à environ 10⁴ / f ans :
+
+| f | rythme humain | plafond atteint à notre rythme dans |
+|---|---|---|
+| 10⁻⁶ | 3,5·10⁻¹⁰ /an | ≈ 2·10¹⁰ ans |
+| 10⁻⁴ | 3,5·10⁻⁸ /an | ≈ 2·10⁸ ans |
+| 0,01 | 3,5·10⁻⁶ /an | ≈ 2·10⁶ ans |
+| 0,5 | 1,9·10⁻⁴ /an | ≈ 3·10⁴ ans |
+| 0,95 | 5·10⁻⁴ /an | ≈ 6·10³ ans |
+
+(Valeurs pour T₀ = 0,1 et un plafond à 3.) Exprimer T_h comme une fraction évite une contrainte d'ordre avec T₀ dans l'hypercube latin.
+
+**Conséquences directes.**
+- **Discrétion des sondes** : elle se compare à la tech **actuelle** de l'humanité (T_h), celle avec laquelle on cherche aujourd'hui. Avant, c'était sa tech au moment du tirage, souvent avant sa naissance, donc T₀.
+- **Partage reçu par l'humanité** : il rejette le run (contact_share), car recevoir de la technologie est un contact qu'on aurait remarqué. Avant, un partage modifiait silencieusement sa tech, et la synergie pouvait plafonner son rythme. Avec la détection imparfaite du point 11, un partage pourra passer inaperçu, et alors ne rien apporter.
+- **Prudence (caution_k)** : le rythme humain est vu par les autres civs. Quand f est grand, l'humanité paraît en « explosion technologique », et caution_k agit envers elle.
+
+**Alternatives écartées.**
+- Toutes les civs naissent au niveau humain actuel : cela ignore le passage du Néolithique à la radio.
+- Contraindre le rythme des autres civs à inclure le rythme humain (principe de médiocrité) : ce rythme reste un paramètre exploré comme un autre.
+
 ## Décidés, à implémenter
 
 ### Point 11 : observation SETI réaliste (point 4 : la tech reste abstraite)
@@ -81,7 +114,7 @@ où `grow` est la solution exacte de la loi de croissance techno, et `r_vue` le 
 - la valeur au niveau de l'humanité, qui est observée (Voyager ≈ 5·10⁻⁵ c ; EIRP de l'ordre de 10¹³ W pour le radar d'Arecibo) ;
 - la valeur au plafond techno, explorée sur un intervalle tiré de la littérature (par exemple 0,01 à 0,5 c pour les sondes, d'après Armstrong & Sandberg 2013).
 
-Cela impose de **placer l'humanité sur l'échelle**. Aujourd'hui, elle part de 0,1 et croît pendant 10 000 ans sans justification. Or son niveau intervient dans la discrétion des sondes, et interviendra dans la sensibilité SETI.
+Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_h = `humanity_present_tech`).
 
 **Émission.** EIRP(tech) en watts, multipliée par `passive_leakage_factor` pour une civ qui n'émet pas volontairement. La loi est calée par les deux ancres ci-dessus.
 
@@ -103,15 +136,14 @@ Cela impose de **placer l'humanité sur l'échelle**. Aujourd'hui, elle part de 
 **Paramètres touchés.**
 - Remplacés : `emit_radius_per_tech`, `max_broadcast_radius` et `signal_window_years`.
 - Nouveaux : la loi EIRP(tech) et ses ancres, F_min (sourcé), c(d) (sourcé), p_on (exploré), et les deux fenêtres (définitions).
-- À revoir : le niveau de tech de l'humanité, et les lois des sondes et des fronts, à recaler sur les ancres.
+- À revoir : les lois des sondes et des fronts, à recaler sur les ancres (niveau humain T_h du point 5, et plafond).
 
 **Sous-questions ouvertes.**
 - Forme de la conversion tech → effet entre les deux ancres. Il ne s'agit pas de la loi de progrès techno dans le temps, qui est déjà un paramètre ; il s'agit de la puissance ou de la vitesse d'une civ à un niveau intermédiaire. Par défaut, chaque niveau de tech multiplie l'effet par un facteur constant, et les deux ancres fixent alors la courbe. Une forme alternative pourra être explorée comme un paramètre ordinaire si le criblage de Morris montre qu'elle compte.
-- Niveau de tech de l'humanité sur l'échelle.
 - Faut-il aussi rendre imparfaite la détection entre civs non humaines ? Une tech plus élevée donnerait une meilleure sensibilité.
 
 **Robustesse (phase 7).** Autres valeurs de F_min et de c(d) ; ancienne détection déterministe en comparaison.
 
 ## À décider
 
-Points 3 et 5 à 10 de la phase 2.
+Points 3 et 6 à 10 de la phase 2.

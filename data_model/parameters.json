@@ -63,6 +63,12 @@
       "source": "Jurić et al. 2008, ApJ 673, 864 (disque mince H ≈ 300 pc).",
       "todo": ["Vérifier la référence avant citation."]
     },
+    "sun_height_pc": {
+      "status": "S", "unit": "pc",
+      "description": "Hauteur de l'humanité (le Soleil) au-dessus du plan médian ; elle est placée au centre de la région.",
+      "justification": "Position observée. La région représente le voisinage du Soleil, et les observations (silence, couverture SETI selon la distance) sont centrées sur la Terre : l'humanité est au centre, ce qui supprime aussi un effet de bord artificiel (décision du 2026-11, phase 2, point 5).",
+      "source": "Bennett, M. & Bovy, J. 2019, MNRAS 482, 1417, arXiv:1809.03507 (Gaia DR2 : z☉ = 20,8 ± 0,3 pc)."
+    },
     "biochem_types": {
       "status": "M", "unit": "liste",
       "description": "Types de biochimie ; deux civs du même type sont concurrentes.",
@@ -113,10 +119,9 @@
     },
     "humanity_birth_date_years": {
       "status": "D", "unit": "an (depuis le Big Bang)",
-      "description": "Début de la civilisation humaine (présent - 10 000 ans) : à partir de là, l'humanité peut être vue par des sondes et attaquée.",
+      "description": "Début de la civilisation humaine (présent - 10 000 ans) : à partir de là, l'humanité peut être vue par des sondes et attaquée, et sa tech suit sa trajectoire observée.",
       "justification": "Début du Néolithique, environ 10 000 à 12 000 ans avant le présent.",
-      "source": "À sourcer (révolution néolithique).",
-      "todo": ["Phase 2, point 5 : place de l'humanité sur l'échelle de tech."]
+      "source": "À sourcer (révolution néolithique)."
     },
     "present_date_years": {
       "status": "D", "unit": "an (depuis le Big Bang)",
@@ -145,7 +150,7 @@
     },
     "artefact_stealth_per_tech": {
       "status": "E", "unit": "1/tech",
-      "description": "Discrétion des sondes : probabilité de découverte multipliée par exp(-k × écart de tech avec l'humanité).",
+      "description": "Discrétion des sondes : probabilité de découverte multipliée par exp(-k × écart entre la tech du propriétaire et la tech actuelle de l'humanité, humanity_present_tech).",
       "justification": "Une civ avancée peut faire des sondes discrètes. Forme et intensité inconnues.",
       "range": {"low": 0.0, "high": 5.0, "scale": "linear"}, "range_basis": "inconnu"
     },
@@ -175,10 +180,16 @@
     },
     "initial_tech_level": {
       "status": "E", "unit": "tech",
-      "description": "Tech d'une civ à sa naissance (y compris l'humanité).",
-      "justification": "Niveau où une civ devient technologique, relatif au plafond : inconnu.",
+      "description": "Tech d'une civ à sa naissance, y compris l'humanité il y a 10 000 ans (Néolithique).",
+      "justification": "Niveau où une civ devient une civilisation, relatif au plafond : inconnu.",
       "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 2, point 5 : placer l'humanité sur l'échelle."]
+      "todo": ["Phase 5 : intervalle."]
+    },
+    "humanity_tech_fraction": {
+      "status": "E", "unit": "sans dimension",
+      "description": "Position actuelle de l'humanité sur l'échelle de tech, en fraction du chemin entre la naissance et le plafond, en ordres de grandeur : T_h = initial_tech_level × (tech_cap / initial_tech_level)^f. L'humanité suit la trajectoire exacte de la loi de croissance de initial_tech_level (il y a 10 000 ans) à T_h (aujourd'hui) ; son rythme s'en déduit.",
+      "justification": "Inconnu : sommes-nous loin du plafond technologique ? Au rythme humain déduit, le plafond est à environ 10^4 / f ans : de quelques millénaires (f = 0,95) à l'âge de l'Univers (f = 10^-6). Une fraction évite une contrainte d'ordre avec initial_tech_level dans l'hypercube latin (décision du 2026-11, phase 2, point 5).",
+      "range": {"low": 1e-6, "high": 0.95, "scale": "log"}, "range_basis": "inconnu"
     },
     "initial_population": {
       "status": "M", "unit": "population",
@@ -537,15 +548,25 @@
     },
     "bubble_geometry": {
       "status": "M", "where": "python/generate_world/_sample_lens_position.py, _seed_life_in_bubbles.py",
-      "description": "Centres des bulles et humanité : disque uniforme en surface, profil vertical exponentiel. Civs uniformes dans une boule autour du centre.",
+      "description": "Centres des bulles : disque uniforme en surface, profil vertical exponentiel. Civs uniformes dans une boule autour du centre.",
       "justification": "Approximation du disque mince.",
       "todo": ["Phase 2, point 6."]
     },
     "humanity_strategy": {
       "status": "M", "where": "python/generate_world/_make_humanity.py",
-      "description": "L'humanité tire une stratégie, puis n'attaque jamais et n'émet jamais volontairement.",
-      "justification": "Comportement historique de l'humanité.",
-      "todo": ["Phase 2, point 5."]
+      "description": "L'humanité tire une stratégie, puis n'attaque jamais, n'émet jamais volontairement et ne colonise pas (colonization_aggressiveness = 0). Le reste de sa stratégie n'agit pas : tout contact rejette le run.",
+      "justification": "Comportement historique de l'humanité (aucune colonisation hors de la Terre)."
+    },
+    "humanity_observed": {
+      "status": "D", "where": "python/generate_world/_make_humanity.py, python/p0_passive_update/_tech_growth.py",
+      "description": "L'humanité n'est pas tirée au hasard : elle est au centre de la région (à sun_height_pc), et sa tech suit exactement la loi de croissance de initial_tech_level à humanity_present_tech, avec le rythme qui relie ces deux points en 10 000 ans. La discrétion des sondes se compare à sa tech actuelle, celle avec laquelle on cherche aujourd'hui.",
+      "justification": "Données d'observation (décision du 2026-11, phase 2, point 5). Solution exacte plutôt qu'un pas d'Euler : le rythme humain peut atteindre 5e-4 par an, bien trop rapide pour des pas de 1 000 ans."
+    },
+    "share_to_humanity_is_contact": {
+      "status": "M", "where": "python/p3_apply_events/__init__.py",
+      "description": "Un partage (ou partage implicite) reçu par l'humanité rejette le run (« contact_share ») sans modifier sa tech.",
+      "justification": "Recevoir de la technologie est un contact qu'on aurait remarqué. Auparavant, un partage modifiait silencieusement la tech et le rythme de l'humanité (la synergie pouvait même plafonner son rythme).",
+      "todo": ["Phase 2, point 11 : avec une détection imparfaite, un partage pourrait passer inaperçu (et alors ne rien apporter)."]
     },
     "competition_by_biochem": {
       "status": "M", "where": "python/p0_passive_update/_detect.py, _advance_fronts.py",
@@ -557,7 +578,7 @@
       "status": "M", "where": "python/p0_passive_update/_detect.py, python/p1_from_strat_to_actions/_compute_attack_interest_score.py",
       "description": "Une civ voit la tech exacte de sa cible, mais retardée par la lumière. Son incertitude est le progrès que la cible a pu faire pendant ce trajet, au rythme de croissance vu en même temps : u = grow(T_vue, r_vue, cap, d/c) − T_vue. Une civ attaque si l'écart diminué de caution_k × u dépasse attack_gap_min.",
       "justification": "« Explosion technologique » de la Forêt sombre (Liu 2008) : on ne sait pas de combien la cible a progressé depuis le départ de la lumière ; une cible lointaine ou en forte croissance paraît plus risquée. Déterministe et sans paramètre nouveau (décision du 2026-11, phase 2, point 1). On suppose le rythme de la cible observable, à partir de l'historique vu.       Alternatives écartées : retirer caution_k (perd la nuance de la Forêt sombre) ; bruit aléatoire sur l'estimation (2 paramètres inconnus, casse le fast-forward).",
-            "todo": ["Point 5 et phase 5 : avec un rythme de progrès entre 3e-11 et 3e-10 par an, u ≈ 1e-6, donc caution_k est sans effet en pratique ; à revoir avec l'intervalle du rythme de progrès."]
+            "todo": ["Phase 5 : avec un rythme de progrès entre 3e-11 et 3e-10 par an, u ≈ 1e-6, donc caution_k est sans effet en pratique, sauf envers l'humanité, dont le rythme déduit va jusqu'à 5e-4 par an (point 5) ; à revoir avec l'intervalle du rythme de progrès."]
           },
     "deterministic_detection": {
       "status": "M", "where": "python/p0_passive_update/_detect.py",

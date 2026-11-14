@@ -35,7 +35,11 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
         let exact_pop = exact && !jump.is_some_and(|j| Jump::flag(&j.frozen_pop, i));
         let speed_before = civ.probe_speed;
         let front_before = front_speed(civ, config);
-        tech_growth(civ, config, if exact_tech { step } else { pymin(step, config.dt) }, exact_tech);
+        if civ.is_human {
+            human_tech(civ, config, now);
+        } else {
+            tech_growth(civ, config, if exact_tech { step } else { pymin(step, config.dt) }, exact_tech);
+        }
         population_growth(civ, config, if exact_pop { step } else { pymin(step, config.dt) }, exact_pop);
         civ.broadcast_radius = compute_broadcast_radius(civ, config, now);
         civ.probe_speed = config.probe_speed_per_tech * civ.tech_level;
@@ -127,6 +131,9 @@ pub fn time_to_reach(x: f64, target: f64, r: f64, cap: Option<f64>) -> f64 {
 // _tech_growth, _population_growth
 
 pub fn tech_rate(civ: &Civ, config: &Config) -> f64 {
+    if civ.is_human {
+        return civ.natural_tech_progress;
+    }
     civ.natural_tech_progress * (1.0 - civ.colonization_aggressiveness) * pymath::pow(civ.population_size, config.tech_population_exponent)
 }
 
@@ -141,6 +148,13 @@ fn tech_growth(civ: &mut Civ, config: &Config, dt: f64, exact: bool) {
         t + r * t * dt
     };
     civ.tech_level = pymin(config.tech_cap, pymax(0.0, civ.tech_level));
+}
+
+/// Humanity follows its observed trajectory exactly: its rate (up to ~5e-4 per year) is far
+/// too fast for an Euler step, and events cannot perturb it (an attack or a share rejects the run).
+fn human_tech(civ: &mut Civ, config: &Config, now: f64) {
+    let tech = grow(config.initial_tech_level, civ.natural_tech_progress, config.tech_growth_cap(), now - civ.birth_year);
+    civ.tech_level = pymin(config.tech_cap, tech);
 }
 
 pub fn population_capacity(civ: &Civ, config: &Config) -> Option<f64> {
@@ -442,7 +456,7 @@ fn roll_artefacts(world: &mut World, config: &Config, rng: &mut Rng, until: f64)
         }
         world.civs[i].artefact_rolled = true;
         // The least advanced (least discreet) probes present during the window set the odds.
-        let stealth = config.artefact_stealth_per_tech * pymax(0.0, owner_tech(&world.civs[i]) - world.civs[world.humanity].tech_level);
+        let stealth = config.artefact_stealth_per_tech * pymax(0.0, owner_tech(&world.civs[i]) - config.derived().humanity_present_tech);
         if rng.random() < config.artefact_detection_probability * pymath::exp(-stealth) {
             world.reject("artefact".into(), until);
         }

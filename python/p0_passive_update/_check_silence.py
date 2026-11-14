@@ -56,7 +56,7 @@ def _was_detectable(civ, start, end, d):
 def _roll_artefacts(world, config, rng, until):
     # Contact (b): one discovery draw per civ whose probes sat near the Sun during the artefact window.
     # The draw happens when the probes are first there during the window: the least advanced (least
-    # discreet) of them set the odds, against humanity's own tech.
+    # discreet) of them set the odds, against the tech humanity searches with today.
     window_start = config.present_date_years - config.artefact_window_years
     for civ in world.civs:
         arrival = civ.probe_arrived_at_human
@@ -65,7 +65,7 @@ def _roll_artefacts(world, config, rng, until):
         if max(arrival, window_start) > min(civ.probes_end_at(config), until):
             continue
         civ.artefact_rolled = True
-        stealth = config.artefact_stealth_per_tech * max(0.0, _owner_tech(civ) - world.humanity.tech_level)
+        stealth = config.artefact_stealth_per_tech * max(0.0, _owner_tech(civ) - config.humanity_present_tech)
         if rng.random() < config.artefact_detection_probability * exp(-stealth):
             world.reject("artefact", until)
 

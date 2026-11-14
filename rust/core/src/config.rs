@@ -27,6 +27,8 @@ pub struct Derived {
     pub share_synergy: f64,
     pub attack_cost_fraction: f64,
     pub reputation_drop_additive: f64,
+    pub humanity_present_tech: f64,
+    pub humanity_tech_rate: f64,
 }
 
 /// p3_apply_events._rates._fraction: fraction done in one step (`step` interaction periods)
@@ -51,6 +53,7 @@ pub struct Config {
 
     pub region_radius_pc: f64,
     pub scale_height_pc: f64,
+    pub sun_height_pc: f64,
 
     pub biochem_types: Vec<String>,
     pub world_type_fractions: Vec<f64>,
@@ -74,6 +77,7 @@ pub struct Config {
     pub population_per_world: f64,
 
     pub initial_tech_level: f64,
+    pub humanity_tech_fraction: f64,
     pub initial_population: f64,
 
     pub self_destruction_risk: f64,
@@ -155,6 +159,7 @@ impl Default for Config {
             jump_max_relative_change: 0.01,
             region_radius_pc: 1000.0,
             scale_height_pc: 300.0,
+            sun_height_pc: 20.8,
             biochem_types: vec!["water".into(), "ammonia".into(), "silicon".into()],
             world_type_fractions: vec![0.7, 0.2, 0.1],
             panspermia_range_pc: 300.0,
@@ -173,6 +178,7 @@ impl Default for Config {
             tech_cap: 3.0,
             population_per_world: 1.0,
             initial_tech_level: 0.1,
+            humanity_tech_fraction: 1e-3,
             initial_population: 1.0,
             self_destruction_risk: 1e-8,
             self_destruction_shape: "danger_window".into(),
@@ -267,8 +273,20 @@ impl Config {
         // p3_apply_events._rates: rates per interaction period rescaled to one step.
         let step = self.dt / self.interaction_period_years;
         let fraction = |rate: f64| step_fraction(rate, step);
+        let tech_logistic = logistic("tech_growth_model", &self.tech_growth_model)?;
+        // Config.humanity_present_tech and Config.humanity_tech_rate.
+        let x = self.initial_tech_level;
+        let present_tech = x * pymath::pow(self.tech_cap / x, self.humanity_tech_fraction);
+        let span = self.present_date_years - self.humanity_birth_date_years;
+        let humanity_tech_rate = if present_tech <= x {
+            0.0
+        } else if tech_logistic {
+            pymath::log((self.tech_cap / x - 1.0) / (self.tech_cap / present_tech - 1.0)) / span
+        } else {
+            pymath::log(present_tech / x) / span
+        };
         let derived = Derived {
-            tech_logistic: logistic("tech_growth_model", &self.tech_growth_model)?,
+            tech_logistic,
             population_logistic: logistic("population_growth_model", &self.population_growth_model)?,
             shape,
             interaction_step: step,
@@ -279,6 +297,8 @@ impl Config {
             share_synergy: pymath::pow(1.0 + self.share_synergy_bonus, step),
             attack_cost_fraction: fraction(self.attack_cost_tech),
             reputation_drop_additive: self.reputation_trust_drop * step,
+            humanity_present_tech: present_tech,
+            humanity_tech_rate,
         };
         self.derived = Some(derived);
         Ok(())

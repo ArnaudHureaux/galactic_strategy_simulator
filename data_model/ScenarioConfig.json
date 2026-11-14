@@ -5,6 +5,7 @@
   "interaction_period_years": 1000,
   "region_radius_pc": 1000,
   "scale_height_pc": 300,
+  "sun_height_pc": 20.8,
   "star_density_pc3": 0.08,
   "ftl_allowed": false,
   "contact_definition": {
@@ -27,5 +28,6 @@
   "start_lookback_years": 1.0e9,
   "self_destruction_shape": "danger_window",
   "humanity_birth_date_years": 1.30e10,
+  "humanity_tech_fraction": 1e-3,
   "present_date_years": 1.38e10
 }
