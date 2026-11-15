@@ -92,3 +92,21 @@ def test_the_sun_in_a_competitor_shadow_is_not_held():
     assert _holds(world, b, human.position, 0.0)
     off_axis = (0.0, 30.0, 0.0)
     assert _holds(world, a, off_axis, 0.0)
+
+
+def test_front_speed_follows_the_hop_model():
+    from dataclasses import replace as _replace
+
+    from p0_passive_update._advance_fronts import NEAREST_NEIGHBOUR, _front_speed_at
+    from p0_passive_update._compute_probe_speed import _probe_speed
+
+    config = _replace(Config(), colonization_launch_period_years=500.0)
+    civ = _civ("a", 0.0)
+    civ.colonization_aggressiveness = 0.5
+    hop = NEAREST_NEIGHBOUR * _density() ** (-1.0 / 3.0)
+    v = _probe_speed(config, 1.0)
+    assert _front_speed_at(civ, config, 1.0) == pytest.approx(0.5 * hop / (hop / v + 500.0))
+    # Faster probes or a shorter launch period make faster fronts.
+    assert _front_speed_at(civ, config, 2.0) > _front_speed_at(civ, config, 1.0)
+    civ.colonization_aggressiveness = 0.0
+    assert _front_speed_at(civ, config, 1.0) == 0.0

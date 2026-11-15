@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, grow, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
+use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, front_speed_at, grow, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -178,7 +178,7 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
     // Fronts of attacked civs replay one regular step per jump (see passive_update): they do not drift.
     let mut front_budget: Vec<Option<f64>> = vec![None; n];
     for &i in &active {
-        if !pop_touched[i] && front_moves(&world.civs[i], config) {
+        if !pop_touched[i] && front_moves(&world.civs[i]) {
             front_budget[i] = Some(initial_front_budget(&world.civs[i], config, rel));
         }
     }
@@ -505,8 +505,8 @@ fn time_to_spend_tech_budget(civ: &Civ, config: &Config, tech_budget: f64, pop_b
 }
 
 /// An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
-fn front_moves(civ: &Civ, config: &Config) -> bool {
-    civ.colonization_aggressiveness > 0.0 && config.front_speed_per_tech > 0.0 && civ.tech_level > 0.0 && !civ.front_blocked
+fn front_moves(civ: &Civ) -> bool {
+    civ.colonization_aggressiveness > 0.0 && civ.tech_level > 0.0 && !civ.front_blocked
 }
 
 /// Worlds only matter through the population capacity, which a jump keeps at its start value:
@@ -584,8 +584,8 @@ fn colonization_budgets(world: &World, active: &[usize], front_budget: &mut [Opt
 }
 
 fn time_to_spend_front_budget(civ: &Civ, config: &Config, front_budget: f64, tech_budget: f64) -> f64 {
-    // Fastest front reachable during the jump (front speed is proportional to tech).
-    let speed = civ.colonization_aggressiveness * config.front_speed_per_tech * (civ.tech_level + pymax(0.0, tech_budget));
+    // Fastest front reachable during the jump (front speed grows with tech).
+    let speed = front_speed_at(civ, config, civ.tech_level + pymax(0.0, tech_budget));
     if front_budget == f64::INFINITY {
         return f64::INFINITY;
     }

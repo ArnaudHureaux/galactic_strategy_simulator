@@ -6,7 +6,7 @@ import pytest
 from config import Config
 from events import Event
 from p3_apply_events import apply_events
-from p3_apply_events._attack_damage import _attack_damage, _attribution_probability
+from p3_apply_events._attack_damage import _attack_damage, _attribution_probability, _damage_gap_scale
 from p3_apply_events._rates import _fraction
 from state import BeliefEntry, Civilisation, World
 
@@ -35,8 +35,9 @@ def _victim_knowing(attacker_id, tech=1.0):
 
 
 def test_damage_grows_with_the_tech_gap():
-    config = replace(Config(), damage_coef=0.1, damage_gap_scale=2.0)
-    expected = _fraction(min(1.0, 0.1 * exp(2.0 * 0.5)), config.dt, config.interaction_period_years)
+    config = replace(Config(), damage_coef=0.1)
+    k = _damage_gap_scale(config)
+    expected = _fraction(min(1.0, 0.1 * exp(k * 0.5)), config.dt, config.interaction_period_years)
     assert _attack_damage(1.5, 1.0, config) == expected
     # Same gap, same damage, whatever the absolute level (tech is a log scale of power).
     assert _attack_damage(2.5, 2.0, config) == pytest.approx(expected, rel=1e-12)

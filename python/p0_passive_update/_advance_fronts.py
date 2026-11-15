@@ -1,12 +1,29 @@
 from math import pi, sqrt
 
 from geometry import dist
+from p0_passive_update._compute_probe_speed import _probe_speed
 
 FOUR_THIRDS_PI = 4.0 / 3.0 * pi
 
 
+# Mean distance to the nearest point of a Poisson process of unit density: Gamma(4/3) (4 pi / 3)^(-1/3).
+NEAREST_NEIGHBOUR = 0.5539602783650904
+
+
 def _front_speed(civ, config):
-    return civ.colonization_aggressiveness * config.front_speed_per_tech * civ.tech_level
+    return _front_speed_at(civ, config, civ.tech_level)
+
+
+def _front_speed_at(civ, config, tech):
+    """Settlement front speed (pc/year): probes hop to the nearest habitable world of the civ's type
+    at the probe speed, and a settled world launches its own after colonization_launch_period_years
+    (Carroll-Nellenback et al. 2019, high-density static limit)."""
+    speed = _probe_speed(config, tech)
+    density = _world_density(civ, config)
+    if speed <= 0 or density <= 0 or civ.colonization_aggressiveness <= 0:
+        return 0.0
+    hop = NEAREST_NEIGHBOUR * density ** (-1.0 / 3.0)
+    return civ.colonization_aggressiveness * hop / (hop / speed + config.colonization_launch_period_years)
 
 
 def _world_density(civ, config):

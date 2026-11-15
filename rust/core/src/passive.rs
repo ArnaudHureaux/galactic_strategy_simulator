@@ -240,7 +240,21 @@ pub fn probe_speed(config: &Config, tech: f64) -> f64 {
 pub const FOUR_THIRDS_PI: f64 = 4.0 / 3.0 * std::f64::consts::PI;
 
 pub fn front_speed(civ: &Civ, config: &Config) -> f64 {
-    civ.colonization_aggressiveness * config.front_speed_per_tech * civ.tech_level
+    front_speed_at(civ, config, civ.tech_level)
+}
+
+/// Mean distance to the nearest point of a Poisson process of unit density.
+const NEAREST_NEIGHBOUR: f64 = 0.5539602783650904;
+
+/// Settlement front speed (pc/year), see _advance_fronts._front_speed_at.
+pub fn front_speed_at(civ: &Civ, config: &Config, tech: f64) -> f64 {
+    let speed = probe_speed(config, tech);
+    let density = world_density(civ, config);
+    if speed <= 0.0 || density <= 0.0 || civ.colonization_aggressiveness <= 0.0 {
+        return 0.0;
+    }
+    let hop = NEAREST_NEIGHBOUR * pymath::pow(density, -1.0 / 3.0);
+    civ.colonization_aggressiveness * hop / (hop / speed + config.colonization_launch_period_years)
 }
 
 /// Habitable worlds per pc^3 of the civ's own biochem type.

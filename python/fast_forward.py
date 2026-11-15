@@ -30,7 +30,7 @@ from p0_passive_update._growth_law import grow, time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
-from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _world_density
+from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _front_speed_at, _world_density
 from p0_passive_update._compute_broadcast_radius import _signal_radius, _tech_for_signal_radius
 from p0_passive_update._detect import _beacon_hazard
 from p0_passive_update._compute_probe_speed import _probe_speed
@@ -381,8 +381,7 @@ def _time_to_spend_tech_budget(civ, config, tech_budget, pop_budget):
 
 def _front_moves(civ, config):
     # An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
-    return (civ.colonization_aggressiveness > 0 and config.front_speed_per_tech > 0
-            and civ.tech_level > 0 and not civ.front_blocked)
+    return civ.colonization_aggressiveness > 0 and civ.tech_level > 0 and not civ.front_blocked
 
 
 def _front_budget(civ, config, rel):
@@ -440,8 +439,8 @@ def _colonization_budgets(world, active, front_budget):
 
 
 def _time_to_spend_front_budget(civ, config, front_budget, tech_budget):
-    # Fastest front reachable during the jump (front speed is proportional to tech).
-    speed = civ.colonization_aggressiveness * config.front_speed_per_tech * (civ.tech_level + max(0.0, tech_budget))
+    # Fastest front reachable during the jump (front speed grows with tech).
+    speed = _front_speed_at(civ, config, civ.tech_level + max(0.0, tech_budget))
     if front_budget == inf:
         return inf
     return front_budget / speed - config.dt

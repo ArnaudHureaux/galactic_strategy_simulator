@@ -155,9 +155,10 @@
     "artefact_detection_probability": {
       "status": "E", "unit": "probabilité",
       "description": "Probabilité de trouver la sonde d'une civ qui a visité le Système solaire.",
-      "justification": "Dépend de la part du Système solaire fouillée.",
-      "range": {"low": 0.001, "high": 0.5, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 2, point 11 : borner par la recherche réelle (Haqq-Misra & Kopparapu 2012 ; Benford 2019)."]
+      "justification": "Bornée par la fouille réelle : la surface terrestre est bien fouillée, mais une sonde se garerait plutôt sur la Lune, aux points de Lagrange ou en co-orbite avec la Terre, où les recherches sont très incomplètes ; peu d'entre elles pourraient détecter un objet de 1 à 10 m, et l'essentiel du volume du Système solaire n'a pas été fouillé. Borne haute ramenée de 0,5 à 0,1 (décision du 2026-11, phase 2, point 11).",
+      "source": "Haqq-Misra, J. & Kopparapu, R. K. 2012, Acta Astronautica 72, 15 ; Benford, J. 2019, AJ 158, 150.",
+      "range": {"low": 0.001, "high": 0.1, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : quantifier la part fouillée par zone (Lune : LRO ; co-orbitaux)."]
     },
     "artefact_stealth_per_tech": {
       "status": "E", "unit": "1/tech",
@@ -319,12 +320,13 @@
       "range": {"low": 1e5, "high": 1e8, "scale": "log"}, "range_basis": "provisoire",
       "todo": ["Phase 2, point 4 : recaler sur les ancres."]
     },
-    "front_speed_per_tech": {
-      "status": "E", "unit": "pc/an/tech",
-      "description": "Vitesse du front de colonisation par niveau de tech, pour une agressivité de 1.",
-      "justification": "Fronts de colonisation : Carroll-Nellenback et al. 2019 ; Newman & Sagan 1981.",
-      "range": {"low": 1e-10, "high": 1e-6, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 2, point 4 : recaler sur les ancres.", "Phase 5 : sourcer."]
+    "colonization_launch_period_years": {
+      "status": "E", "unit": "an",
+      "description": "Délai avant qu'un monde colonisé lance à son tour des sondes de colonisation. Le front avance à colonization_aggressiveness × d / (d / v_sonde + délai), avec d la distance moyenne au plus proche monde habitable du même type (0,554 × densité^(−1/3)) et v_sonde la vitesse des sondes ancrée sur Voyager 1.",
+      "justification": "Vitesse d'un front de colonisation par sauts de système en système, dans la limite statique à forte densité de Carroll-Nellenback et al. 2019 (le délai de lancement T_p, 100 ans dans leur exemple). Un délai long reproduit les fronts lents de Newman & Sagan 1981 (croissance démographique lente). Même au niveau humain (sondes de type Voyager), un délai de 10^4 ans donne environ 16 kpc par milliard d'années : l'argument de Hart (décision du 2026-11, phase 2, point 11).",
+      "source": "Carroll-Nellenback, J., Frank, A., Wright, J. & Scharf, C. 2019, AJ 158, 117, arXiv:1902.04450 ; Newman, W. I. & Sagan, C. 1981, Icarus 46, 293.",
+      "range": {"low": 1e2, "high": 1e8, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : sourcer les bornes.", "Diffusion par le mouvement des étoiles (Carroll-Nellenback et al. 2019) non modélisée."]
     },
     "habitable_world_density": {
       "status": "E", "unit": "mondes/pc³",
@@ -382,16 +384,9 @@
     },
     "damage_coef": {
       "status": "E", "unit": "fraction/période",
-      "description": "Une guerre détruit min(1, damage_coef × exp(damage_gap_scale × (tech attaquant − tech cible))) de la cible par période d'interaction ; 1 = destruction immédiate. damage_coef est la part détruite à tech égale.",
+      "description": "Une guerre détruit min(1, damage_coef × rapport de puissance) de la cible par période d'interaction ; 1 = destruction immédiate. Le rapport de puissance suit la loi d'énergie ancrée sur l'humanité : exp(k × écart de tech), k = ln(eirp_cap_w / eirp_human_w) / (tech_cap − humanity_present_tech). damage_coef est la part détruite à tech égale.",
       "justification": "Inconnu.",
       "range": {"low": 0.05, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu"
-    },
-    "damage_gap_scale": {
-      "status": "E", "unit": "1/tech",
-      "description": "Croissance des dégâts avec l'écart de tech : chaque niveau d'avance multiplie les dégâts par exp(damage_gap_scale).",
-      "justification": "La tech est une échelle logarithmique de la puissance (point 4) : un écart de tech est un rapport de puissance, et la fenêtre d'attaque est déjà un écart (décision du 2026-11, phase 2, point 7). Intensité inconnue.",
-      "range": {"low": 0.1, "high": 10.0, "scale": "log"}, "range_basis": "inconnu",
-      "todo": ["Point 11 : recaler sur le facteur par niveau de tech fixé par les ancres (niveau humain, plafond)."]
     },
     "attack_stealth_per_tech": {
       "status": "E", "unit": "1/tech",
@@ -677,8 +672,8 @@
     },
     "attack_damage_law": {
       "status": "M", "where": "python/p3_apply_events/_attack_damage.py",
-      "description": "Dégâts = min(1, damage_coef × exp(damage_gap_scale × écart de tech)) par période, appliqués à la tech, la population et au territoire ; mort seulement si dégâts = 1. Déterministe.",
-      "justification": "Le plus fort fait plus de dégâts. Écart plutôt que rapport, cohérent avec la fenêtre de décision et l'échelle de tech logarithmique (point 4). Déterministe : un aléa ajouterait des paramètres inconnus et compliquerait le fast-forward (décision du 2026-11, phase 2, point 7).",
+      "description": "Dégâts = min(1, damage_coef × rapport de puissance) par période, le rapport valant exp(k × écart de tech) avec k fixé par les ancres de la loi d'énergie (EIRP humaine et au plafond) ; appliqués à la tech, la population et au territoire ; mort seulement si dégâts = 1. Déterministe.",
+      "justification": "Le plus fort fait plus de dégâts, en proportion de sa puissance. Écart de tech, cohérent avec la fenêtre de décision et l'échelle de tech logarithmique (point 4) ; le facteur par niveau vient des ancres au lieu d'un paramètre libre (avec les valeurs par défaut, environ ×450 par niveau d'avance). Déterministe : un aléa ajouterait des paramètres inconnus et compliquerait le fast-forward (décision du 2026-11, phase 2, points 7 et 11).",
       "todo": ["Coût de la défense : à discuter."]
     },
     "attack_attribution": {

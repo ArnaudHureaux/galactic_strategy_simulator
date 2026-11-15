@@ -213,6 +213,14 @@ Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_
 - **Coût** : la boucle sur les paires reste la même, avec un tirage par couple à la première exposition. Le fast-forward s'arrête avant qu'un risque cumulé n'atteigne son seuil, et avant qu'une sphère de fuites ou de faisceau n'atteigne une civ encore non vue.
 - Nouveaux paramètres explorés : `beacon_duty` dans [10⁻⁶ ; 1] et `listen_coverage` dans [10⁻³ ; 1], tous deux inconnus.
 
+**Étape 3, faite le 2026-11-15 : artefacts, fronts et dégâts recalés.**
+- **Artefacts** : `artefact_detection_probability` est bornée par la fouille réelle. La surface terrestre est bien fouillée, mais une sonde se garerait plutôt sur la Lune, aux points de Lagrange ou en co-orbite avec la Terre, où peu de recherches pourraient voir un objet de 1 à 10 m (Haqq-Misra & Kopparapu 2012 ; Benford 2019). L'intervalle passe à [10⁻³ ; 0,1].
+- **Fronts de colonisation** : des sondes de colonisation sautent vers le plus proche monde habitable du même type, à la distance moyenne d = 0,554 × densité^(−1/3), à la vitesse des sondes (ancrée sur Voyager 1). Un monde colonisé lance à son tour des sondes après `colonization_launch_period_years`. Le front avance donc à v = agressivité × d / (d / v_sonde + délai), selon la limite statique à forte densité de Carroll-Nellenback et al. 2019. `front_speed_per_tech` disparaît. Le délai est exploré dans [10² ; 10⁸] ans : 100 ans dans l'exemple de Carroll-Nellenback, et jusqu'aux fronts lents de Newman & Sagan 1981.
+- **Dégâts** : le facteur par niveau de tech vient des ancres de la loi d'énergie, k = ln(`eirp_cap_w` / `eirp_human_w`) / (`tech_cap` − T_h), soit environ ×450 par niveau avec les valeurs par défaut. `damage_gap_scale` disparaît. L'EIRP humaine (2·10¹³ W) est d'ailleurs du même ordre que la puissance consommée par l'humanité (environ 19 TW).
+- **Durée de vie des sondes** : `probe_lifetime_per_tech` n'est **pas** recalée. L'ancre humaine est ambiguë : Voyager fonctionne environ 50 ans, mais le matériel survit des millions à des milliards d'années. Ce choix reste à trancher.
+
+**Conséquence : l'argument de Hart revient.** Même au niveau humain (sondes de type Voyager) et avec un délai de 10⁴ ans, un front avance d'environ 16 kpc par milliard d'années : il traverse la région en moins de 100 millions d'années. Le délai de lancement devient un paramètre clé du silence, comme chez Newman & Sagan.
+
 **Question ouverte (traitée à l'étape 2).** Une civ qui « émet volontairement » le fait-elle en continu et dans toutes les directions, à l'EIRP d'un radar dirigé ? Pour une émission isotrope, 20 TW d'EIRP correspondent à 20 TW réels, soit à peu près la consommation énergétique actuelle de l'humanité. C'est une surestimation probable. Le facteur p_on de l'étape 2 en tiendra compte pour la détection par l'humanité, mais la détection entre civs reste à discuter.
 
 ## À décider

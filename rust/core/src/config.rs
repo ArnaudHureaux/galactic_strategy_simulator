@@ -101,7 +101,7 @@ pub struct Config {
     pub max_probe_radius: f64,
     pub probe_lifetime_per_tech: f64,
 
-    pub front_speed_per_tech: f64,
+    pub colonization_launch_period_years: f64,
     pub habitable_world_density: f64,
 
     pub belief_memory_years: f64,
@@ -115,7 +115,6 @@ pub struct Config {
     pub forgiveness: f64,
 
     pub damage_coef: f64,
-    pub damage_gap_scale: f64,
     pub attack_stealth_per_tech: f64,
     pub attacks_per_tech_population: f64,
     pub attack_cost_tech: f64,
@@ -210,7 +209,7 @@ impl Default for Config {
             probe_speed_cap_c: 0.1,
             max_probe_radius: 1e12,
             probe_lifetime_per_tech: 1e6,
-            front_speed_per_tech: 1e-7,
+            colonization_launch_period_years: 1.0e4,
             habitable_world_density: 0.01,
             belief_memory_years: 0.0,
             interaction_period_years: 1000.0,
@@ -221,7 +220,6 @@ impl Default for Config {
             share_trust_gain: 0.3,
             forgiveness: 0.2,
             damage_coef: 0.3,
-            damage_gap_scale: 1.0,
             attack_stealth_per_tech: 0.0,
             attacks_per_tech_population: 1.0,
             attack_cost_tech: 0.05,

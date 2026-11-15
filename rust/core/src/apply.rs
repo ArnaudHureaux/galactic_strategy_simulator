@@ -78,12 +78,15 @@ fn attribution_probability(power: f64, target_tech_level: f64, config: &Config) 
 
 fn apply_attack(event: &Event, world: &mut World, config: &Config, rng: &mut Rng) {
     let target = &mut world.civs[event.dst];
-    // A war destroys min(1, damage_coef * exp(damage_gap_scale * tech gap)) of the target per
+    // A war destroys min(1, damage_coef * power ratio) of the target per
     // interaction period; an attack event stands for one regular step of it.
     let damage = if target.tech_level <= 0.0 {
         1.0
     } else {
-        let gain = pymath::exp(config.damage_gap_scale * (event.power - target.tech_level));
+        // Power ratio per tech level of the energy law anchored on humanity (see _attack_damage).
+        let scale = pymath::log(config.eirp_cap_w / config.eirp_human_w)
+            / (config.tech_cap - config.derived().humanity_present_tech);
+        let gain = pymath::exp(scale * (event.power - target.tech_level));
         let per_period = pymin(1.0, config.damage_coef * gain);
         step_fraction(per_period, config.derived().interaction_step)
     };

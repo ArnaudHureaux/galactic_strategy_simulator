@@ -145,11 +145,11 @@ class Config:
     max_probe_radius: float = 1e12
     probe_lifetime_per_tech: float = 1e6
 
-    # Colonization front (see p0_passive_update/_advance_fronts.py): the sphere of a civ grows at
-    # colonization_aggressiveness * front_speed_per_tech * tech_level pc/year, stops where it meets
-    # the sphere of a competitor (same biochem type), and holds
-    # 1 + habitable_world_density * (fraction of worlds of its biochem type) * volume worlds.
-    front_speed_per_tech: float = 1e-7
+    # Colonization front (see p0_passive_update/_advance_fronts.py): settlement probes hop to the nearest
+    # free habitable world at the probe speed, and a settled world launches its own probes after
+    # colonization_launch_period_years (Carroll-Nellenback et al. 2019): the front advances at
+    # colonization_aggressiveness * hop / (hop / probe speed + launch period) pc/year.
+    colonization_launch_period_years: float = 1.0e4
     habitable_world_density: float = 0.01
 
     belief_memory_years: float = 0.0
@@ -165,10 +165,10 @@ class Config:
     share_trust_gain: float = 0.3
     forgiveness: float = 0.2
 
-    # A war destroys min(1, damage_coef * exp(damage_gap_scale * (attacker tech - target tech)))
-    # of the target per interaction period: tech is a log scale of power (phase 2, points 4 and 7).
+    # A war destroys min(1, damage_coef * power ratio) of the target per interaction period, the power
+    # ratio following the energy law anchored on humanity (eirp_human_w, eirp_cap_w): each tech level of
+    # advance multiplies the damage by the same factor (phase 2, points 4, 7 and 11).
     damage_coef: float = 0.3
-    damage_gap_scale: float = 1.0
     # The victim (and its witnesses) identifies the attacker with probability
     # exp(-attack_stealth_per_tech * max(0, attacker tech - victim tech)), drawn once per war (0 = always).
     attack_stealth_per_tech: float = 0.0
@@ -323,9 +323,9 @@ def _validate(c):
     check(0 < c.probe_speed_human_c <= c.probe_speed_cap_c <= 1, "probe speeds must satisfy 0 < human <= cap <= 1")
     check(c.seti_flux_threshold_w_m2 > 0, "seti_flux_threshold_w_m2 must be > 0")
     for name in ("self_destruction_risk", "passive_leakage_factor", "max_probe_radius",
-                 "probe_lifetime_per_tech", "front_speed_per_tech", "habitable_world_density",
+                 "probe_lifetime_per_tech", "colonization_launch_period_years", "habitable_world_density",
                  "tech_population_exponent", "artefact_stealth_per_tech", "belief_memory_years", "share_backflow",
-                 "share_synergy_bonus", "damage_coef", "damage_gap_scale", "attack_stealth_per_tech",
+                 "share_synergy_bonus", "damage_coef", "attack_stealth_per_tech",
                  "attacks_per_tech_population", "reputation_trust_drop",
                  "natural_tech_progress_mean", "natural_population_growth_mean",
                  "max_natural_tech_progress"):
