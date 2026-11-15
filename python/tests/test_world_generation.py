@@ -71,3 +71,22 @@ def test_archetypes_pin_their_traits_up_to_the_noise():
     noisy = [c for c in _world(replace(config, strategy_noise=0.1)).civs if not c.is_human]
     gaps = [abs(c.strategy["caution_k"] - ARCHETYPES[c.strategy["archetype"]]["caution_k"]) for c in noisy]
     assert 0 < max(gaps) <= 0.1 * (config.caution_k_high - config.caution_k_low)
+
+
+def test_initial_births_are_spread_after_the_start():
+    from dataclasses import replace as _replace
+
+    from config import Config as _Config
+    from generate_world import generate_world as _generate
+    from rng import make_streams as _streams
+
+    config = _replace(_Config(), expected_bubbles=20.0, birth_spread_fraction=0.5)
+    civs = [c for c in _generate(config, _streams(3)).civs if not c.is_human]
+    births = [c.birth_year for c in civs]
+    assert len(set(births)) == len(births) > 1
+    end = config.start_date_years + 0.5 * config.start_lookback_years
+    assert all(config.start_date_years <= b <= end for b in births)
+    # Default: the whole cohort is born at the start.
+    default = _replace(config, birth_spread_fraction=0.0)
+    assert all(c.birth_year == config.start_date_years
+               for c in _generate(default, _streams(3)).civs if not c.is_human)

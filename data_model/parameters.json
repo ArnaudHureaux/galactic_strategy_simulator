@@ -111,11 +111,16 @@
     },
     "start_lookback_years": {
       "status": "E", "unit": "an (avant le présent)",
-      "description": "Début de la simulation, compté avant le présent : dernier épisode stérilisant (sursaut gamma galactique). Les civs initiales y naissent toutes.",
+      "description": "Début de la simulation, compté avant le présent : dernier épisode stérilisant (sursaut gamma galactique). Les civs initiales naissent ensuite, étalées selon birth_spread_fraction.",
       "justification": "Annis 1999 : des sursauts gamma stérilisent périodiquement la Galaxie et resynchronisent l'apparition de l'intelligence ; intervalle actuel entre sursauts ≈ 10^8 ans (borne basse). Piran & Jimenez 2014 : la vie telle que sur Terre n'a pas pu exister à z > 0,5, soit ≈ 5,2 Ga avant le présent en cosmologie Planck (borne haute). Aucune civ n'existant avant ce départ, aucune sonde plus ancienne n'est possible : la fenêtre d'artefacts (4,5 Ga) couvre donc toute la simulation dès que le départ est plus récent.",
       "source": "Annis, J. 1999, JBIS (janvier 1999), arXiv:astro-ph/9901322 ; Piran, T. & Jimenez, R. 2014, PRL 113, 231102 (arXiv:1409.2506). Âge à z = 0,5 calculé avec H0 = 67,66, Ωm = 0,3111 (Planck 2018).",
-      "range": {"low": 1e8, "high": 5.2e9, "scale": "log"}, "range_basis": "littérature",
-      "todo": ["Phase 2, point 3 : cohorte synchrone."]
+      "range": {"low": 1e8, "high": 5.2e9, "scale": "log"}, "range_basis": "littérature"
+    },
+    "birth_spread_fraction": {
+      "status": "E", "unit": "sans dimension",
+      "description": "Étalement des naissances de la cohorte initiale : chaque civ initiale naît à départ + U(0, f × start_lookback_years), au niveau initial_tech_level.",
+      "justification": "Le sursaut gamma resynchronise l'apparition de la vie, mais l'évolution vers l'intelligence prend ensuite un temps variable et inconnu : loi uniforme, faute d'information. Une fraction de la durée simulée évite une contrainte d'ordre avec start_lookback_years dans l'hypercube latin (décision du 2026-11, phase 2, point 3).",
+      "range": {"low": 0.0, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu"
     },
     "humanity_birth_date_years": {
       "status": "D", "unit": "an (depuis le Big Bang)",
@@ -554,9 +559,8 @@
     },
     "synchronized_cohort": {
       "status": "M", "where": "python/generate_world/_seed_life_in_bubbles.py",
-      "description": "Toutes les civs initiales naissent au départ (présent - start_lookback_years), avec la même tech.",
-      "justification": "Partielle : Annis 1999 justifie une resynchronisation par le dernier sursaut gamma, mais pas une naissance simultanée avec la même tech (l'évolution vers l'intelligence prend du temps et varie).",
-      "todo": ["Phase 2, point 3 : étaler les naissances."]
+      "description": "Les civs initiales apparaissent après le départ (présent - start_lookback_years), étalées selon birth_spread_fraction, toutes au même niveau de tech à leur naissance.",
+      "justification": "Annis 1999 justifie une resynchronisation par le dernier sursaut gamma ; l'étalement rend compte du temps variable de l'évolution vers l'intelligence (phase 2, point 3)."
     },
     "bubble_geometry": {
       "status": "M", "where": "python/generate_world/_sample_lens_position.py, _seed_life_in_bubbles.py",
@@ -595,8 +599,8 @@
     "deterministic_detection": {
       "status": "M", "where": "python/p0_passive_update/_detect.py",
       "description": "Détection entre civs certaine dès qu'une sphère (signal ou sondes) atteint l'autre.",
-      "justification": "Simplification.",
-      "todo": ["Phase 2, points 9 et 11."]
+      "justification": "Une sonde sur place voit une civilisation même avec une technologie modeste (Voyager 2) ; un signal assez puissant pour porter jusqu'à une civ avancée y est capté (décision du 2026-11, phase 2, point 9).",
+      "todo": ["Point 11 : l'observation humaine, elle, devient probabiliste (SETI)."]
     },
     "attack_decision": {
       "status": "M", "where": "python/p1_from_strat_to_actions/_compute_attack_interest_score.py",
@@ -650,8 +654,8 @@
     "fixed_strategies": {
       "status": "M", "where": "python/generate_world/_sample_strategy.py",
       "description": "Une civ garde sa stratégie toute sa vie (pas d'apprentissage ni d'imitation).",
-      "justification": "Hypothèse déclarée.",
-      "todo": ["Phase 2, point 10."]
+      "justification": "Hypothèse déclarée (décision du 2026-11, phase 2, point 10). La sélection existe déjà : les stratégies qui meurent plus deviennent plus rares parmi les survivantes ; la sortie strategy_selection la mesure.",
+      "todo": ["Phase 7 : apprentissage ou imitation en extension, si strategy_selection montre que la sélection pèse sur les résultats."]
     },
     "archetype_definitions": {
       "status": "M", "where": "python/config.py (ARCHETYPES), data_model/strategies/strategy_presets.json",

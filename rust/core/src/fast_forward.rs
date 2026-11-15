@@ -155,6 +155,12 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
             limit = pymin(limit, milestone - now - config.dt);
         }
     }
+    for c in &world.civs {
+        if c.birth_year > now {
+            // A civ yet to be born (spread initial cohort) is born at normal resolution.
+            limit = pymin(limit, c.birth_year - now - config.dt);
+        }
+    }
     if limit < 2.0 * config.dt {
         return None;
     }

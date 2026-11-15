@@ -121,6 +121,10 @@ def _plan_jump(world, config, now, streams, tech_touched, pop_touched):
         if milestone > now:
             # Stop one regular step early so the milestone itself is crossed at normal resolution.
             limit = min(limit, milestone - now - config.dt)
+    for c in world.civs:
+        if c.birth_year > now:
+            # A civ yet to be born (spread initial cohort) is born at normal resolution.
+            limit = min(limit, c.birth_year - now - config.dt)
     if limit < 2 * config.dt:
         return None
 

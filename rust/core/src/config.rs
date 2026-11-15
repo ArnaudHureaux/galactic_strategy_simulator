@@ -64,6 +64,7 @@ pub struct Config {
     pub civ_birth_rate: f64,
 
     pub start_lookback_years: f64,
+    pub birth_spread_fraction: f64,
     pub humanity_birth_date_years: f64,
     pub present_date_years: f64,
     pub signal_window_years: f64,
@@ -169,6 +170,7 @@ impl Default for Config {
             civs_per_bubble: 20.0,
             civ_birth_rate: 1e-8,
             start_lookback_years: 1.0e9,
+            birth_spread_fraction: 0.0,
             humanity_birth_date_years: 1.379999e10,
             present_date_years: 1.38e10,
             signal_window_years: 100.0,

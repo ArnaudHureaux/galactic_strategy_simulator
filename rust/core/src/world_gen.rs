@@ -22,10 +22,20 @@ fn seed_life_in_bubbles(config: &Config, rng: &mut Rng) -> Vec<Civ> {
             let offset = sample_ball(config.panspermia_range_pc, rng);
             let position = [center[0] + offset[0], center[1] + offset[1], center[2] + offset[2]];
             let id = format!("c_{}", civs.len());
-            civs.push(new_civ(id, position, config, rng, config.start_date_years()));
+            let birth = birth_date(config, rng);
+            civs.push(new_civ(id, position, config, rng, birth));
         }
     }
     civs
+}
+
+/// The sterilizing event resynchronizes life; intelligence then takes a variable time.
+fn birth_date(config: &Config, rng: &mut Rng) -> f64 {
+    let spread = config.birth_spread_fraction * config.start_lookback_years;
+    if spread <= 0.0 {
+        return config.start_date_years();
+    }
+    config.start_date_years() + rng.uniform(0.0, spread)
 }
 
 fn make_humanity(config: &Config, rng: &mut Rng) -> Civ {

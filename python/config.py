@@ -88,6 +88,9 @@ class Config:
     # The simulation starts start_lookback_years before the present, at the last sterilizing event
     # (galactic GRB, Annis 1999); the initial civs are all born then.
     start_lookback_years: float = 1.0e9
+    # Initial civs are born at start + U(0, birth_spread_fraction * start_lookback_years):
+    # the sterilizing event resynchronizes life, but intelligence then takes a variable time (0 = all at start).
+    birth_spread_fraction: float = 0.0
     # Start of human civilization: from then on, humanity can be seen by probes on site (and attacked).
     # It only leaks signals during the last signal_window_years (see _compute_broadcast_radius).
     humanity_birth_date_years: float = 1.379999e10
@@ -307,7 +310,7 @@ def _validate(c):
     # These rates are fractions closed per interaction period (log1p(-rate) must exist).
     for name in ("share_catchup", "share_trust_gain"):
         check(0 <= getattr(c, name) < 1, f"{name} must be in [0, 1)")
-    for name in ("forgiveness", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability",
+    for name in ("birth_spread_fraction", "forgiveness", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability",
                  "natural_tech_progress_spread", "natural_population_growth_spread"):
         check(0 <= getattr(c, name) <= 1, f"{name} must be in [0, 1]")
 

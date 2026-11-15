@@ -136,6 +136,24 @@ où `grow` est la solution exacte de la loi de croissance techno, et `r_vue` le 
 
 **Écart plutôt que rapport.** La fenêtre de décision était un écart de tech, alors que les dégâts dépendaient d'un rapport de tech. La tech est une échelle logarithmique de la puissance (point 4) : un écart de tech est donc un rapport de puissance. Les dégâts par période deviennent min(1, `damage_coef` × exp(`damage_gap_scale` × écart)). `damage_coef` est la part détruite à tech égale, et `damage_gap_scale` (exploré dans [0,1 ; 10], échelle log) mesure combien chaque niveau d'avance multiplie les dégâts. Il faudra le recaler sur le facteur par niveau de tech quand les ancres du point 11 seront en place.
 
+### Point 3 : naissances étalées
+
+*Décidé le 2026-11-14.*
+
+**Constat.** Toutes les civs initiales naissaient au départ, avec la même tech. Le sursaut gamma justifie de resynchroniser l'apparition de la vie (Annis 1999), mais pas une naissance simultanée de l'intelligence.
+
+**Décision.** Chaque civ initiale naît à départ + U(0, f × start_lookback_years), au niveau initial_tech_level, avec f = `birth_spread_fraction` exploré dans [0 ; 1] (inconnu). La loi est uniforme faute d'information. Exprimer l'étalement en fraction de la durée simulée évite une contrainte d'ordre avec start_lookback_years dans l'hypercube latin. Avec f = 0 (la valeur par défaut), on retrouve la cohorte synchrone. Les naissances qui continuent ensuite (civ_birth_rate) ne changent pas.
+
+Un saut du fast-forward s'arrête avant chaque naissance à venir.
+
+### Points 6, 9 et 10 : hypothèses gardées
+
+*Décidé le 2026-11-14.*
+
+- **6. Taille de la région** : on garde le modèle abstrait, sans catalogue stellaire. Avec l'humanité au centre, le bord ne compte que si des civs extérieures auraient pu atteindre la Terre. À vérifier en phase 3, en comparant 1 et 2 kpc.
+- **9. Détection entre civs** : elle reste certaine dès qu'une sphère (signal ou sondes) atteint l'autre. Une sonde sur place voit une civilisation même avec une technologie modeste (Voyager 2). Seule l'observation humaine devient probabiliste (point 11).
+- **10. Stratégies figées** : c'est une hypothèse déclarée en V1. La sélection existe déjà, puisque les stratégies qui meurent plus deviennent plus rares parmi les survivantes. Une sortie la mesure : le mélange de stratégies des survivantes au présent, comparé au mélange initial. L'apprentissage (une civ change de stratégie après ce qu'elle observe) viendra en extension en phase 7, si cette sortie montre que la sélection pèse sur les résultats.
+
 ## Décidés, à implémenter
 
 ### Point 11 : observation SETI réaliste (point 4 : la tech reste abstraite)
@@ -180,4 +198,4 @@ Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_
 
 ## À décider
 
-Points 3, 6, 9 et 10 de la phase 2 (décidés le 2026-11-14, en cours d'implémentation).
+Aucun point de la phase 2 (le point 11 est décidé, reste à implémenter).
