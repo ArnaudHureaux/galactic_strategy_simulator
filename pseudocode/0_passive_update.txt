@@ -39,7 +39,7 @@ for civ in world.extinct_with_live_probes(now):
 # dead civs stay visible from afar until their last light has crossed the region
 index = SpatialIndex(world.visible(now).position)
 for civ in world.active(now):
-    reach = max(MAX_BROADCAST_RADIUS + civ.R + widest_visible_front, civ.probe_radius)
+    reach = max(WIDEST_BROADCAST_EVER + civ.R + widest_visible_front, civ.probe_radius)
     for other in index.neighbors_within(civ.position, reach):
         if other is civ:
             continue

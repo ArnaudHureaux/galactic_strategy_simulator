@@ -1,8 +1,17 @@
+# Laws "per tech level" are calibrated by two anchors: the observed human value at
+# HUMANITY_PRESENT_TECH and an explored value at TECH_CAP; each tech level multiplies the effect
+# by the same factor, and the effect stays at the cap value beyond TECH_CAP.
+def anchored(tech, human_value, cap_value):
+    x = (min(tech, TECH_CAP) - HUMANITY_PRESENT_TECH) / (TECH_CAP - HUMANITY_PRESENT_TECH)
+    return human_value * (cap_value / human_value) ^ x
+
 def compute_broadcast_radius(civ, now):
     # humanity's technosignatures only exist since the start of the signal window
     if civ.is_human and now < PRESENT_DATE - SIGNAL_WINDOW:
         return 0
-    active_radius = EMIT_RADIUS_PER_TECH * civ.tech_level
-    if civ.strategy["broadcast"]:
-        return active_radius
-    return active_radius * PASSIVE_LEAKAGE_FACTOR
+    # EIRP in watts: Arecibo radar (20 TW) at humanity's level, explored at the cap
+    eirp = anchored(civ.tech_level, EIRP_HUMAN_W, EIRP_CAP_W)
+    if not civ.strategy["broadcast"]:
+        eirp *= PASSIVE_LEAKAGE_FACTOR      # humanity: LTE leakage / Arecibo radar
+    # seen while EIRP >= 4 pi d^2 F_min (Breakthrough Listen sensitivity)
+    return sqrt(eirp / (4 pi SETI_FLUX_THRESHOLD_W_M2)) / METERS_PER_PC

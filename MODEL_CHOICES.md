@@ -196,6 +196,17 @@ Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_
 
 **Robustesse (phase 7).** Autres valeurs de F_min et de c(d) ; ancienne détection déterministe en comparaison.
 
+**Étape 1, faite le 2026-11-15 : ancres, EIRP en watts et vitesse des sondes.**
+- Loi ancrée : effet(T) = E_h × (E_cap / E_h)^((T − T_h) / (T_cap − T_h)), où T_h = `humanity_present_tech`. Au-delà du plafond, l'effet reste à E_cap.
+- **Émission** : EIRP humaine `eirp_human_w` = 2·10¹³ W (radar d'Arecibo, Sheikh et al. 2025). EIRP au plafond `eirp_cap_w` explorée dans [10¹⁶ ; 10²⁶] W (types I à II de Kardashev dans l'interpolation de Sagan). Les fuites valent `passive_leakage_factor` × EIRP, soit 2·10⁻⁴ pour l'humanité (LTE 4 GW / Arecibo 20 TW), exploré dans [10⁻⁵ ; 10⁻²].
+- **Portée d'un signal** : d = √(EIRP / 4π F_min), avec `seti_flux_threshold_w_m2` = 3,3·10⁻²⁵ W/m² (Breakthrough Listen : 10¹³ W à 50 pc, Enriquez et al. 2017). Le radar d'Arecibo porte ainsi à 71 pc, et nos fuites LTE à environ 1 pc. Ce seuil sert à toutes les civs (point 9). `max_broadcast_radius` disparaît : la recherche de voisins est bornée par la plus grande portée jamais atteinte.
+- **Sondes** : Voyager 1 (5,67·10⁻⁵ c) au niveau humain, `probe_speed_cap_c` exploré dans [0,01 ; 0,99] c au plafond (Bond 1978, Lubin 2016, Armstrong & Sandberg 2013).
+- Supprimés : `emit_radius_per_tech`, `max_broadcast_radius`, `probe_speed_per_tech`.
+
+**Conséquence.** Une civ qui émet volontairement, au niveau humain, porte à 71 pc, contre environ 1 pc avec l'ancienne loi. Les contacts entre civs deviennent bien plus fréquents, et les simulations plus denses, donc plus lentes en Python.
+
+**Question ouverte.** Une civ qui « émet volontairement » le fait-elle en continu et dans toutes les directions, à l'EIRP d'un radar dirigé ? Pour une émission isotrope, 20 TW d'EIRP correspondent à 20 TW réels, soit à peu près la consommation énergétique actuelle de l'humanité. C'est une surestimation probable. Le facteur p_on de l'étape 2 en tiendra compte pour la détection par l'humanité, mais la détection entre civs reste à discuter.
+
 ## À décider
 
 Aucun point de la phase 2 (le point 11 est décidé, reste à implémenter).

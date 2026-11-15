@@ -15,7 +15,7 @@ def _detect(world, config, now):
     for civ in world.active(now):
         if civ.is_human and now < config.present_date_years - config.signal_window_years:
             continue
-        reach = max(config.max_broadcast_radius + civ.expansion_radius + widest_front, civ.probe_radius)
+        reach = max(world.widest_broadcast + civ.expansion_radius + widest_front, civ.probe_radius)
         for other, d in world.neighbor_pairs_within(civ, reach):
             if other.id not in visible:
                 continue

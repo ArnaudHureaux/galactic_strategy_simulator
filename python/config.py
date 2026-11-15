@@ -118,10 +118,18 @@ class Config:
     danger_window_center: float = 1.5
     danger_window_width: float = 0.5
 
-    emit_radius_per_tech: float = 10.0
-    passive_leakage_factor: float = 0.1
-    max_broadcast_radius: float = 100.0
-    probe_speed_per_tech: float = 1e-4
+    # Laws "per tech level" are calibrated by two anchors (see p0_passive_update/_anchored.py):
+    # the observed human value at humanity_present_tech and an explored value at tech_cap.
+    # Emission: EIRP in watts (Arecibo planetary radar for humanity), times passive_leakage_factor
+    # for a civ that does not broadcast on purpose (humanity: LTE leakage / Arecibo radar).
+    eirp_human_w: float = 2.0e13
+    eirp_cap_w: float = 1.0e21
+    passive_leakage_factor: float = 2.0e-4
+    # Sensitivity of the observers: a signal is seen while EIRP >= 4 pi d^2 seti_flux_threshold_w_m2.
+    seti_flux_threshold_w_m2: float = 3.3e-25
+    # Probe speed as a fraction of c (Voyager 1 for humanity).
+    probe_speed_human_c: float = 5.67e-5
+    probe_speed_cap_c: float = 0.1
     max_probe_radius: float = 1e12
     probe_lifetime_per_tech: float = 1e6
 
@@ -298,8 +306,10 @@ def _validate(c):
     check(c.interaction_period_years > 0, "interaction_period_years must be > 0")
     check(c.share_decay > 0, "share_decay must be > 0")
 
-    for name in ("self_destruction_risk", "emit_radius_per_tech", "passive_leakage_factor",
-                 "max_broadcast_radius", "probe_speed_per_tech", "max_probe_radius",
+    check(0 < c.eirp_human_w <= c.eirp_cap_w, "eirp_human_w must be in (0, eirp_cap_w]")
+    check(0 < c.probe_speed_human_c <= c.probe_speed_cap_c <= 1, "probe speeds must satisfy 0 < human <= cap <= 1")
+    check(c.seti_flux_threshold_w_m2 > 0, "seti_flux_threshold_w_m2 must be > 0")
+    for name in ("self_destruction_risk", "passive_leakage_factor", "max_probe_radius",
                  "probe_lifetime_per_tech", "front_speed_per_tech", "habitable_world_density",
                  "tech_population_exponent", "artefact_stealth_per_tech", "belief_memory_years", "share_backflow",
                  "share_synergy_bonus", "damage_coef", "damage_gap_scale", "attack_stealth_per_tech",

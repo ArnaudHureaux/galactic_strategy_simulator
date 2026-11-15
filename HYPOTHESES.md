@@ -11,8 +11,8 @@ Statuts :
 - **I** non influent : fixé car le criblage de Morris montre qu'il ne pèse pas
 - **M** choix de modèle : forme d'une loi ou règle, alternatives testées en robustesse
 
-88 paramètres : 48 E, 2 S, 7 N, 17 D, 14 M.
-23 règles codées en dur. 48 points ouverts.
+90 paramètres : 48 E, 5 S, 7 N, 17 D, 13 M.
+23 règles codées en dur. 45 points ouverts.
 
 ## E : exploré
 
@@ -31,9 +31,9 @@ Statuts :
 | `self_destruction_risk` | 1e-08 | 1/an | [1e-10 ; 1e-06] log (provisoire) | Taux d'autodestruction au pic de la fenêtre de danger. | Inconnu (Ćirković 2009, scénario « catastrophique »). | Phase 5 : intervalle. |
 | `danger_window_center` | 1.5 | tech | [0.2 ; 2.8] linear (inconnu) | Niveau de tech du pic de risque d'autodestruction. | Inconnu. |  |
 | `danger_window_width` | 0.5 | tech | [0.1 ; 1.5] log (inconnu) | Largeur de la fenêtre de danger. | Inconnu. |  |
-| `emit_radius_per_tech` | 10 | pc/tech | [1 ; 30] log (provisoire) | Portée des signaux d'une civ qui émet volontairement, par niveau de tech. | Mélange puissance et sensibilité. | Phase 2, point 11 : remplacer par une puissance émise (EIRP) et un seuil de sensibilité sourcé. |
-| `passive_leakage_factor` | 0.1 | sans dimension | [0.01 ; 1] log (provisoire) | Portée des fuites d'une civ qui n'émet pas volontairement, relative à l'émission volontaire. | Inconnu. | Phase 2, point 11 : devient un rapport de puissance (EIRP) entre fuites et émission volontaire. Phase 5 : intervalle. |
-| `probe_speed_per_tech` | 0.0001 | pc/an/tech | [1e-05 ; 0.001] log (provisoire) | Vitesse d'expansion de la sphère des sondes, par niveau de tech. | À caler par deux ancres : vitesse humaine (Voyager ≈ 5·10⁻⁵ c) et vitesse au plafond (0,01 à 0,5 c, Armstrong & Sandberg 2013 ; Bjork 2007). | Phase 2, point 4 : recaler sur les ancres. |
+| `eirp_cap_w` | 1e+21 | W | [1e+16 ; 1e+26] log (littérature) | EIRP d'une civ au plafond de tech qui émet volontairement (ancre haute de la loi EIRP(tech)). | Puissance d'une civilisation de type I à II de Kardashev, émise de façon isotrope : 10^16 W (K = 1) à 10^26 W (K = 2, environ la luminosité du Soleil) dans l'interpolation de Sagan K = (log10 P − 6) / 10. Un faisceau dirigé pourrait dépasser ces valeurs. Source : Kardashev, N. S. 1964, Soviet Astronomy 8, 217 ; Sagan, C. 1973, The Cosmic Connection. |  |
+| `passive_leakage_factor` | 0.0002 | sans dimension | [1e-05 ; 0.01] log (provisoire) | EIRP des fuites d'une civ qui n'émet pas volontairement, rapportée à son émission volontaire (même niveau de tech). | Ancré sur l'humanité : fuites des réseaux LTE, environ 4 GW vus de l'espace, rapportées aux 20 TW du radar d'Arecibo, soit 2·10⁻⁴ (valeur par défaut). Pour les autres civs, l'intervalle couvre un ordre de grandeur et demi de part et d'autre. Source : Sheikh, S. Z. et al. 2025, AJ 169, 118 (section 2, d'après Saide et al. 2023 pour le LTE). | Phase 5 : intervalle. |
+| `probe_speed_cap_c` | 0.1 | fraction de c | [0.01 ; 0.99] log (littérature) | Vitesse des sondes au plafond de tech (ancre haute de la loi vitesse(tech)). | Sondes à fusion de type Daedalus, environ 0,12 c (Bond 1978) ; voiles poussées par laser, 0,2 c (Lubin 2016) ; sondes auto-réplicatrices de 0,5 à 0,99 c (Armstrong & Sandberg 2013). Source : Bond, A. 1978, JBIS (Project Daedalus) ; Lubin, P. 2016, JBIS 69, 40 ; Armstrong, S. & Sandberg, A. 2013, Acta Astronautica 89, 1. |  |
 | `probe_lifetime_per_tech` | 1e+06 | an/tech | [1e+05 ; 1e+08] log (provisoire) | Durée de vie des sondes, par niveau de tech. | Inconnu. | Phase 2, point 4 : recaler sur les ancres. |
 | `front_speed_per_tech` | 1e-07 | pc/an/tech | [1e-10 ; 1e-06] log (provisoire) | Vitesse du front de colonisation par niveau de tech, pour une agressivité de 1. | Fronts de colonisation : Carroll-Nellenback et al. 2019 ; Newman & Sagan 1981. | Phase 2, point 4 : recaler sur les ancres. Phase 5 : sourcer. |
 | `habitable_world_density` | 0.01 | mondes/pc³ | [0.0001 ; 0.1] log (provisoire) | Densité de mondes habitables (tous types de biochimie). | À sourcer : densité stellaire locale (≈ 0,1 étoile/pc³) × η⊕ (Kepler). | Phase 5 : sourcer η⊕. |
@@ -73,6 +73,9 @@ Statuts :
 |---|---|---|---|---|---|---|
 | `scale_height_pc` | 300 | pc |  | Hauteur d'échelle du profil vertical exponentiel des positions. | Hauteur d'échelle du disque mince d'environ 300 pc. Source : Jurić et al. 2008, ApJ 673, 864 (disque mince H ≈ 300 pc). | Vérifier la référence avant citation. |
 | `sun_height_pc` | 20.8 | pc |  | Hauteur de l'humanité (le Soleil) au-dessus du plan médian ; elle est placée au centre de la région. | Position observée. La région représente le voisinage du Soleil, et les observations (silence, couverture SETI selon la distance) sont centrées sur la Terre : l'humanité est au centre, ce qui supprime aussi un effet de bord artificiel (décision du 2026-11, phase 2, point 5). Source : Bennett, M. & Bovy, J. 2019, MNRAS 482, 1417, arXiv:1809.03507 (Gaia DR2 : z☉ = 20,8 ± 0,3 pc). |  |
+| `eirp_human_w` | 2e+13 | W |  | Ancre humaine de la puissance émise : EIRP d'une civ au niveau de tech actuel de l'humanité qui émet volontairement. La loi EIRP(tech) passe par cette valeur et par eirp_cap_w, chaque niveau de tech multipliant l'EIRP par un facteur constant. | Émetteur le plus puissant jamais construit : le radar planétaire d'Arecibo en bande S (2380 MHz), environ 20 TW d'EIRP (décision du 2026-11, phase 2, point 11). Source : Sheikh, S. Z. et al. 2025, AJ 169, 118, arXiv:2502.02614 (section 2, d'après Ekers et al. 2002). |  |
+| `seti_flux_threshold_w_m2` | 3.3e-25 | W/m² |  | Sensibilité des observateurs : un signal est capté tant que EIRP ≥ 4π d² F_min (d d'un bord de sphère à l'autre). Sert à toutes les civs (point 9 : détection certaine au-dessus du seuil). | Relevé Breakthrough Listen au Green Bank Telescope (1,1–1,9 GHz) : EIRP minimale d'environ 10^13 W pour les étoiles à 50 pc, d'où F_min = 10^13 / (4π (50 pc)²) ≈ 3,3·10⁻²⁵ W/m². Price et al. 2020 donnent des limites du même ordre (2·10^12 W au GBT, 9·10^12 W à Parkes). Source : Enriquez, J. E. et al. 2017, ApJ 849, 104, arXiv:1709.03491 ; Price, D. C. et al. 2020, AJ 159, 86, arXiv:1906.07750. | Phase 7 : sensibilité des civs avancées, sans doute meilleure que la nôtre (une alternative : F_min décroissant avec la tech de l'observateur). |
+| `probe_speed_human_c` | 5.67e-05 | fraction de c |  | Ancre humaine de la vitesse des sondes, au niveau de tech actuel de l'humanité. | Voyager 1, la sonde la plus rapide à quitter le Système solaire : environ 17 km/s, soit 5,67·10⁻⁵ c. Source : NASA/JPL, Voyager mission status (vitesse héliocentrique ≈ 17 km/s). |  |
 
 ## N : numérique
 
@@ -119,7 +122,6 @@ Statuts :
 | `population_growth_model` | logistic | choix |  | Loi de croissance de la population. | Logistique : bornée par la capacité des mondes occupés. Alternatives : exponential. | Phase 7 : robustesse. |
 | `initial_population` | 1 | population |  | Population d'une civ à sa naissance. | Une civ naît avec son monde d'origine peuplé (= population_per_world). |  |
 | `self_destruction_shape` | danger_window | choix |  | Forme du risque d'autodestruction en fonction de la tech. | Fenêtre de danger : risque maximal à un niveau de tech intermédiaire (filtre lié à la technologie). Alternatives : constant, increasing. | Phase 7 : robustesse. |
-| `max_broadcast_radius` | 100 | pc |  | Plafond dur de la portée des signaux. | Plafond sans justification. | Phase 2, point 11 : disparaît avec le modèle EIRP. |
 | `attack_gap_min_low` | -2 | tech |  | Borne basse du trait attack_gap_min (écart de tech minimal pour attaquer). | Définition de l'espace des stratégies : couvre de « attaque même plus fort que soi » à « attaque seulement nettement plus faible ». | Phase 2, point 7 : écart ou rapport de tech. |
 | `attack_gap_min_high` | 2 | tech |  | Borne haute du trait attack_gap_min. | Définition de l'espace des stratégies. |  |
 | `attack_gap_max_low` | 2 | tech |  | Borne basse du trait attack_gap_max (écart de tech maximal pour attaquer). | Définition de l'espace des stratégies. |  |

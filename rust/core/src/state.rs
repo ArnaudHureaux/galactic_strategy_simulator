@@ -220,6 +220,8 @@ pub struct World {
     pub intractable: bool,
     pub rejection_reason: Option<String>,
     pub rejected_at: Option<f64>,
+    /// Largest broadcast radius any civ ever had: bounds the neighbours a signal can reach.
+    pub widest_broadcast: f64,
     neighbors: NeighborIndex,
     lo: [f64; 3],
     hi: [f64; 3],
@@ -245,6 +247,7 @@ impl World {
             intractable: false,
             rejection_reason: None,
             rejected_at: None,
+            widest_broadcast: 0.0,
             neighbors: NeighborIndex::default(),
             lo: first,
             hi: first,

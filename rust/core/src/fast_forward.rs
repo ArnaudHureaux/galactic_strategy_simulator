@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{FOUR_THIRDS_PI, grow, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
+use crate::passive::{FOUR_THIRDS_PI, broadcast_radius, grow, probe_speed, tech_for_broadcast_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -375,8 +375,15 @@ fn detection_limit(
         is_active[i] = true;
     }
     let mut widest_front = 0.0;
+    // Largest broadcast radius reachable during the jump (tech budgets only shrink from here).
+    let mut widest_broadcast = world.widest_broadcast;
     for &i in active {
-        widest_front = pymax(widest_front, front_end(&world.civs[i], front_budget[i]));
+        let c = &world.civs[i];
+        widest_front = pymax(widest_front, front_end(c, front_budget[i]));
+        if c.broadcast_radius > 0.0 {
+            let end_tech = c.tech_level + pymax(0.0, tech_budget[i].expect("active"));
+            widest_broadcast = pymax(widest_broadcast, broadcast_radius(c, config, end_tech));
+        }
     }
     for &yi in active {
         let y = &world.civs[yi];
@@ -384,7 +391,7 @@ fn detection_limit(
             continue;
         }
         let (distances, neighbors) = world.neighbors_by_distance(yi);
-        let reach = config.max_broadcast_radius + front_end(y, front_budget[yi]) + widest_front;
+        let reach = widest_broadcast + front_end(y, front_budget[yi]) + widest_front;
         let n_broadcast = distances.partition_point(|&d| d <= reach);
         for (&d, &xi) in distances[..n_broadcast].iter().zip(&neighbors[..n_broadcast]) {
             let xi = xi as usize;
@@ -403,8 +410,8 @@ fn detection_limit(
                 shrink(front_budget, m, share);
             }
             if x.broadcast_radius > 0.0 {
-                // Broadcast radius is proportional to tech.
-                let critical_tech = (x.broadcast_radius + share) * x.tech_level / x.broadcast_radius;
+                // Broadcast radius grows with tech (see compute_broadcast_radius).
+                let critical_tech = tech_for_broadcast_radius(x, config, x.broadcast_radius + share);
                 shrink(tech_budget, xi, critical_tech - x.tech_level);
             }
         }
@@ -419,10 +426,9 @@ fn detection_limit(
             if y.probe_radius >= d {
                 return 0.0;
             }
-            // Probe speed is proportional to tech: bound it by the end-of-jump tech.
+            // Probe speed grows with tech: bound it by the end-of-jump tech.
             let budget = tech_budget[yi].expect("active");
-            let gain = if y.tech_level > 0.0 { 1.0 + pymax(0.0, budget) / y.tech_level } else { 1.0 };
-            let speed = y.probe_speed * gain;
+            let speed = pymax(y.probe_speed, probe_speed(config, y.tech_level + pymax(0.0, budget)));
             if speed > 0.0 {
                 limit = pymin(limit, (d - y.probe_radius) / speed - config.dt);
             }

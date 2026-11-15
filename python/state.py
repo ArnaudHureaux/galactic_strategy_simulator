@@ -157,6 +157,8 @@ class World:
         self._neighbors = NeighborIndex()
         self._lo = None
         self._hi = None
+        # Largest broadcast radius any civ ever had: bounds the neighbours a signal can reach.
+        self.widest_broadcast = 0.0
         for c in self.civs:
             self._slot[c.id] = self._neighbors.add(c.position)
             self._extend_bounds(c.position)

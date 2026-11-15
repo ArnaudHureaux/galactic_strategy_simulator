@@ -1,1 +1,3 @@
 C_PC_PER_YEAR = 1.0 / 3.262
+# IAU 2015 Resolution B2: 1 pc = 648000 / pi au.
+M_PER_PC = 3.0856775814913673e16

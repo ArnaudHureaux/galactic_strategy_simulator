@@ -39,6 +39,7 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
             _tech_growth(civ, config, step if exact_tech else min(step, config.dt), exact_tech)
         _population_growth(civ, config, step if exact_pop else min(step, config.dt), exact_pop)
         civ.broadcast_radius = _compute_broadcast_radius(civ, config, now)
+        world.widest_broadcast = max(world.widest_broadcast, civ.broadcast_radius)
         civ.probe_speed = _compute_probe_speed(civ, config)
         _advance_probes(civ, world.humanity, config, now, step, (speed_before + civ.probe_speed) / 2 if exact else None)
         # The front of an attacked civ (shrunk by every attack) replays one regular step, like its population.

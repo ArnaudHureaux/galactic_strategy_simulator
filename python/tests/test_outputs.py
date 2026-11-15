@@ -38,7 +38,7 @@ def test_records_describe_every_run_and_civ():
 
 def test_rejected_runs_keep_their_cause_and_date():
     # Every probe that reaches the Sun during the artefact window is found.
-    config = replace(scenario(SHORT), artefact_detection_probability=1.0, probe_speed_per_tech=1.0,
+    config = replace(scenario(SHORT), artefact_detection_probability=1.0, probe_speed_human_c=0.3, probe_speed_cap_c=0.99,
                      artefact_window_years=SHORT)
     log = simulation.run(config, 1)
     assert log.outcome == "rejected"
@@ -51,7 +51,7 @@ def test_discreet_probes_of_advanced_civs_are_not_found():
     # Owners more advanced than humanity (fast tech growth, humanity at the bottom of the scale, no
     # late births at humanity's level) and attacks cost nothing and do no damage (both lower tech).
     # Probes may arrive while their owners are only ~1e-3 ahead: the stealth must be strong.
-    config = replace(scenario(SHORT), artefact_detection_probability=1.0, probe_speed_per_tech=1.0,
+    config = replace(scenario(SHORT), artefact_detection_probability=1.0, probe_speed_human_c=0.3, probe_speed_cap_c=0.99,
                      artefact_window_years=SHORT, artefact_stealth_per_tech=1e5,
                      natural_tech_progress_mean=1e-4, civ_birth_rate=0.0, attack_cost_tech=0.0, damage_coef=0.0,
                      humanity_tech_fraction=1e-6, max_steps=50)

@@ -227,32 +227,46 @@
       "justification": "Inconnu.",
       "range": {"low": 0.1, "high": 1.5, "scale": "log"}, "range_basis": "inconnu"
     },
-    "emit_radius_per_tech": {
-      "status": "E", "unit": "pc/tech",
-      "description": "Portée des signaux d'une civ qui émet volontairement, par niveau de tech.",
-      "justification": "Mélange puissance et sensibilité.",
-      "range": {"low": 1.0, "high": 30.0, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 2, point 11 : remplacer par une puissance émise (EIRP) et un seuil de sensibilité sourcé."]
+    "eirp_human_w": {
+      "status": "S", "unit": "W",
+      "description": "Ancre humaine de la puissance émise : EIRP d'une civ au niveau de tech actuel de l'humanité qui émet volontairement. La loi EIRP(tech) passe par cette valeur et par eirp_cap_w, chaque niveau de tech multipliant l'EIRP par un facteur constant.",
+      "justification": "Émetteur le plus puissant jamais construit : le radar planétaire d'Arecibo en bande S (2380 MHz), environ 20 TW d'EIRP (décision du 2026-11, phase 2, point 11).",
+      "source": "Sheikh, S. Z. et al. 2025, AJ 169, 118, arXiv:2502.02614 (section 2, d'après Ekers et al. 2002)."
+    },
+    "eirp_cap_w": {
+      "status": "E", "unit": "W",
+      "description": "EIRP d'une civ au plafond de tech qui émet volontairement (ancre haute de la loi EIRP(tech)).",
+      "justification": "Puissance d'une civilisation de type I à II de Kardashev, émise de façon isotrope : 10^16 W (K = 1) à 10^26 W (K = 2, environ la luminosité du Soleil) dans l'interpolation de Sagan K = (log10 P − 6) / 10. Un faisceau dirigé pourrait dépasser ces valeurs.",
+      "source": "Kardashev, N. S. 1964, Soviet Astronomy 8, 217 ; Sagan, C. 1973, The Cosmic Connection.",
+      "range": {"low": 1e16, "high": 1e26, "scale": "log"}, "range_basis": "littérature"
     },
     "passive_leakage_factor": {
       "status": "E", "unit": "sans dimension",
-      "description": "Portée des fuites d'une civ qui n'émet pas volontairement, relative à l'émission volontaire.",
-      "justification": "Inconnu.",
-      "range": {"low": 0.01, "high": 1.0, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 2, point 11 : devient un rapport de puissance (EIRP) entre fuites et émission volontaire.", "Phase 5 : intervalle."]
+      "description": "EIRP des fuites d'une civ qui n'émet pas volontairement, rapportée à son émission volontaire (même niveau de tech).",
+      "justification": "Ancré sur l'humanité : fuites des réseaux LTE, environ 4 GW vus de l'espace, rapportées aux 20 TW du radar d'Arecibo, soit 2·10⁻⁴ (valeur par défaut). Pour les autres civs, l'intervalle couvre un ordre de grandeur et demi de part et d'autre.",
+      "source": "Sheikh, S. Z. et al. 2025, AJ 169, 118 (section 2, d'après Saide et al. 2023 pour le LTE).",
+      "range": {"low": 1e-5, "high": 1e-2, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle."]
     },
-    "max_broadcast_radius": {
-      "status": "M", "unit": "pc",
-      "description": "Plafond dur de la portée des signaux.",
-      "justification": "Plafond sans justification.",
-      "todo": ["Phase 2, point 11 : disparaît avec le modèle EIRP."]
+    "seti_flux_threshold_w_m2": {
+      "status": "S", "unit": "W/m²",
+      "description": "Sensibilité des observateurs : un signal est capté tant que EIRP ≥ 4π d² F_min (d d'un bord de sphère à l'autre). Sert à toutes les civs (point 9 : détection certaine au-dessus du seuil).",
+      "justification": "Relevé Breakthrough Listen au Green Bank Telescope (1,1–1,9 GHz) : EIRP minimale d'environ 10^13 W pour les étoiles à 50 pc, d'où F_min = 10^13 / (4π (50 pc)²) ≈ 3,3·10⁻²⁵ W/m². Price et al. 2020 donnent des limites du même ordre (2·10^12 W au GBT, 9·10^12 W à Parkes).",
+      "source": "Enriquez, J. E. et al. 2017, ApJ 849, 104, arXiv:1709.03491 ; Price, D. C. et al. 2020, AJ 159, 86, arXiv:1906.07750.",
+      "todo": ["Phase 7 : sensibilité des civs avancées, sans doute meilleure que la nôtre (une alternative : F_min décroissant avec la tech de l'observateur)."]
     },
-    "probe_speed_per_tech": {
-      "status": "E", "unit": "pc/an/tech",
-      "description": "Vitesse d'expansion de la sphère des sondes, par niveau de tech.",
-      "justification": "À caler par deux ancres : vitesse humaine (Voyager ≈ 5·10⁻⁵ c) et vitesse au plafond (0,01 à 0,5 c, Armstrong & Sandberg 2013 ; Bjork 2007).",
-      "range": {"low": 1e-5, "high": 1e-3, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 2, point 4 : recaler sur les ancres."]
+    "probe_speed_human_c": {
+      "status": "S", "unit": "fraction de c",
+      "description": "Ancre humaine de la vitesse des sondes, au niveau de tech actuel de l'humanité.",
+      "justification": "Voyager 1, la sonde la plus rapide à quitter le Système solaire : environ 17 km/s, soit 5,67·10⁻⁵ c.",
+      "source": "NASA/JPL, Voyager mission status (vitesse héliocentrique ≈ 17 km/s)."
+    },
+    "probe_speed_cap_c": {
+      "status": "E", "unit": "fraction de c",
+      "description": "Vitesse des sondes au plafond de tech (ancre haute de la loi vitesse(tech)).",
+      "justification": "Sondes à fusion de type Daedalus, environ 0,12 c (Bond 1978) ; voiles poussées par laser, 0,2 c (Lubin 2016) ; sondes auto-réplicatrices de 0,5 à 0,99 c (Armstrong & Sandberg 2013).",
+      "source": "Bond, A. 1978, JBIS (Project Daedalus) ; Lubin, P. 2016, JBIS 69, 40 ; Armstrong, S. & Sandberg, A. 2013, Acta Astronautica 89, 1.",
+      "range": {"low": 0.01, "high": 0.99, "scale": "log"}, "range_basis": "littérature"
     },
     "max_probe_radius": {
       "status": "N", "unit": "pc",

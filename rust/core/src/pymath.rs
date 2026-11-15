@@ -86,6 +86,8 @@ use platform::funcs;
 
 /// Parsecs travelled by light in one year (constants.C_PC_PER_YEAR).
 pub const C_PC_PER_YEAR: f64 = 1.0 / 3.262;
+/// Metres per parsec (constants.M_PER_PC).
+pub const M_PER_PC: f64 = 3.0856775814913673e16;
 
 #[inline]
 pub fn exp(x: f64) -> f64 {

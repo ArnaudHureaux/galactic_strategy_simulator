@@ -31,6 +31,8 @@ from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
 from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _world_density
+from p0_passive_update._compute_broadcast_radius import _broadcast_radius, _tech_for_broadcast_radius
+from p0_passive_update._compute_probe_speed import _probe_speed
 from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capacity, _compute_max_number_of_attack
 
 
@@ -274,20 +276,25 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
     # Unseen pairs: limit the drift of the emitter's broadcast radius and of both fronts
     # (signals carry from sphere edge to sphere edge), and the time until the observer's
     # probe sphere reaches the target. Neighbours are scanned by increasing distance: the
-    # broadcast part only concerns pairs within max_broadcast_radius of the two spheres,
+    # broadcast part only concerns pairs within the widest broadcast radius of the two spheres,
     # and the probe part only the nearest unseen target, since the time for the probe
     # sphere to reach a target grows with its distance.
     limit = inf
     window_start = config.present_date_years - config.signal_window_years
     active_ids = {c.id for c in active}
     widest_front = 0.0
+    # Largest broadcast radius reachable during the jump (tech budgets only shrink from here).
+    widest_broadcast = world.widest_broadcast
     for c in active:
         widest_front = max(widest_front, _front_end(c, front_budget))
+        if c.broadcast_radius > 0:
+            end_tech = c.tech_level + max(0.0, tech_budget[c.id])
+            widest_broadcast = max(widest_broadcast, _broadcast_radius(c, config, end_tech))
     for y in active:
         if y.is_human and now < window_start:
             continue
         distances, neighbors = world.neighbors_by_distance(y)
-        reach = config.max_broadcast_radius + _front_end(y, front_budget) + widest_front
+        reach = widest_broadcast + _front_end(y, front_budget) + widest_front
         n_broadcast = bisect_right(distances, reach)
         for d, x in zip(distances[:n_broadcast], neighbors[:n_broadcast]):
             if x.id not in active_ids or x.tech_level <= 0 or _seen_now(y, x, now):
@@ -301,8 +308,8 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
             for mover in movers:
                 front_budget[mover] = min(front_budget[mover], share)
             if x.broadcast_radius > 0:
-                # Broadcast radius is proportional to tech.
-                critical_tech = (x.broadcast_radius + share) * x.tech_level / x.broadcast_radius
+                # Broadcast radius grows with tech (see _compute_broadcast_radius).
+                critical_tech = _tech_for_broadcast_radius(x, config, x.broadcast_radius + share)
                 tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
         # tech_budget[y.id] only changes while scanning other observers, as in a pair-by-pair scan.
         for d, x in zip(distances, neighbors):
@@ -312,9 +319,8 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
                 continue
             if y.probe_radius >= d:
                 return 0.0
-            # Probe speed is proportional to tech: bound it by the end-of-jump tech.
-            gain = 1 + max(0.0, tech_budget[y.id]) / y.tech_level if y.tech_level > 0 else 1
-            speed = y.probe_speed * gain
+            # Probe speed grows with tech: bound it by the end-of-jump tech.
+            speed = max(y.probe_speed, _probe_speed(config, y.tech_level + max(0.0, tech_budget[y.id])))
             if speed > 0:
                 limit = min(limit, (d - y.probe_radius) / speed - config.dt)
             break

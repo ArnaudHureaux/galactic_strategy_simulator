@@ -3,7 +3,7 @@
 use crate::config::{Config, SelfDestructionShape};
 use crate::fast_forward::Jump;
 use crate::geometry::{Position, dist};
-use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
+use crate::pymath::{self, C_PC_PER_YEAR, M_PER_PC, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{BeliefEntry, Channel, Civ, Snapshot, World};
 use crate::world_gen::{new_civ, sample_lens_position};
@@ -42,7 +42,10 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
         }
         population_growth(civ, config, if exact_pop { step } else { pymin(step, config.dt) }, exact_pop);
         civ.broadcast_radius = compute_broadcast_radius(civ, config, now);
-        civ.probe_speed = config.probe_speed_per_tech * civ.tech_level;
+        let widest = pymax(world.widest_broadcast, world.civs[i].broadcast_radius);
+        world.widest_broadcast = widest;
+        let civ = &mut world.civs[i];
+        civ.probe_speed = probe_speed(config, civ.tech_level);
         let speed = if exact { (speed_before + civ.probe_speed) / 2.0 } else { civ.probe_speed };
         advance_probes(civ, i == human, &human_position, config, now, step, speed);
         // The front of an attacked civ (shrunk by every attack) replays one regular step, like its population.
@@ -183,8 +186,54 @@ fn compute_broadcast_radius(civ: &Civ, config: &Config, now: f64) -> f64 {
     if civ.is_human && now < config.present_date_years - config.signal_window_years {
         return 0.0;
     }
-    let active_radius = config.emit_radius_per_tech * civ.tech_level;
-    if civ.strategy.broadcast { active_radius } else { active_radius * config.passive_leakage_factor }
+    broadcast_radius(civ, config, civ.tech_level)
+}
+
+/// Effect of a tech level, calibrated by two anchors (see _anchored.py): human_value at
+/// humanity's present tech and cap_value at tech_cap; each level multiplies it by the same factor.
+pub fn anchored(tech: f64, human_value: f64, cap_value: f64, config: &Config) -> f64 {
+    let present = config.derived().humanity_present_tech;
+    let x = (pymin(tech, config.tech_cap) - present) / (config.tech_cap - present);
+    human_value * pymath::pow(cap_value / human_value, x)
+}
+
+/// Inverse of anchored: the tech level at which the effect reaches value (inf if never).
+pub fn anchored_tech(value: f64, human_value: f64, cap_value: f64, config: &Config) -> f64 {
+    if value >= cap_value {
+        return f64::INFINITY;
+    }
+    let present = config.derived().humanity_present_tech;
+    let x = pymath::log(value / human_value) / pymath::log(cap_value / human_value);
+    present + x * (config.tech_cap - present)
+}
+
+fn leakage(civ: &Civ, config: &Config) -> f64 {
+    if civ.strategy.broadcast { 1.0 } else { config.passive_leakage_factor }
+}
+
+/// Distance (pc) at which the civ's signal stays above the observers' sensitivity (see
+/// _compute_broadcast_radius._broadcast_radius).
+pub fn broadcast_radius(civ: &Civ, config: &Config, tech: f64) -> f64 {
+    if tech <= 0.0 {
+        return 0.0;
+    }
+    let eirp = anchored(tech, config.eirp_human_w, config.eirp_cap_w, config) * leakage(civ, config);
+    (eirp / (4.0 * std::f64::consts::PI * config.seti_flux_threshold_w_m2)).sqrt() / M_PER_PC
+}
+
+/// Tech at which the broadcast radius reaches radius (inf if never).
+pub fn tech_for_broadcast_radius(civ: &Civ, config: &Config, radius: f64) -> f64 {
+    let meters = radius * M_PER_PC;
+    let eirp = 4.0 * std::f64::consts::PI * config.seti_flux_threshold_w_m2 * meters * meters / leakage(civ, config);
+    anchored_tech(eirp, config.eirp_human_w, config.eirp_cap_w, config)
+}
+
+/// Probe speed (pc/year), anchored on Voyager 1 for humanity.
+pub fn probe_speed(config: &Config, tech: f64) -> f64 {
+    if tech <= 0.0 {
+        return 0.0;
+    }
+    anchored(tech, config.probe_speed_human_c, config.probe_speed_cap_c, config) * C_PC_PER_YEAR
 }
 
 // _advance_fronts
@@ -356,7 +405,7 @@ fn detect(world: &mut World, config: &Config, now: f64) {
             continue;
         }
         let own_front = world.civs[i].expansion_radius;
-        let reach = pymax(config.max_broadcast_radius + own_front + widest_front, world.civs[i].probe_radius);
+        let reach = pymax(world.widest_broadcast + own_front + widest_front, world.civs[i].probe_radius);
         let pairs = world.neighbor_pairs_within(i, reach);
         for &(j, d) in pairs.iter() {
             let j = j as usize;

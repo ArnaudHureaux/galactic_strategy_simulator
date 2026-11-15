@@ -1,5 +1,3 @@
-def compute_probe_speed(tech_level, current_probe_speed):
-    probablement une fonction qui tend logarithmiquement vers
-    une % de C avec un coefficient
-    ce coeff et ce % doivent être des constantes justifiés qui apparaitrons sur le fichier regroupant chaque hypothèse
-    
+def compute_probe_speed(tech_level):
+    # Voyager 1 (5.67e-5 c) at humanity's level, explored at the cap (anchored: see compute_broadcast_radius.txt)
+    return anchored(tech_level, PROBE_SPEED_HUMAN_C, PROBE_SPEED_CAP_C) * C
