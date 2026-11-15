@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{FOUR_THIRDS_PI, broadcast_radius, grow, probe_speed, tech_for_broadcast_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
+use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, grow, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -146,7 +146,8 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
     let milestones = [
         config.humanity_birth_date_years,
         config.present_date_years - config.artefact_window_years,
-        config.present_date_years - config.signal_window_years,
+        config.present_date_years - config.humanity_leak_years,
+        config.present_date_years - config.humanity_listening_years,
         config.present_date_years,
     ];
     for milestone in milestones {
@@ -369,50 +370,43 @@ fn detection_limit(
     front_budget: &mut [Option<f64>],
 ) -> f64 {
     let mut limit = f64::INFINITY;
-    let window_start = config.present_date_years - config.signal_window_years;
     let mut is_active = vec![false; world.civs.len()];
     for &i in active {
         is_active[i] = true;
     }
     let mut widest_front = 0.0;
-    // Largest broadcast radius reachable during the jump (tech budgets only shrink from here).
-    let mut widest_broadcast = world.widest_broadcast;
+    // Largest signal radius reachable during the jump (tech budgets only shrink from here).
+    let mut widest_signal = world.widest_broadcast;
     for &i in active {
         let c = &world.civs[i];
         widest_front = pymax(widest_front, front_end(c, front_budget[i]));
-        if c.broadcast_radius > 0.0 {
+        if c.leak_radius > 0.0 || c.beacon_radius > 0.0 {
             let end_tech = c.tech_level + pymax(0.0, tech_budget[i].expect("active"));
-            widest_broadcast = pymax(widest_broadcast, broadcast_radius(c, config, end_tech));
+            let factor = if c.beacon_radius > 0.0 { 1.0 } else { config.passive_leakage_factor };
+            widest_signal = pymax(widest_signal, signal_radius(config, end_tech, factor));
         }
     }
+    let window_start = config.present_date_years - config.humanity_listening_years;
     for &yi in active {
         let y = &world.civs[yi];
         if y.is_human && now < window_start {
             continue;
         }
         let (distances, neighbors) = world.neighbors_by_distance(yi);
-        let reach = widest_broadcast + front_end(y, front_budget[yi]) + widest_front;
-        let n_broadcast = distances.partition_point(|&d| d <= reach);
-        for (&d, &xi) in distances[..n_broadcast].iter().zip(&neighbors[..n_broadcast]) {
-            let xi = xi as usize;
-            let x = &world.civs[xi];
-            if !is_active[xi] || x.tech_level <= 0.0 || seen_now(y, xi, now) {
-                continue;
-            }
-            // Share what is left of the gap between whatever can close it.
-            let movers: Vec<usize> = [xi, yi].into_iter().filter(|&m| front_budget[m].is_some()).collect();
-            let n_moving = movers.len() + usize::from(x.broadcast_radius > 0.0);
-            if n_moving == 0 {
-                continue;
-            }
-            let share = (d - y.expansion_radius - x.expansion_radius - x.broadcast_radius) / n_moving as f64;
-            for m in movers {
-                shrink(front_budget, m, share);
-            }
-            if x.broadcast_radius > 0.0 {
-                // Broadcast radius grows with tech (see compute_broadcast_radius).
-                let critical_tech = tech_for_broadcast_radius(x, config, x.broadcast_radius + share);
-                shrink(tech_budget, xi, critical_tech - x.tech_level);
+        if !y.is_human {
+            limit = pymin(limit, exposure_limit(world, y, config));
+            let reach = widest_signal + front_end(y, front_budget[yi]) + widest_front;
+            let n_signal = distances.partition_point(|&d| d <= reach);
+            for (&d, &xi) in distances[..n_signal].iter().zip(&neighbors[..n_signal]) {
+                let xi = xi as usize;
+                let x = &world.civs[xi];
+                if !is_active[xi] || x.tech_level <= 0.0 || seen_now(y, xi, now) {
+                    continue;
+                }
+                signal_budget(x, xi, y, yi, d, x.leak_radius, config.passive_leakage_factor, config, tech_budget, front_budget);
+                if x.beacon_radius > 0.0 && !y.exposures.contains_key(&xi) {
+                    signal_budget(x, xi, y, yi, d, x.beacon_radius, 1.0, config, tech_budget, front_budget);
+                }
             }
         }
         for (&d, &xi) in distances.iter().zip(neighbors) {
@@ -433,6 +427,51 @@ fn detection_limit(
                 limit = pymin(limit, (d - y.probe_radius) / speed - config.dt);
             }
             break;
+        }
+    }
+    limit
+}
+
+/// Share what is left of the gap (x's signal of this radius to y) between whatever can close it.
+#[allow(clippy::too_many_arguments)]
+fn signal_budget(
+    x: &Civ,
+    xi: usize,
+    y: &Civ,
+    yi: usize,
+    d: f64,
+    radius: f64,
+    factor: f64,
+    config: &Config,
+    tech_budget: &mut [Option<f64>],
+    front_budget: &mut [Option<f64>],
+) {
+    let movers: Vec<usize> = [xi, yi].into_iter().filter(|&m| front_budget[m].is_some()).collect();
+    let n_moving = movers.len() + usize::from(radius > 0.0);
+    if n_moving == 0 {
+        return;
+    }
+    let share = (d - y.expansion_radius - x.expansion_radius - radius) / n_moving as f64;
+    for m in movers {
+        shrink(front_budget, m, share);
+    }
+    if radius > 0.0 {
+        // Signal radii grow with tech (see compute_signal_radii).
+        let critical_tech = tech_for_signal_radius(config, radius + share, factor);
+        shrink(tech_budget, xi, critical_tech - x.tech_level);
+    }
+}
+
+/// An exposed, not yet caught beacon is caught when its hazard reaches its threshold: stop before.
+fn exposure_limit(world: &World, y: &Civ, config: &Config) -> f64 {
+    let mut limit = f64::INFINITY;
+    for (&xi, &(threshold, hazard)) in &y.exposures {
+        if hazard >= threshold || !world.civs[xi].alive {
+            continue;
+        }
+        let rate = beacon_hazard(world.civs[xi].nb_of_world, config);
+        if rate > 0.0 {
+            limit = pymin(limit, (threshold - hazard) / rate - config.dt);
         }
     }
     limit

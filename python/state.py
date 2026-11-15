@@ -10,7 +10,8 @@ from geometry import NeighborIndex
 class Snapshot:
     t: float
     tech_level: float
-    broadcast_radius: float
+    leak_radius: float
+    beacon_radius: float
     probe_radius: float
     attacked_by: str = None
     expansion_radius: float = 0.0
@@ -19,6 +20,7 @@ class Snapshot:
     tech_rate: float = 0.0
     # Whether the last attack (attacked_by's) was attributed: witnesses only blame a known attacker.
     attack_attributed: bool = True
+    nb_of_world: float = 1.0
 
 
 @dataclass
@@ -53,7 +55,9 @@ class Civilisation:
     natural_population_growth: float
     colonization_aggressiveness: float
     strategy: dict
-    broadcast_radius: float = 0.0
+    # Leak sphere (every civ) and beacon sphere (civs that broadcast), see _compute_signal_radii.
+    leak_radius: float = 0.0
+    beacon_radius: float = 0.0
     probe_speed: float = 0.0
     probe_radius: float = 0.0
     expansion_radius: float = 0.0
@@ -71,6 +75,8 @@ class Civilisation:
     # Whether the victim identified attacked_by, and the draw made for each attacker (once per war).
     attack_attributed: bool = True
     attributions: dict = field(default_factory=dict)
+    # Beacons this civ is exposed to: target id -> [threshold, accumulated hazard] (see _detect).
+    exposures: dict = field(default_factory=dict)
     is_human: bool = False
     extinct_at: float = None
     extinction_cause: str = None
@@ -94,8 +100,9 @@ class Civilisation:
 
     def record(self, now, horizon, tech_rate):
         self.history_t.append(now)
-        self.history.append(Snapshot(now, self.tech_level, self.broadcast_radius, self.probe_radius, self.attacked_by,
-                                     self.expansion_radius, self.attacked_at, tech_rate, self.attack_attributed))
+        self.history.append(Snapshot(now, self.tech_level, self.leak_radius, self.beacon_radius, self.probe_radius,
+                                     self.attacked_by, self.expansion_radius, self.attacked_at, tech_rate,
+                                     self.attack_attributed, self.nb_of_world))
         # Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         cutoff = now - horizon
         drop = 0
@@ -157,7 +164,7 @@ class World:
         self._neighbors = NeighborIndex()
         self._lo = None
         self._hi = None
-        # Largest broadcast radius any civ ever had: bounds the neighbours a signal can reach.
+        # Largest signal radius (leak or beacon) any civ ever had: bounds the neighbours a signal can reach.
         self.widest_broadcast = 0.0
         for c in self.civs:
             self._slot[c.id] = self._neighbors.add(c.position)
@@ -263,7 +270,7 @@ class World:
         return diagonal / C_PC_PER_YEAR
 
     def history_horizon(self):
-        return self.light_crossing_years() + self.config.signal_window_years
+        return self.light_crossing_years() + max(self.config.humanity_leak_years, self.config.humanity_listening_years)
 
     def alive(self):
         return [c for c in self.civs if c.status == "alive"]

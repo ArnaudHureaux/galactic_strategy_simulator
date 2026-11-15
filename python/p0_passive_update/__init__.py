@@ -2,7 +2,7 @@ from generate_world._sample_lens_position import _sample_lens_position
 from generate_world._new_civ import _new_civ
 from p0_passive_update._tech_growth import _tech_growth, _tech_rate, _human_tech
 from p0_passive_update._population_growth import _population_growth
-from p0_passive_update._compute_broadcast_radius import _compute_broadcast_radius
+from p0_passive_update._compute_broadcast_radius import _compute_signal_radii
 from p0_passive_update._compute_probe_speed import _compute_probe_speed
 from p0_passive_update._self_destruction import _self_destruction
 from p0_passive_update._detect import _detect
@@ -38,8 +38,8 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
         else:
             _tech_growth(civ, config, step if exact_tech else min(step, config.dt), exact_tech)
         _population_growth(civ, config, step if exact_pop else min(step, config.dt), exact_pop)
-        civ.broadcast_radius = _compute_broadcast_radius(civ, config, now)
-        world.widest_broadcast = max(world.widest_broadcast, civ.broadcast_radius)
+        civ.leak_radius, civ.beacon_radius = _compute_signal_radii(civ, config, now)
+        world.widest_broadcast = max(world.widest_broadcast, civ.leak_radius, civ.beacon_radius)
         civ.probe_speed = _compute_probe_speed(civ, config)
         _advance_probes(civ, world.humanity, config, now, step, (speed_before + civ.probe_speed) / 2 if exact else None)
         # The front of an attacked civ (shrunk by every attack) replays one regular step, like its population.
@@ -62,7 +62,7 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
             end = min(now, civ.probes_end_at(config))
             _advance_probes(civ, world.humanity, config, end, end - start)
 
-    _detect(world, config, now)
+    _detect(world, config, now, dt, streams.detection)
 
     for civ in world.active(now):
         if jump is None:
@@ -80,5 +80,5 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
 
 def final_silence_check(world, config, streams):
     _roll_artefacts(world, config, streams.artefact, config.present_date_years)
-    if _received_signal_in_window(world, config):
+    if not world.rejected and _received_signal_in_window(world, config, streams.detection):
         world.reject("signal_in_window", config.present_date_years)

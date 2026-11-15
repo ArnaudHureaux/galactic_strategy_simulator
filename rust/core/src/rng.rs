@@ -168,6 +168,7 @@ pub struct Streams {
     pub destruction: Rng,
     pub artefact: Rng,
     pub attribution: Rng,
+    pub detection: Rng,
 }
 
 impl Streams {
@@ -180,6 +181,7 @@ impl Streams {
             destruction: stream("destruction"),
             artefact: stream("artefact"),
             attribution: stream("attribution"),
+            detection: stream("detection"),
         }
     }
 }

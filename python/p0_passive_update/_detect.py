@@ -1,3 +1,5 @@
+from math import inf, log, log1p
+
 from constants import C_PC_PER_YEAR
 from p0_passive_update._growth_law import grow
 from p0_passive_update._tech_growth import _tech_growth_cap
@@ -5,7 +7,8 @@ from p3_apply_events._rates import _step_additive
 from state import BeliefEntry
 
 
-def _detect(world, config, now):
+def _detect(world, config, now, dt, rng):
+    # dt: time since the previous detection step, over which beacon exposures accumulate.
     world.note_detection_step(now)
     visible_civs = world.visible(now)
     visible = {c.id for c in visible_civs}
@@ -13,7 +16,8 @@ def _detect(world, config, now):
     for c in visible_civs:
         widest_front = max(widest_front, c.expansion_radius)
     for civ in world.active(now):
-        if civ.is_human and now < config.present_date_years - config.signal_window_years:
+        # Humanity only observes (through its own probes) since it searches the sky.
+        if civ.is_human and now < config.present_date_years - config.humanity_listening_years:
             continue
         reach = max(world.widest_broadcast + civ.expansion_radius + widest_front, civ.probe_radius)
         for other, d in world.neighbor_pairs_within(civ, reach):
@@ -24,9 +28,15 @@ def _detect(world, config, now):
             view = other.state_at(seen_at)
             if view is None:
                 continue
-            # Signals carry from sphere edge to sphere edge.
-            by_signal = view.broadcast_radius >= d - civ.expansion_radius - view.expansion_radius
+            # Signals carry from sphere edge to sphere edge. Humanity's signal detection is the
+            # survey test of _check_silence: here it only sees through its own probes.
+            gap = d - civ.expansion_radius - view.expansion_radius
             by_probe = _probe_reached(civ, seen_at, d)
+            by_signal = False
+            if not civ.is_human:
+                by_signal = view.leak_radius >= gap
+                if not (by_signal or by_probe) and view.beacon_radius >= gap:
+                    by_signal = _beacon_caught(civ, other, view, config, dt, rng)
             if not (by_signal or by_probe):
                 continue
             uncertainty = _projected_progress(view.tech_level, view.tech_rate, d / C_PC_PER_YEAR, config)
@@ -41,6 +51,29 @@ def _detect(world, config, now):
                 if trust != entry.trust:
                     entry.trust = trust
                     world.note_trust(entry)
+
+
+def _beacon_caught(civ, other, view, config, dt, rng):
+    """Within a beacon sphere, detection is a coincidence (beam towards the observer, in its band,
+    while it listens): each system of the source, each interaction period, is caught with
+    probability listen_coverage * beacon_duty. The exposure threshold is drawn once per pair
+    (Exp(1)) and the hazard accumulates while the pair is exposed; once caught, the observer keeps
+    seeing the source while it stays within the sphere."""
+    exposure = civ.exposures.get(other.id)
+    if exposure is None:
+        exposure = [-log(1.0 - rng.random()), 0.0]
+        civ.exposures[other.id] = exposure
+    if exposure[1] < exposure[0]:
+        exposure[1] += _beacon_hazard(view.nb_of_world, config) * dt
+    return exposure[1] >= exposure[0]
+
+
+def _beacon_hazard(nb_of_world, config):
+    # Detection rate (per year) of a beacon covering nb_of_world systems.
+    q = config.listen_coverage * config.beacon_duty
+    if q >= 1.0:
+        return inf
+    return -nb_of_world * log1p(-q) / config.interaction_period_years
 
 
 def _probe_reached(civ, seen_at, d):

@@ -41,9 +41,10 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
             tech_growth(civ, config, if exact_tech { step } else { pymin(step, config.dt) }, exact_tech);
         }
         population_growth(civ, config, if exact_pop { step } else { pymin(step, config.dt) }, exact_pop);
-        civ.broadcast_radius = compute_broadcast_radius(civ, config, now);
-        let widest = pymax(world.widest_broadcast, world.civs[i].broadcast_radius);
-        world.widest_broadcast = widest;
+        let (leak, beacon) = compute_signal_radii(civ, config, now);
+        civ.leak_radius = leak;
+        civ.beacon_radius = beacon;
+        world.widest_broadcast = pymax(pymax(world.widest_broadcast, leak), beacon);
         let civ = &mut world.civs[i];
         civ.probe_speed = probe_speed(config, civ.tech_level);
         let speed = if exact { (speed_before + civ.probe_speed) / 2.0 } else { civ.probe_speed };
@@ -78,7 +79,7 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
         }
     }
 
-    detect(world, config, now);
+    detect(world, config, now, dt, &mut streams.detection);
 
     for i in world.active(now) {
         let destroyed = match jump {
@@ -99,7 +100,7 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
 
 pub fn final_silence_check(world: &mut World, config: &Config, streams: &mut Streams) {
     roll_artefacts(world, config, &mut streams.artefact, config.present_date_years);
-    if received_signal_in_window(world, config) {
+    if !world.rejected && received_signal_in_window(world, config, &mut streams.detection) {
         world.reject("signal_in_window".into(), config.present_date_years);
     }
 }
@@ -181,12 +182,15 @@ fn population_growth(civ: &mut Civ, config: &Config, dt: f64, exact: bool) {
     };
 }
 
-fn compute_broadcast_radius(civ: &Civ, config: &Config, now: f64) -> f64 {
-    // Humanity's technosignatures only exist since the start of the signal window.
-    if civ.is_human && now < config.present_date_years - config.signal_window_years {
-        return 0.0;
+/// (leak radius, beacon radius) in pc (see _compute_broadcast_radius._compute_signal_radii).
+fn compute_signal_radii(civ: &Civ, config: &Config, now: f64) -> (f64, f64) {
+    // Humanity's technosignatures only exist since it leaks radio signals.
+    if civ.is_human && now < config.present_date_years - config.humanity_leak_years {
+        return (0.0, 0.0);
     }
-    broadcast_radius(civ, config, civ.tech_level)
+    let leak = signal_radius(config, civ.tech_level, config.passive_leakage_factor);
+    let beacon = if civ.strategy.broadcast { signal_radius(config, civ.tech_level, 1.0) } else { 0.0 };
+    (leak, beacon)
 }
 
 /// Effect of a tech level, calibrated by two anchors (see _anchored.py): human_value at
@@ -207,24 +211,19 @@ pub fn anchored_tech(value: f64, human_value: f64, cap_value: f64, config: &Conf
     present + x * (config.tech_cap - present)
 }
 
-fn leakage(civ: &Civ, config: &Config) -> f64 {
-    if civ.strategy.broadcast { 1.0 } else { config.passive_leakage_factor }
-}
-
-/// Distance (pc) at which the civ's signal stays above the observers' sensitivity (see
-/// _compute_broadcast_radius._broadcast_radius).
-pub fn broadcast_radius(civ: &Civ, config: &Config, tech: f64) -> f64 {
+/// Distance (pc) at which a signal of factor * EIRP(tech) stays above the observers' sensitivity.
+pub fn signal_radius(config: &Config, tech: f64, factor: f64) -> f64 {
     if tech <= 0.0 {
         return 0.0;
     }
-    let eirp = anchored(tech, config.eirp_human_w, config.eirp_cap_w, config) * leakage(civ, config);
+    let eirp = anchored(tech, config.eirp_human_w, config.eirp_cap_w, config) * factor;
     (eirp / (4.0 * std::f64::consts::PI * config.seti_flux_threshold_w_m2)).sqrt() / M_PER_PC
 }
 
-/// Tech at which the broadcast radius reaches radius (inf if never).
-pub fn tech_for_broadcast_radius(civ: &Civ, config: &Config, radius: f64) -> f64 {
+/// Tech at which signal_radius reaches radius (inf if never).
+pub fn tech_for_signal_radius(config: &Config, radius: f64, factor: f64) -> f64 {
     let meters = radius * M_PER_PC;
-    let eirp = 4.0 * std::f64::consts::PI * config.seti_flux_threshold_w_m2 * meters * meters / leakage(civ, config);
+    let eirp = 4.0 * std::f64::consts::PI * config.seti_flux_threshold_w_m2 * meters * meters / factor;
     anchored_tech(eirp, config.eirp_human_w, config.eirp_cap_w, config)
 }
 
@@ -390,7 +389,8 @@ fn self_destruction(civ: &Civ, config: &Config, rng: &mut Rng, dt: f64) -> bool 
 
 // _detect
 
-fn detect(world: &mut World, config: &Config, now: f64) {
+/// dt: time since the previous detection step, over which beacon exposures accumulate.
+fn detect(world: &mut World, config: &Config, now: f64, dt: f64, rng: &mut Rng) {
     world.note_detection_step(now);
     let visible = world.visible(now);
     let mut widest_front = 0.0;
@@ -399,8 +399,9 @@ fn detect(world: &mut World, config: &Config, now: f64) {
             widest_front = pymax(widest_front, civ.expansion_radius);
         }
     }
-    let window_start = config.present_date_years - config.signal_window_years;
+    let window_start = config.present_date_years - config.humanity_listening_years;
     for i in world.active(now) {
+        // Humanity only observes (through its own probes) since it searches the sky.
         if world.civs[i].is_human && now < window_start {
             continue;
         }
@@ -415,9 +416,17 @@ fn detect(world: &mut World, config: &Config, now: f64) {
             // Light delay over the distance between the two homes (an upper bound for sphere edges).
             let seen_at = now - d / C_PC_PER_YEAR;
             let Some(view) = world.civs[j].state_at(seen_at) else { continue };
-            // Signals carry from sphere edge to sphere edge.
-            let by_signal = view.broadcast_radius >= d - world.civs[i].expansion_radius - view.expansion_radius;
+            // Signals carry from sphere edge to sphere edge. Humanity's signal detection is the
+            // survey test of check_silence: here it only sees through its own probes.
+            let gap = d - world.civs[i].expansion_radius - view.expansion_radius;
             let by_probe = probe_reached(&world.civs[i], seen_at, d);
+            let mut by_signal = false;
+            if !world.civs[i].is_human {
+                by_signal = view.leak_radius >= gap;
+                if !(by_signal || by_probe) && view.beacon_radius >= gap {
+                    by_signal = beacon_caught(&mut world.civs[i], j, &view, config, dt, rng);
+                }
+            }
             if !(by_signal || by_probe) {
                 continue;
             }
@@ -439,6 +448,25 @@ fn detect(world: &mut World, config: &Config, now: f64) {
             }
         }
     }
+}
+
+/// Within a beacon sphere, detection is a coincidence: threshold Exp(1) drawn once per pair,
+/// hazard accumulated while exposed (see _detect._beacon_caught).
+fn beacon_caught(civ: &mut Civ, j: usize, view: &Snapshot, config: &Config, dt: f64, rng: &mut Rng) -> bool {
+    let exposure = civ.exposures.entry(j).or_insert_with(|| (-pymath::log(1.0 - rng.random()), 0.0));
+    if exposure.1 < exposure.0 {
+        exposure.1 += beacon_hazard(view.nb_of_world, config) * dt;
+    }
+    exposure.1 >= exposure.0
+}
+
+/// Detection rate (per year) of a beacon covering nb_of_world systems.
+pub fn beacon_hazard(nb_of_world: f64, config: &Config) -> f64 {
+    let q = config.listen_coverage * config.beacon_duty;
+    if q >= 1.0 {
+        return f64::INFINITY;
+    }
+    -nb_of_world * pymath::log1p(-q) / config.interaction_period_years
 }
 
 /// The probe must have been on site at seen_at for its light-speed report to arrive now.
@@ -515,30 +543,82 @@ fn colonized(world: &World, now: f64) -> bool {
     world.active(now).into_iter().any(|i| i != world.humanity && holds(world, i, &human.position, now))
 }
 
-/// Exact, dt-independent test: did any light reaching humanity during the instrumental
-/// window carry a detectable signal, even from a now-dead civ? Signals carry from sphere
-/// edge to sphere edge (light delay over the distance between homes).
-fn received_signal_in_window(world: &World, config: &Config) -> bool {
+/// Exact, dt-independent survey test (see _check_silence._received_signal_in_window): light
+/// reaching humanity while it listens, above the survey sensitivity, caught with the survey
+/// coverage c(d) (leak) or c(d) * beacon_duty (beacon) per system, one draw per exposed civ.
+fn received_signal_in_window(world: &World, config: &Config, rng: &mut Rng) -> bool {
     let human = &world.civs[world.humanity];
     let present = config.present_date_years;
-    world.civs.iter().enumerate().any(|(i, civ)| {
+    for (i, civ) in world.civs.iter().enumerate() {
         if i == world.humanity {
-            return false;
+            continue;
         }
         let d = dist(&civ.position, &human.position);
         let delay = d / C_PC_PER_YEAR;
-        was_detectable(civ, present - config.signal_window_years - delay, present - delay, d - human.expansion_radius)
-    })
+        let (leak_n, beacon_n, edge) =
+            exposure(civ, present - config.humanity_listening_years - delay, present - delay, d - human.expansion_radius);
+        if leak_n == 0.0 && beacon_n == 0.0 {
+            continue;
+        }
+        let c = seti_coverage(edge, config);
+        let mut miss = 1.0;
+        if leak_n > 0.0 {
+            miss *= miss_probability(c, leak_n);
+        }
+        if beacon_n > 0.0 {
+            miss *= miss_probability(c * config.beacon_duty, beacon_n);
+        }
+        if miss <= 0.0 || (miss < 1.0 && rng.random() >= miss) {
+            return true;
+        }
+    }
+    false
 }
 
-fn was_detectable(civ: &Civ, start: f64, end: f64, d: f64) -> bool {
+/// Probability that none of n systems is caught, each with probability q.
+fn miss_probability(q: f64, n: f64) -> f64 {
+    if q >= 1.0 {
+        return 0.0;
+    }
+    pymath::exp(n * pymath::log1p(-q))
+}
+
+/// Share of the stars at distance d (pc) that humanity's surveys observed.
+fn seti_coverage(d: f64, config: &Config) -> f64 {
+    if d <= config.seti_complete_radius_pc {
+        1.0
+    } else if d <= 50.0 {
+        config.seti_coverage_50pc
+    } else {
+        config.seti_coverage_beyond
+    }
+}
+
+/// (systems seen through the leak, through the beacon, distance of the nearest system) over the
+/// light emitted between start and end that reaches the observer at distance d.
+fn exposure(civ: &Civ, start: f64, end: f64, d: f64) -> (f64, f64, f64) {
     let death = civ.extinct_at.unwrap_or(f64::INFINITY);
     let history = &civ.history;
-    (0..history.len()).any(|k| {
+    let mut leak_n = 0.0;
+    let mut beacon_n = 0.0;
+    let mut edge = d;
+    for k in 0..history.len() {
         let snap = &history[k];
         let seg_end = if k + 1 < history.len() { history[k + 1].t } else { f64::INFINITY };
-        snap.broadcast_radius >= d - snap.expansion_radius && pymax(start, snap.t) < pymin(pymin(end, seg_end), death)
-    })
+        if pymax(start, snap.t) >= pymin(pymin(end, seg_end), death) {
+            continue;
+        }
+        let gap = d - snap.expansion_radius;
+        if snap.beacon_radius >= gap {
+            beacon_n = pymax(beacon_n, snap.nb_of_world);
+            edge = pymin(edge, pymax(0.0, gap));
+        }
+        if snap.leak_radius >= gap {
+            leak_n = pymax(leak_n, snap.nb_of_world);
+            edge = pymin(edge, pymax(0.0, gap));
+        }
+    }
+    (leak_n, beacon_n, edge)
 }
 
 /// Contact (b): one discovery draw per civ whose probes sat near the Sun during the artefact window.

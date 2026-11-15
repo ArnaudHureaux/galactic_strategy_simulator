@@ -40,6 +40,8 @@ CASES = {
     "attack_stealth_jumps": replace(scenario(1.0e7), max_steps=1500, attack_stealth_per_tech=1.0),
     "birth_spread": replace(SHORT, birth_spread_fraction=0.5),
     "birth_spread_jumps": replace(scenario(1.0e7), max_steps=1500, birth_spread_fraction=1.0),
+    "beacons": replace(SHORT, beacon_duty=0.3, listen_coverage=0.5, broadcast_probability=0.8),
+    "beacons_jumps": replace(scenario(1.0e7), max_steps=1500, beacon_duty=0.01, broadcast_probability=0.8),
 }
 
 

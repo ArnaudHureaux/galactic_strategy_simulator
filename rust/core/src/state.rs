@@ -12,7 +12,8 @@ use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 pub struct Snapshot {
     pub t: f64,
     pub tech_level: f64,
-    pub broadcast_radius: f64,
+    pub leak_radius: f64,
+    pub beacon_radius: f64,
     pub probe_radius: f64,
     pub attacked_by: Option<usize>,
     pub expansion_radius: f64,
@@ -21,6 +22,7 @@ pub struct Snapshot {
     pub tech_rate: f64,
     /// Whether the last attack (attacked_by's) was attributed: witnesses only blame a known attacker.
     pub attack_attributed: bool,
+    pub nb_of_world: f64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,7 +115,9 @@ pub struct Civ {
     pub natural_population_growth: f64,
     pub colonization_aggressiveness: f64,
     pub strategy: Strategy,
-    pub broadcast_radius: f64,
+    /// Leak sphere (every civ) and beacon sphere (civs that broadcast), see compute_signal_radii.
+    pub leak_radius: f64,
+    pub beacon_radius: f64,
     pub probe_speed: f64,
     pub probe_radius: f64,
     pub expansion_radius: f64,
@@ -134,6 +138,8 @@ pub struct Civ {
     /// Whether the victim identified attacked_by, and the draw made for each attacker (once per war).
     pub attack_attributed: bool,
     pub attributions: HashMap<usize, bool>,
+    /// Beacons this civ is exposed to: target -> (threshold, accumulated hazard), see detect.
+    pub exposures: HashMap<usize, (f64, f64)>,
     pub is_human: bool,
     pub extinct_at: Option<f64>,
     pub extinction_cause: Option<&'static str>,
@@ -158,13 +164,15 @@ impl Civ {
         self.history.push_back(Snapshot {
             t: now,
             tech_level: self.tech_level,
-            broadcast_radius: self.broadcast_radius,
+            leak_radius: self.leak_radius,
+            beacon_radius: self.beacon_radius,
             probe_radius: self.probe_radius,
             attacked_by: self.attacked_by,
             expansion_radius: self.expansion_radius,
             attacked_at: self.attacked_at,
             tech_rate,
             attack_attributed: self.attack_attributed,
+            nb_of_world: self.nb_of_world,
         });
         // Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         let cutoff = now - horizon;
@@ -349,7 +357,7 @@ impl World {
     }
 
     pub fn history_horizon(&self, config: &Config) -> f64 {
-        self.light_crossing_years() + config.signal_window_years
+        self.light_crossing_years() + pymax(config.humanity_leak_years, config.humanity_listening_years)
     }
 
     pub fn alive_count(&self) -> usize {

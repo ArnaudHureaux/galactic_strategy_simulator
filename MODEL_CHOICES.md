@@ -205,7 +205,15 @@ Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_
 
 **Conséquence.** Une civ qui émet volontairement, au niveau humain, porte à 71 pc, contre environ 1 pc avec l'ancienne loi. Les contacts entre civs deviennent bien plus fréquents, et les simulations plus denses, donc plus lentes en Python.
 
-**Question ouverte.** Une civ qui « émet volontairement » le fait-elle en continu et dans toutes les directions, à l'EIRP d'un radar dirigé ? Pour une émission isotrope, 20 TW d'EIRP correspondent à 20 TW réels, soit à peu près la consommation énergétique actuelle de l'humanité. C'est une surestimation probable. Le facteur p_on de l'étape 2 en tiendra compte pour la détection par l'humanité, mais la détection entre civs reste à discuter.
+**Étape 2, faite le 2026-11-15 : deux sphères d'émission et détection progressive des faisceaux.** Elle répond à la question ouverte ci-dessous.
+- **Fuites** : toutes les civs ont une sphère de fuites (EIRP × `passive_leakage_factor`), continue et dans toutes les directions. Dans cette sphère, la détection entre civs reste certaine (point 9).
+- **Faisceau** : une civ qui émet volontairement a en plus une sphère de faisceau (EIRP pleine), dirigé et intermittent. Dans cette sphère, la détection est une coïncidence : le faisceau vise l'observateur, dans sa bande, au moment où il écoute. Chaque système de la source, à chaque période d'interaction, est capté avec la probabilité `listen_coverage` × `beacon_duty`. Le taux vaut donc λ = − n ln(1 − listen_coverage × beacon_duty) / période. Un seuil Exp(1) est tiré une fois par couple, à la première exposition, et le risque cumulé λ·t s'accumule tant que le couple est exposé. Une fois capté, l'observateur continue de voir la source.
+- **Humanité** : elle ne détecte de signaux que par un test de relevés exact, à la fin du run. La lumière qui arrive pendant la fenêtre d'écoute (`humanity_listening_years` = 66 ans, depuis Project Ozma) est captée avec la couverture c(d) pour les fuites, et c(d) × `beacon_duty` pour un faisceau, par système, avec un tirage par civ exposée. On a c(d) = 1 jusqu'à 5,1 pc (Isaacson et al. 2017), 0,037 jusqu'à 50 pc, puis 4·10⁻⁴ au-delà (Wlodarczyk-Sroka et al. 2020, rapporté au catalogue Gaia des étoiles proches).
+- **Fenêtres** : l'humanité fuit depuis `humanity_leak_years` = 90 ans (télévision, Sullivan et al. 1978) et écoute depuis 66 ans (Drake 1961). `signal_window_years` disparaît.
+- **Coût** : la boucle sur les paires reste la même, avec un tirage par couple à la première exposition. Le fast-forward s'arrête avant qu'un risque cumulé n'atteigne son seuil, et avant qu'une sphère de fuites ou de faisceau n'atteigne une civ encore non vue.
+- Nouveaux paramètres explorés : `beacon_duty` dans [10⁻⁶ ; 1] et `listen_coverage` dans [10⁻³ ; 1], tous deux inconnus.
+
+**Question ouverte (traitée à l'étape 2).** Une civ qui « émet volontairement » le fait-elle en continu et dans toutes les directions, à l'EIRP d'un radar dirigé ? Pour une émission isotrope, 20 TW d'EIRP correspondent à 20 TW réels, soit à peu près la consommation énergétique actuelle de l'humanité. C'est une surestimation probable. Le facteur p_on de l'étape 2 en tiendra compte pour la détection par l'humanité, mais la détection entre civs reste à discuter.
 
 ## À décider
 

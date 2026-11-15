@@ -31,7 +31,8 @@ from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
 from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _world_density
-from p0_passive_update._compute_broadcast_radius import _broadcast_radius, _tech_for_broadcast_radius
+from p0_passive_update._compute_broadcast_radius import _signal_radius, _tech_for_signal_radius
+from p0_passive_update._detect import _beacon_hazard
 from p0_passive_update._compute_probe_speed import _probe_speed
 from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capacity, _compute_max_number_of_attack
 
@@ -116,7 +117,8 @@ def _plan_jump(world, config, now, streams, tech_touched, pop_touched):
     milestones = (
         config.humanity_birth_date_years,
         config.present_date_years - config.artefact_window_years,
-        config.present_date_years - config.signal_window_years,
+        config.present_date_years - config.humanity_leak_years,
+        config.present_date_years - config.humanity_listening_years,
         config.present_date_years,
     )
     for milestone in milestones:
@@ -273,44 +275,38 @@ def _max_progress(low, high, rate, delay, config):
 
 
 def _detection_limit(world, active, config, now, tech_budget, front_budget):
-    # Unseen pairs: limit the drift of the emitter's broadcast radius and of both fronts
-    # (signals carry from sphere edge to sphere edge), and the time until the observer's
-    # probe sphere reaches the target. Neighbours are scanned by increasing distance: the
-    # broadcast part only concerns pairs within the widest broadcast radius of the two spheres,
-    # and the probe part only the nearest unseen target, since the time for the probe
-    # sphere to reach a target grows with its distance.
+    # Unseen pairs: limit the drift of the emitter's signal radii (leak, and beacon while the pair is
+    # not exposed yet) and of both fronts (signals carry from sphere edge to sphere edge), the time
+    # until an exposed pair's hazard reaches its threshold, and the time until the observer's probe
+    # sphere reaches the target. Neighbours are scanned by increasing distance: the signal part only
+    # concerns pairs within the widest signal radius of the two spheres, and the probe part only the
+    # nearest unseen target, since the time for the probe sphere to reach a target grows with its distance.
     limit = inf
-    window_start = config.present_date_years - config.signal_window_years
     active_ids = {c.id for c in active}
     widest_front = 0.0
-    # Largest broadcast radius reachable during the jump (tech budgets only shrink from here).
-    widest_broadcast = world.widest_broadcast
+    # Largest signal radius reachable during the jump (tech budgets only shrink from here).
+    widest_signal = world.widest_broadcast
     for c in active:
         widest_front = max(widest_front, _front_end(c, front_budget))
-        if c.broadcast_radius > 0:
+        if c.leak_radius > 0 or c.beacon_radius > 0:
             end_tech = c.tech_level + max(0.0, tech_budget[c.id])
-            widest_broadcast = max(widest_broadcast, _broadcast_radius(c, config, end_tech))
+            factor = 1.0 if c.beacon_radius > 0 else config.passive_leakage_factor
+            widest_signal = max(widest_signal, _signal_radius(config, end_tech, factor))
+    window_start = config.present_date_years - config.humanity_listening_years
     for y in active:
         if y.is_human and now < window_start:
             continue
         distances, neighbors = world.neighbors_by_distance(y)
-        reach = widest_broadcast + _front_end(y, front_budget) + widest_front
-        n_broadcast = bisect_right(distances, reach)
-        for d, x in zip(distances[:n_broadcast], neighbors[:n_broadcast]):
-            if x.id not in active_ids or x.tech_level <= 0 or _seen_now(y, x, now):
-                continue
-            # Share what is left of the gap between whatever can close it.
-            movers = [mover for mover in (x.id, y.id) if mover in front_budget]
-            n_moving = len(movers) + (x.broadcast_radius > 0)
-            if n_moving == 0:
-                continue
-            share = (d - y.expansion_radius - x.expansion_radius - x.broadcast_radius) / n_moving
-            for mover in movers:
-                front_budget[mover] = min(front_budget[mover], share)
-            if x.broadcast_radius > 0:
-                # Broadcast radius grows with tech (see _compute_broadcast_radius).
-                critical_tech = _tech_for_broadcast_radius(x, config, x.broadcast_radius + share)
-                tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
+        if not y.is_human:
+            limit = min(limit, _exposure_limit(world, y, config, now))
+            reach = widest_signal + _front_end(y, front_budget) + widest_front
+            n_signal = bisect_right(distances, reach)
+            for d, x in zip(distances[:n_signal], neighbors[:n_signal]):
+                if x.id not in active_ids or x.tech_level <= 0 or _seen_now(y, x, now):
+                    continue
+                _signal_budget(x, y, d, x.leak_radius, config.passive_leakage_factor, config, tech_budget, front_budget)
+                if x.beacon_radius > 0 and x.id not in y.exposures:
+                    _signal_budget(x, y, d, x.beacon_radius, 1.0, config, tech_budget, front_budget)
         # tech_budget[y.id] only changes while scanning other observers, as in a pair-by-pair scan.
         for d, x in zip(distances, neighbors):
             if d > config.max_probe_radius:
@@ -324,6 +320,37 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
             if speed > 0:
                 limit = min(limit, (d - y.probe_radius) / speed - config.dt)
             break
+    return limit
+
+
+def _signal_budget(x, y, d, radius, factor, config, tech_budget, front_budget):
+    # Share what is left of the gap (x's signal of this radius to y) between whatever can close it.
+    movers = [mover for mover in (x.id, y.id) if mover in front_budget]
+    n_moving = len(movers) + (radius > 0)
+    if n_moving == 0:
+        return
+    share = (d - y.expansion_radius - x.expansion_radius - radius) / n_moving
+    for mover in movers:
+        front_budget[mover] = min(front_budget[mover], share)
+    if radius > 0:
+        # Signal radii grow with tech (see _compute_signal_radii).
+        critical_tech = _tech_for_signal_radius(config, radius + share, factor)
+        tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
+
+
+def _exposure_limit(world, y, config, now):
+    # An exposed, not yet caught beacon is caught when its accumulated hazard reaches its threshold:
+    # stop before (at the source's current size; its worlds drift within the front budget).
+    limit = inf
+    for x_id, (threshold, hazard) in y.exposures.items():
+        if hazard >= threshold:
+            continue
+        x = world.civ(x_id)
+        if x.status != "alive":
+            continue
+        rate = _beacon_hazard(x.nb_of_world, config)
+        if rate > 0:
+            limit = min(limit, (threshold - hazard) / rate - config.dt)
     return limit
 
 

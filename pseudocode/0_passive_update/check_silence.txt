@@ -25,8 +25,15 @@ def roll_artefacts(world, until):
 # run once at PRESENT_DATE, independent of dt
 def final_silence_check(world):
     roll_artefacts(world, until=PRESENT_DATE)
+    # humanity's surveys: light arriving while humanity listens, above the survey sensitivity,
+    # caught with the coverage c(d) of the surveys (one draw per exposed civ, detection stream)
     for civ in world.civs - {world.humanity}:
         d = dist(civ, world.humanity) - world.humanity.R
-        emitted = [PRESENT_DATE - SIGNAL_WINDOW - dist(civ, world.humanity) / C, PRESENT_DATE - dist(civ, world.humanity) / C]
-        if any(view.broadcast_radius >= d - view.R for view in public_views(civ, during=emitted)):
+        emitted = [PRESENT_DATE - LISTENING_YEARS - dist(civ, world.humanity) / C, PRESENT_DATE - dist(civ, world.humanity) / C]
+        views = public_views(civ, during=emitted)
+        leak_n = max(view.nb_of_world for view in views if view.leak_radius >= d - view.R)      # 0 if none
+        beacon_n = max(view.nb_of_world for view in views if view.beacon_radius >= d - view.R)  # 0 if none
+        c = seti_coverage(distance of the nearest exposed system)   # 1 within 5.1 pc, 0.037 within 50 pc, 4e-4 beyond
+        miss = (1 - c) ^ leak_n * (1 - c * BEACON_DUTY) ^ beacon_n
+        if random() >= miss:
             world.rejected = True

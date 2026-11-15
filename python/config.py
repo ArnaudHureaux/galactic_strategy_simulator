@@ -92,10 +92,12 @@ class Config:
     # the sterilizing event resynchronizes life, but intelligence then takes a variable time (0 = all at start).
     birth_spread_fraction: float = 0.0
     # Start of human civilization: from then on, humanity can be seen by probes on site (and attacked).
-    # It only leaks signals during the last signal_window_years (see _compute_broadcast_radius).
     humanity_birth_date_years: float = 1.379999e10
     present_date_years: float = 1.38e10
-    signal_window_years: float = 100.0
+    # Humanity leaks radio signals since humanity_leak_years before the present (television, 1930s)
+    # and listens since humanity_listening_years (Project Ozma, 1960).
+    humanity_leak_years: float = 90.0
+    humanity_listening_years: float = 66.0
     artefact_window_years: float = 4.5e9
     artefact_detection_probability: float = 0.1
     # Advanced civs make discreet probes: the discovery probability above is multiplied by
@@ -127,6 +129,16 @@ class Config:
     passive_leakage_factor: float = 2.0e-4
     # Sensitivity of the observers: a signal is seen while EIRP >= 4 pi d^2 seti_flux_threshold_w_m2.
     seti_flux_threshold_w_m2: float = 3.3e-25
+    # Every civ leaks (continuous, all directions: seen for sure within its leak sphere); a civ that
+    # broadcasts also has a beacon (full EIRP, but intermittent and beamed). Within a beacon sphere,
+    # an observer detects the source at a hazard rate: each system of the source, each interaction
+    # period, is caught with probability listen_coverage * beacon_duty.
+    beacon_duty: float = 1e-3
+    listen_coverage: float = 0.1
+    # Humanity's surveys: share of the stars observed at a given distance (see _check_silence).
+    seti_complete_radius_pc: float = 5.1
+    seti_coverage_50pc: float = 0.037
+    seti_coverage_beyond: float = 4.0e-4
     # Probe speed as a fraction of c (Voyager 1 for humanity).
     probe_speed_human_c: float = 5.67e-5
     probe_speed_cap_c: float = 0.1
@@ -290,7 +302,8 @@ def _validate(c):
     check(c.start_date_years <= c.humanity_birth_date_years < c.present_date_years,
           "dates must satisfy present_date_years - start_lookback_years <= humanity_birth_date_years"
           " < present_date_years")
-    check(c.signal_window_years > 0, "signal_window_years must be > 0")
+    check(c.humanity_leak_years > 0, "humanity_leak_years must be > 0")
+    check(c.humanity_listening_years > 0, "humanity_listening_years must be > 0")
     check(c.artefact_window_years >= 0, "artefact_window_years must be >= 0")
 
     check(c.tech_growth_model in GROWTH_MODELS, f"tech_growth_model must be one of {GROWTH_MODELS}")
@@ -320,7 +333,8 @@ def _validate(c):
     # These rates are fractions closed per interaction period (log1p(-rate) must exist).
     for name in ("share_catchup", "share_trust_gain"):
         check(0 <= getattr(c, name) < 1, f"{name} must be in [0, 1)")
-    for name in ("birth_spread_fraction", "forgiveness", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability",
+    for name in ("beacon_duty", "listen_coverage", "seti_coverage_50pc", "seti_coverage_beyond",
+                 "birth_spread_fraction", "forgiveness", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability",
                  "natural_tech_progress_spread", "natural_population_growth_spread"):
         check(0 <= getattr(c, name) <= 1, f"{name} must be in [0, 1]")
 

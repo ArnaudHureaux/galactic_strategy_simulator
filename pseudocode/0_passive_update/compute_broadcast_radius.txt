@@ -5,13 +5,18 @@ def anchored(tech, human_value, cap_value):
     x = (min(tech, TECH_CAP) - HUMANITY_PRESENT_TECH) / (TECH_CAP - HUMANITY_PRESENT_TECH)
     return human_value * (cap_value / human_value) ^ x
 
-def compute_broadcast_radius(civ, now):
-    # humanity's technosignatures only exist since the start of the signal window
-    if civ.is_human and now < PRESENT_DATE - SIGNAL_WINDOW:
-        return 0
+def compute_signal_radii(civ, now):
+    # humanity's technosignatures only exist since it leaks radio signals (1930s)
+    if civ.is_human and now < PRESENT_DATE - HUMANITY_LEAK_YEARS:
+        return 0, 0
     # EIRP in watts: Arecibo radar (20 TW) at humanity's level, explored at the cap
     eirp = anchored(civ.tech_level, EIRP_HUMAN_W, EIRP_CAP_W)
-    if not civ.strategy["broadcast"]:
-        eirp *= PASSIVE_LEAKAGE_FACTOR      # humanity: LTE leakage / Arecibo radar
-    # seen while EIRP >= 4 pi d^2 F_min (Breakthrough Listen sensitivity)
+    # every civ leaks (continuous, all directions); humanity: LTE leakage / Arecibo radar
+    leak = radius(eirp * PASSIVE_LEAKAGE_FACTOR)
+    # a civ that broadcasts also has a beacon: full EIRP, but beamed and intermittent
+    beacon = radius(eirp) if civ.strategy["broadcast"] else 0
+    return leak, beacon
+
+# seen while EIRP >= 4 pi d^2 F_min (Breakthrough Listen sensitivity)
+def radius(eirp):
     return sqrt(eirp / (4 pi SETI_FLUX_THRESHOLD_W_M2)) / METERS_PER_PC
