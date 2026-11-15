@@ -1,5 +1,6 @@
 import json
 
+from config import ARCHETYPES
 from geometry import dist
 
 
@@ -80,7 +81,36 @@ def run_record(world, config, seed, log, end, wall_time_s):
         "humanity_detected_by_others": any(human.id in c.belief for c in world.civs if c is not human),
         "humanity_reached_by_probe": any(c.probe_arrived_at_human is not None for c in world.civs),
     }
+    record.update(_selection_metrics(world, end))
     return add_config(record, config)
+
+
+def _selection_metrics(world, end):
+    """Selection of strategies (phase 2, point 10): strategies are fixed, but those that die more
+    become rarer among survivors. Mean attack threshold (attack_when_trust_inferior_than, higher =
+    more aggressive) among the civs born by the end and among the survivors, their difference
+    (strategy_selection > 0: aggressive strategies were selected), and the survival rate of each
+    archetype (None when no civ of it was born)."""
+    born = [c for c in world.civs if not c.is_human and c.birth_year <= end]
+    alive = [c for c in born if c.status == "alive"]
+    born_mean = _mean_attack_threshold(born)
+    alive_mean = _mean_attack_threshold(alive)
+    metrics = {
+        "attack_threshold_born_mean": born_mean,
+        "attack_threshold_alive_mean": alive_mean,
+        "strategy_selection": None if born_mean is None or alive_mean is None else alive_mean - born_mean,
+    }
+    for name in ARCHETYPES:
+        n_born = sum(1 for c in born if c.strategy["archetype"] == name)
+        n_alive = sum(1 for c in alive if c.strategy["archetype"] == name)
+        metrics[f"survival_{name}"] = n_alive / n_born if n_born else None
+    return metrics
+
+
+def _mean_attack_threshold(civs):
+    if not civs:
+        return None
+    return _total(c.strategy["attack_when_trust_inferior_than"] for c in civs) / len(civs)
 
 
 def add_config(record, config):

@@ -92,7 +92,7 @@ pub fn run_record(world: &World, run: &RunCounters) -> Record {
     let human = &world.civs[h];
     let end = run.end;
     let others = || world.civs.iter().filter(|c| !c.is_human);
-    vec![
+    let mut record: Record = vec![
         ("outcome", run.outcome.into()),
         ("rejection_reason", world.rejection_reason.as_deref().into()),
         ("rejected_at", world.rejected_at.into()),
@@ -112,7 +112,49 @@ pub fn run_record(world: &World, run: &RunCounters) -> Record {
             world.civs.iter().enumerate().any(|(i, c)| i != h && c.belief_of.contains_key(&h)).into(),
         ),
         ("humanity_reached_by_probe", world.civs.iter().any(|c| c.probe_arrived_at_human.is_some()).into()),
-    ]
+    ];
+    record.extend(selection_metrics(world, end));
+    record
+}
+
+/// survival_<archetype> columns, in ARCHETYPES order.
+const SURVIVAL_COLUMNS: [&str; 8] = [
+    "survival_random",
+    "survival_full_aggressive",
+    "survival_full_passive",
+    "survival_anti_competitors",
+    "survival_anti_weaker_competitors",
+    "survival_dark_forest",
+    "survival_broadcaster",
+    "survival_cooperative",
+];
+
+/// Selection of strategies (see observe._selection_metrics).
+fn selection_metrics(world: &World, end: f64) -> Record {
+    let born: Vec<_> = world.civs.iter().filter(|c| !c.is_human && c.birth_year <= end).collect();
+    let alive: Vec<_> = born.iter().copied().filter(|c| c.alive).collect();
+    let mean = |civs: &[&crate::state::Civ]| {
+        if civs.is_empty() {
+            None
+        } else {
+            Some(total(civs.iter().map(|c| c.strategy.attack_when_trust_inferior_than)) / civs.len() as f64)
+        }
+    };
+    let born_mean = mean(&born);
+    let alive_mean = mean(&alive);
+    let mut record: Record = vec![
+        ("attack_threshold_born_mean", born_mean.into()),
+        ("attack_threshold_alive_mean", alive_mean.into()),
+        ("strategy_selection", born_mean.zip(alive_mean).map(|(b, a)| a - b).into()),
+    ];
+    for (k, column) in SURVIVAL_COLUMNS.iter().enumerate() {
+        debug_assert_eq!(&column["survival_".len()..], ARCHETYPES[k].name);
+        let n_born = born.iter().filter(|c| c.strategy.archetype == k).count();
+        let n_alive = alive.iter().filter(|c| c.strategy.archetype == k).count();
+        let rate = (n_born > 0).then(|| n_alive as f64 / n_born as f64);
+        record.push((column, rate.into()));
+    }
+    record
 }
 
 /// observe.civ_records without config_hash and seed: one record per civ (humanity included).
