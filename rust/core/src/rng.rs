@@ -167,6 +167,7 @@ pub struct Streams {
     pub birth: Rng,
     pub destruction: Rng,
     pub artefact: Rng,
+    pub attribution: Rng,
 }
 
 impl Streams {
@@ -178,6 +179,7 @@ impl Streams {
             birth: stream("birth"),
             destruction: stream("destruction"),
             artefact: stream("artefact"),
+            attribution: stream("attribution"),
         }
     }
 }

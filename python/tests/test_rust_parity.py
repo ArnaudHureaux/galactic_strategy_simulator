@@ -36,6 +36,8 @@ CASES = {
     "archetypes": replace(SHORT, strategy_noise=0.2, **{f"strategy_mix_{name}": 1.0 for name in ARCHETYPES}),
     "stealth": replace(SHORT, artefact_detection_probability=0.8, probe_speed_per_tech=1.0,
                        artefact_window_years=1.0e6, artefact_stealth_per_tech=3.0),
+    "attack_stealth": replace(SHORT, attack_stealth_per_tech=3.0, damage_gap_scale=3.0),
+    "attack_stealth_jumps": replace(scenario(1.0e7), max_steps=1500, attack_stealth_per_tech=1.0),
 }
 
 

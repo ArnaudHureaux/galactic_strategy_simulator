@@ -33,7 +33,13 @@ def apply_attack(event, world):
     target.population_size *= (1 - damage)
     target.expansion_radius *= (1 - damage)
     target.nb_of_world = 1 + (target.nb_of_world - 1) * (1 - damage)^3   # homothetic shrink
-    target.belief[event.src].trust = 0
-    target.belief[event.src].attacked_me = True
-    target.attacked_by = event.src
+    # drawn once per war (first attack of the pair), from the attribution stream
+    if event.src not in target.attributions:
+        target.attributions[event.src] = random() < attribution_probability(event.power, target.tech_level)
+    attributed = target.attributions[event.src]
+    if attributed and event.src in target.belief:
+        target.belief[event.src].trust = 0
+        target.belief[event.src].attacked_me = True
+    target.attacked_by = event.src   # an attack on humanity rejects the run, attributed or not
     target.attacked_at = event.t
+    target.attack_attributed = attributed

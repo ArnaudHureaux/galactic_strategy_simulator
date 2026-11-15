@@ -377,6 +377,7 @@ fn detect(world: &mut World, config: &Config, now: f64) {
             // A witness of an ongoing war (the victim was hit during the step of the view) loses
             // trust in the attacker at reputation_trust_drop per interaction period.
             if let Some(attacker) = view.attacked_by
+                && view.attack_attributed
                 && view.attacked_at > view.t - config.dt
                 && let Some(&b) = world.civs[i].belief_of.get(&attacker)
             {

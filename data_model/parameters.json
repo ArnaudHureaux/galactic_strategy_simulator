@@ -324,10 +324,22 @@
     },
     "damage_coef": {
       "status": "E", "unit": "fraction/période",
-      "description": "Une guerre détruit min(1, damage_coef × tech attaquant / tech cible) de la cible par période d'interaction ; 1 = destruction immédiate.",
+      "description": "Une guerre détruit min(1, damage_coef × exp(damage_gap_scale × (tech attaquant − tech cible))) de la cible par période d'interaction ; 1 = destruction immédiate. damage_coef est la part détruite à tech égale.",
       "justification": "Inconnu.",
-      "range": {"low": 0.05, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu",
-      "todo": ["Phase 2, point 7 : forme de la loi de dégâts."]
+      "range": {"low": 0.05, "high": 1.0, "scale": "linear"}, "range_basis": "inconnu"
+    },
+    "damage_gap_scale": {
+      "status": "E", "unit": "1/tech",
+      "description": "Croissance des dégâts avec l'écart de tech : chaque niveau d'avance multiplie les dégâts par exp(damage_gap_scale).",
+      "justification": "La tech est une échelle logarithmique de la puissance (point 4) : un écart de tech est un rapport de puissance, et la fenêtre d'attaque est déjà un écart (décision du 2026-11, phase 2, point 7). Intensité inconnue.",
+      "range": {"low": 0.1, "high": 10.0, "scale": "log"}, "range_basis": "inconnu",
+      "todo": ["Point 11 : recaler sur le facteur par niveau de tech fixé par les ancres (niveau humain, plafond)."]
+    },
+    "attack_stealth_per_tech": {
+      "status": "E", "unit": "1/tech",
+      "description": "Discrétion des attaques : la victime identifie l'attaquant avec la probabilité exp(-k × max(0, tech attaquant − tech victime)), tirée une fois par guerre. Une attaque non attribuée ne change ni la confiance de la victime ni celle des témoins.",
+      "justification": "Une civ avancée peut frapper sans être identifiée (Forêt sombre). Même forme que la discrétion des sondes. Intensité inconnue (décision du 2026-11, phase 2, point 7).",
+      "range": {"low": 0.0, "high": 5.0, "scale": "linear"}, "range_basis": "inconnu"
     },
     "attacks_per_tech_population": {
       "status": "E", "unit": "guerres/(tech × population)",
@@ -609,15 +621,15 @@
     },
     "attack_damage_law": {
       "status": "M", "where": "python/p3_apply_events/_attack_damage.py",
-      "description": "Dégâts = min(1, damage_coef × rapport de tech), appliqués à la tech, la population et le rayon colonisé ; mort seulement si dégâts = 1. Déterministe.",
-      "justification": "Le plus fort fait plus de dégâts.",
-      "todo": ["Phase 2, point 7 : forme, aléa, coût de la défense."]
+      "description": "Dégâts = min(1, damage_coef × exp(damage_gap_scale × écart de tech)) par période, appliqués à la tech, la population et au territoire ; mort seulement si dégâts = 1. Déterministe.",
+      "justification": "Le plus fort fait plus de dégâts. Écart plutôt que rapport, cohérent avec la fenêtre de décision et l'échelle de tech logarithmique (point 4). Déterministe : un aléa ajouterait des paramètres inconnus et compliquerait le fast-forward (décision du 2026-11, phase 2, point 7).",
+      "todo": ["Coût de la défense : à discuter."]
     },
     "attack_attribution": {
       "status": "M", "where": "python/p3_apply_events/__init__.py, python/p0_passive_update/_detect.py",
-      "description": "La victime n'identifie l'attaquant que si elle le connaissait déjà ; les témoins ne voient que le dernier attaquant de la victime.",
-      "justification": "Simplification.",
-      "todo": ["Phase 2, point 7 : probabilité d'attribution."]
+      "description": "L'attribution est tirée une fois par guerre (couple attaquant, victime), avec la probabilité de attack_stealth_per_tech. La victime ne baisse sa confiance que si elle identifie l'attaquant et le connaissait déjà ; les témoins ne voient que le dernier attaquant de la victime, et seulement s'il a été identifié. Une attaque contre l'humanité rejette le run même non attribuée.",
+      "justification": "Une guerre se voit ; savoir qui la mène est une autre affaire. Tirage par guerre plutôt que par pas, pour que le résultat ne dépende pas de dt.",
+      "todo": ["Résultat attendu à mesurer : une attribution difficile devrait favoriser la survie des stratégies agressives."]
     },
     "share_laws": {
       "status": "M",       "where": "python/p3_apply_events/_share_tech_update.py, _share_trust_update.py, _rates.py",

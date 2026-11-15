@@ -142,7 +142,13 @@ class Config:
     share_trust_gain: float = 0.3
     forgiveness: float = 0.2
 
+    # A war destroys min(1, damage_coef * exp(damage_gap_scale * (attacker tech - target tech)))
+    # of the target per interaction period: tech is a log scale of power (phase 2, points 4 and 7).
     damage_coef: float = 0.3
+    damage_gap_scale: float = 1.0
+    # The victim (and its witnesses) identifies the attacker with probability
+    # exp(-attack_stealth_per_tech * max(0, attacker tech - victim tech)), drawn once per war (0 = always).
+    attack_stealth_per_tech: float = 0.0
     # A civ wages war on at most max(1, int(attacks_per_tech_population * tech * population)) targets at once.
     attacks_per_tech_population: float = 1.0
     attack_cost_tech: float = 0.05
@@ -293,7 +299,8 @@ def _validate(c):
                  "max_broadcast_radius", "probe_speed_per_tech", "max_probe_radius",
                  "probe_lifetime_per_tech", "front_speed_per_tech", "habitable_world_density",
                  "tech_population_exponent", "artefact_stealth_per_tech", "belief_memory_years", "share_backflow",
-                 "share_synergy_bonus", "damage_coef", "attacks_per_tech_population", "reputation_trust_drop",
+                 "share_synergy_bonus", "damage_coef", "damage_gap_scale", "attack_stealth_per_tech",
+                 "attacks_per_tech_population", "reputation_trust_drop",
                  "natural_tech_progress_mean", "natural_population_growth_mean",
                  "max_natural_tech_progress"):
         check(getattr(c, name) >= 0, f"{name} must be >= 0")

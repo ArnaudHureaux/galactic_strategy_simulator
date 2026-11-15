@@ -32,8 +32,10 @@ def _detect(world, config, now):
             uncertainty = _projected_progress(view.tech_level, view.tech_rate, d / C_PC_PER_YEAR, config)
             _observe(world, civ, other, view, uncertainty, "signal" if by_signal else "probe", now)
             # A witness of an ongoing war (the victim was hit during the step of the view) loses
-            # trust in the attacker at reputation_trust_drop per interaction period.
-            if view.attacked_by in civ.belief and view.attacked_at > view.t - config.dt:
+            # trust in the attacker at reputation_trust_drop per interaction period, if the
+            # victim identified it.
+            if (view.attack_attributed and view.attacked_by in civ.belief
+                    and view.attacked_at > view.t - config.dt):
                 entry = civ.belief[view.attacked_by]
                 trust = max(0.0, entry.trust - _step_additive(config.reputation_trust_drop, config))
                 if trust != entry.trust:

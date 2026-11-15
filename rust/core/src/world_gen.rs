@@ -110,6 +110,8 @@ pub fn new_civ(id: String, position: Position, config: &Config, rng: &mut Rng, b
         recent: Default::default(),
         attacked_by: None,
         attacked_at: f64::NEG_INFINITY,
+        attack_attributed: true,
+        attributions: Default::default(),
         is_human: false,
         extinct_at: None,
         extinction_cause: None,

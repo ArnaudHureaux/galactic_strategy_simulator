@@ -122,6 +122,20 @@ où `grow` est la solution exacte de la loi de croissance techno, et `r_vue` le 
 - Calcul exact des recouvrements : il demande une géométrie détaillée pour un gain faible. Il est gardé pour comparaison en phase 7.
 - Tessellation (Voronoï) du voisinage : trop lourde pour un gain d'interprétation faible.
 
+### Point 7 : attaque
+
+*Décidé le 2026-11-14.*
+
+**Attribution.** Avant, la victime identifiait toujours l'attaquant, et les témoins aussi. Désormais, elle l'identifie avec la probabilité p = exp(−k × max(0, T_attaquant − T_victime)), où k = `attack_stealth_per_tech` est exploré dans [0 ; 5] (inconnu). C'est la même forme que la discrétion des sondes.
+- Le tirage a lieu **une fois par guerre**, à la première attaque d'un couple, sur un flux aléatoire dédié. Ainsi le résultat ne dépend pas de dt, et les autres tirages ne changent pas. Avec k = 0 (la valeur par défaut), rien n'est tiré.
+- Une attaque non attribuée fait les mêmes dégâts, mais la victime ne baisse pas sa confiance et les témoins ne pénalisent pas l'attaquant.
+- Une attaque contre l'humanité rejette le run, attribuée ou non : une attaque se remarque.
+- **Résultat attendu, à mesurer et non à coder** : dans les mondes où k est grand, les stratégies agressives subissent moins de représailles. Elles devraient donc survivre plus souvent.
+
+**Dégâts : déterministes**, pour ne pas ajouter d'aléa inconnu et garder le fast-forward simple.
+
+**Écart plutôt que rapport.** La fenêtre de décision était un écart de tech, alors que les dégâts dépendaient d'un rapport de tech. La tech est une échelle logarithmique de la puissance (point 4) : un écart de tech est donc un rapport de puissance. Les dégâts par période deviennent min(1, `damage_coef` × exp(`damage_gap_scale` × écart)). `damage_coef` est la part détruite à tech égale, et `damage_gap_scale` (exploré dans [0,1 ; 10], échelle log) mesure combien chaque niveau d'avance multiplie les dégâts. Il faudra le recaler sur le facteur par niveau de tech quand les ancres du point 11 seront en place.
+
 ## Décidés, à implémenter
 
 ### Point 11 : observation SETI réaliste (point 4 : la tech reste abstraite)
@@ -166,4 +180,4 @@ Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_
 
 ## À décider
 
-Points 3, 6, 7, 9 et 10 de la phase 2 (décidés le 2026-11-14, en cours d'implémentation).
+Points 3, 6, 9 et 10 de la phase 2 (décidés le 2026-11-14, en cours d'implémentation).

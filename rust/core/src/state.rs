@@ -19,6 +19,8 @@ pub struct Snapshot {
     pub attacked_at: f64,
     /// Tech growth rate at t (passive::tech_rate): observers project progress with it.
     pub tech_rate: f64,
+    /// Whether the last attack (attacked_by's) was attributed: witnesses only blame a known attacker.
+    pub attack_attributed: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -129,6 +131,9 @@ pub struct Civ {
     pub attacked_by: Option<usize>,
     /// Arrival date of the last attack (attacked_by's); -inf before any.
     pub attacked_at: f64,
+    /// Whether the victim identified attacked_by, and the draw made for each attacker (once per war).
+    pub attack_attributed: bool,
+    pub attributions: HashMap<usize, bool>,
     pub is_human: bool,
     pub extinct_at: Option<f64>,
     pub extinction_cause: Option<&'static str>,
@@ -159,6 +164,7 @@ impl Civ {
             expansion_radius: self.expansion_radius,
             attacked_at: self.attacked_at,
             tech_rate,
+            attack_attributed: self.attack_attributed,
         });
         // Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         let cutoff = now - horizon;

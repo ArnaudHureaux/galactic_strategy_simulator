@@ -17,6 +17,8 @@ class Snapshot:
     attacked_at: float = None
     # Tech growth rate at t (see _tech_growth._tech_rate): observers project progress with it.
     tech_rate: float = 0.0
+    # Whether the last attack (attacked_by's) was attributed: witnesses only blame a known attacker.
+    attack_attributed: bool = True
 
 
 @dataclass
@@ -66,6 +68,9 @@ class Civilisation:
     attacked_by: str = None
     # Arrival date of the last attack (attacked_by's).
     attacked_at: float = None
+    # Whether the victim identified attacked_by, and the draw made for each attacker (once per war).
+    attack_attributed: bool = True
+    attributions: dict = field(default_factory=dict)
     is_human: bool = False
     extinct_at: float = None
     extinction_cause: str = None
@@ -90,7 +95,7 @@ class Civilisation:
     def record(self, now, horizon, tech_rate):
         self.history_t.append(now)
         self.history.append(Snapshot(now, self.tech_level, self.broadcast_radius, self.probe_radius, self.attacked_by,
-                                     self.expansion_radius, self.attacked_at, tech_rate))
+                                     self.expansion_radius, self.attacked_at, tech_rate, self.attack_attributed))
         # Keep the latest snapshot older than the horizon: it still describes the state at now - horizon.
         cutoff = now - horizon
         drop = 0

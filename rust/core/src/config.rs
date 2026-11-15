@@ -106,6 +106,8 @@ pub struct Config {
     pub forgiveness: f64,
 
     pub damage_coef: f64,
+    pub damage_gap_scale: f64,
+    pub attack_stealth_per_tech: f64,
     pub attacks_per_tech_population: f64,
     pub attack_cost_tech: f64,
     pub reputation_trust_drop: f64,
@@ -201,6 +203,8 @@ impl Default for Config {
             share_trust_gain: 0.3,
             forgiveness: 0.2,
             damage_coef: 0.3,
+            damage_gap_scale: 1.0,
+            attack_stealth_per_tech: 0.0,
             attacks_per_tech_population: 1.0,
             attack_cost_tech: 0.05,
             reputation_trust_drop: 0.3,

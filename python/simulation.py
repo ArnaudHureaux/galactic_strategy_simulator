@@ -35,7 +35,7 @@ def run(config, seed, time_budget_s=None):
 
         applied = queue.pop_due(now)
         for event in applied:
-            apply_events(event, world, config)
+            apply_events(event, world, config, streams.attribution)
 
         passive_update(world, config, now, streams, dt, jump)
 
@@ -50,7 +50,7 @@ def run(config, seed, time_budget_s=None):
         # Implicit shares are applied once every civ has decided, so decisions do not depend on civ order.
         for event in emitted:
             if event.kind == "implicit_share":
-                apply_events(event, world, config)
+                apply_events(event, world, config, streams.attribution)
         queue.push_all(e for e in emitted if e.kind != "implicit_share")
 
         log.flush(world, now)

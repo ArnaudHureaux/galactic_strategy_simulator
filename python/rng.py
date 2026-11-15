@@ -48,6 +48,7 @@ class Streams:
     birth: Rng
     destruction: Rng
     artefact: Rng
+    attribution: Rng
 
 
 def make_streams(seed):

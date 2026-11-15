@@ -1,5 +1,9 @@
-# A war destroys min(1, DAMAGE_COEF * ratio) of the target per interaction period; an attack
-# event stands for one step of it (step_fraction: see share_tech_update.txt). 1 = destroyed at once.
+# A war destroys min(1, DAMAGE_COEF * exp(DAMAGE_GAP_SCALE * gap)) of the target per interaction
+# period: tech is a log scale of power, so a tech gap is a power ratio. An attack event stands for
+# one step of it (step_fraction: see share_tech_update.txt). 1 = destroyed at once.
 def attack_damage(power, target_tech_level):
-    ratio = power / target_tech_level
-    return step_fraction(min(1, DAMAGE_COEF * ratio))
+    return step_fraction(min(1, DAMAGE_COEF * exp(DAMAGE_GAP_SCALE * (power - target_tech_level))))
+
+# A more advanced attacker hides better: probability that the victim identifies it.
+def attribution_probability(power, target_tech_level):
+    return exp(-ATTACK_STEALTH_PER_TECH * max(0, power - target_tech_level))

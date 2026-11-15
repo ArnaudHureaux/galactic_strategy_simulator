@@ -1,11 +1,12 @@
 from p3_apply_events._share_tech_update import _share_tech_update
 from p3_apply_events._share_trust_update import _share_trust_update
 from p3_apply_events._rates import _step_growth
-from p3_apply_events._attack_damage import _attack_damage
+from p3_apply_events._attack_damage import _attack_damage, _attribution_probability
 from p0_passive_update._advance_fronts import _shrink_worlds
 
 
-def apply_events(event, world, config):
+def apply_events(event, world, config, rng=None):
+    # rng: the attribution stream, drawn from only when an attacker may stay unidentified.
     target = world.civ(event.dst)
     if target is None or target.status != "alive":
         return
@@ -18,7 +19,7 @@ def apply_events(event, world, config):
     elif event.kind == "implicit_share":
         _apply_share_relationship(event, target, world, config)
     elif event.kind == "attack":
-        _apply_attack(event, target, world)
+        _apply_attack(event, target, world, rng)
 
 
 def _apply_share(event, target, world, config):
@@ -44,12 +45,18 @@ def _apply_share_relationship(event, target, world, config):
             world.note_trust(entry)
 
 
-def _apply_attack(event, target, world):
+def _apply_attack(event, target, world, rng):
     damage = _attack_damage(event.power, target.tech_level, world.config)
+    # Whether the victim identifies the attacker is drawn once per war (first attack of the pair).
+    attributed = target.attributions.get(event.src)
+    if attributed is None:
+        p = _attribution_probability(event.power, target.tech_level, world.config)
+        attributed = p >= 1.0 or rng.random() < p
+        target.attributions[event.src] = attributed
     target.tech_level *= (1 - damage)
     target.population_size *= (1 - damage)
     _shrink_worlds(target, 1 - damage)
-    if event.src in target.belief:
+    if attributed and event.src in target.belief:
         entry = target.belief[event.src]
         if entry.trust != 0.0 or not entry.attacked_me:
             entry.trust = 0.0
@@ -57,5 +64,6 @@ def _apply_attack(event, target, world):
             world.note_trust(entry)
     target.attacked_by = event.src
     target.attacked_at = event.t
+    target.attack_attributed = attributed
     if target.tech_level <= 0 or target.population_size <= 0:
         target.go_extinct(event.t, "attack")

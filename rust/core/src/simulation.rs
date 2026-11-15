@@ -59,7 +59,7 @@ pub fn run(config: &Config, seed: i64, time_budget_s: Option<f64>, keep_rows: bo
 
         let applied = queue.pop_due(now);
         for event in &applied {
-            apply_event(event, &mut world, config);
+            apply_event(event, &mut world, config, &mut streams.attribution);
         }
 
         passive_update(&mut world, config, now, &mut streams, dt, jump.as_ref());
@@ -76,7 +76,7 @@ pub fn run(config: &Config, seed: i64, time_budget_s: Option<f64>, keep_rows: bo
         // Implicit shares are applied once every civ has decided, so decisions do not depend on civ order.
         for event in &emitted {
             if event.kind == Kind::ImplicitShare {
-                apply_event(event, &mut world, config);
+                apply_event(event, &mut world, config, &mut streams.attribution);
             }
         }
         for event in &emitted {

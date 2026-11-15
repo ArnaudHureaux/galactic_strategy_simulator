@@ -4,9 +4,11 @@ use crate::config::{Config, step_fraction};
 use crate::events::{Event, Kind};
 use crate::passive::shrink_worlds;
 use crate::pymath::{self, pymin};
+use crate::rng::Rng;
 use crate::state::World;
 
-pub fn apply_event(event: &Event, world: &mut World, config: &Config) {
+/// rng: the attribution stream, drawn from only when an attacker may stay unidentified.
+pub fn apply_event(event: &Event, world: &mut World, config: &Config, rng: &mut Rng) {
     if !world.civs[event.dst].alive {
         return;
     }
@@ -22,7 +24,7 @@ pub fn apply_event(event: &Event, world: &mut World, config: &Config) {
             apply_share_relationship(event, world, config);
         }
         Kind::ImplicitShare => apply_share_relationship(event, world, config),
-        Kind::Attack => apply_attack(event, world, config),
+        Kind::Attack => apply_attack(event, world, config, rng),
     }
 }
 
@@ -65,20 +67,40 @@ fn apply_share_relationship(event: &Event, world: &mut World, config: &Config) {
     }
 }
 
-fn apply_attack(event: &Event, world: &mut World, config: &Config) {
+/// A more advanced attacker hides better: probability that the victim identifies it.
+fn attribution_probability(power: f64, target_tech_level: f64, config: &Config) -> f64 {
+    let gap = power - target_tech_level;
+    if config.attack_stealth_per_tech <= 0.0 || gap <= 0.0 {
+        return 1.0;
+    }
+    pymath::exp(-config.attack_stealth_per_tech * gap)
+}
+
+fn apply_attack(event: &Event, world: &mut World, config: &Config, rng: &mut Rng) {
     let target = &mut world.civs[event.dst];
-    // A war destroys min(1, damage_coef * tech ratio) of the target per interaction period;
-    // an attack event stands for one regular step of it.
+    // A war destroys min(1, damage_coef * exp(damage_gap_scale * tech gap)) of the target per
+    // interaction period; an attack event stands for one regular step of it.
     let damage = if target.tech_level <= 0.0 {
         1.0
     } else {
-        let per_period = pymin(1.0, config.damage_coef * (event.power / target.tech_level));
+        let gain = pymath::exp(config.damage_gap_scale * (event.power - target.tech_level));
+        let per_period = pymin(1.0, config.damage_coef * gain);
         step_fraction(per_period, config.derived().interaction_step)
+    };
+    // Whether the victim identifies the attacker is drawn once per war (first attack of the pair).
+    let attributed = match target.attributions.get(&event.src) {
+        Some(&attributed) => attributed,
+        None => {
+            let p = attribution_probability(event.power, target.tech_level, config);
+            let attributed = p >= 1.0 || rng.random() < p;
+            target.attributions.insert(event.src, attributed);
+            attributed
+        }
     };
     target.tech_level *= 1.0 - damage;
     target.population_size *= 1.0 - damage;
     shrink_worlds(target, 1.0 - damage);
-    if let Some(&b) = target.belief_of.get(&event.src) {
+    if let Some(&b) = target.belief_of.get(&event.src).filter(|_| attributed) {
         let entry = &mut target.belief[b];
         if entry.trust != 0.0 || !entry.attacked_me {
             entry.trust = 0.0;
@@ -89,6 +111,7 @@ fn apply_attack(event: &Event, world: &mut World, config: &Config) {
     let target = &mut world.civs[event.dst];
     target.attacked_by = Some(event.src);
     target.attacked_at = event.t;
+    target.attack_attributed = attributed;
     if target.tech_level <= 0.0 || target.population_size <= 0.0 {
         target.go_extinct(event.t, "attack");
     }
