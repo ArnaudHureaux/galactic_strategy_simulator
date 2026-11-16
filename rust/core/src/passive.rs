@@ -227,6 +227,25 @@ pub fn tech_for_signal_radius(config: &Config, radius: f64, factor: f64) -> f64 
     anchored_tech(eirp, config.eirp_human_w, config.eirp_cap_w, config)
 }
 
+/// How long a probe launched at this tech keeps working (Voyager 1: about 50 years).
+pub fn probe_function_years(config: &Config, tech: f64) -> f64 {
+    anchored(tech, config.probe_function_human_years, config.probe_function_cap_years, config)
+}
+
+/// How long a probe launched at this tech persists as an artefact (at least while it works).
+pub fn probe_persistence_years(config: &Config, tech: f64) -> f64 {
+    let persistence = anchored(tech, config.probe_persistence_human_years, config.probe_persistence_cap_years, config);
+    pymax(persistence, probe_function_years(config, tech))
+}
+
+/// Distance (pc) a working probe can cover from where it is launched: speed * functioning time.
+pub fn probe_range(config: &Config, tech: f64) -> f64 {
+    if tech <= 0.0 {
+        return 0.0;
+    }
+    probe_speed(config, tech) * probe_function_years(config, tech)
+}
+
 /// Probe speed (pc/year), anchored on Voyager 1 for humanity.
 pub fn probe_speed(config: &Config, tech: f64) -> f64 {
     if tech <= 0.0 {
@@ -248,13 +267,30 @@ const NEAREST_NEIGHBOUR: f64 = 0.5539602783650904;
 
 /// Settlement front speed (pc/year), see _advance_fronts._front_speed_at.
 pub fn front_speed_at(civ: &Civ, config: &Config, tech: f64) -> f64 {
+    // A civ only colonizes once its probe range covers a hop (see _advance_fronts._front_speed_at).
     let speed = probe_speed(config, tech);
     let density = world_density(civ, config);
-    if speed <= 0.0 || density <= 0.0 || civ.colonization_aggressiveness <= 0.0 {
+    if speed <= 0.0 || density <= 0.0 || civ.colonization_aggressiveness <= 0.0 || tech < colonization_tech(civ, config) {
         return 0.0;
     }
-    let hop = NEAREST_NEIGHBOUR * pymath::pow(density, -1.0 / 3.0);
-    civ.colonization_aggressiveness * hop / (hop / speed + config.colonization_launch_period_years)
+    let h = hop(density);
+    civ.colonization_aggressiveness * h / (h / speed + config.colonization_launch_period_years)
+}
+
+/// Mean distance to the nearest habitable world of the civ's type.
+fn hop(density: f64) -> f64 {
+    NEAREST_NEIGHBOUR * pymath::pow(density, -1.0 / 3.0)
+}
+
+/// Tech from which the probe range covers a hop (see _advance_fronts._colonization_tech).
+pub fn colonization_tech(civ: &Civ, config: &Config) -> f64 {
+    let density = world_density(civ, config);
+    if density <= 0.0 {
+        return f64::INFINITY;
+    }
+    let human = config.probe_speed_human_c * C_PC_PER_YEAR * config.probe_function_human_years;
+    let cap = config.probe_speed_cap_c * C_PC_PER_YEAR * config.probe_function_cap_years;
+    anchored_tech(hop(density), human, cap, config)
 }
 
 /// Habitable worlds per pc^3 of the civ's own biochem type.
@@ -370,8 +406,10 @@ fn advance_fronts(world: &mut World, config: &Config, active: &[usize], advances
 }
 
 fn advance_probes(civ: &mut Civ, is_human: bool, human_position: &Position, config: &Config, now: f64, dt: f64, speed: f64) {
+    // Working probes are launched from the territory and work for a limited time (see _advance_probes).
     let before = civ.probe_radius;
-    civ.probe_radius = pymin(config.max_probe_radius, before + speed * dt);
+    let reach = civ.expansion_radius + probe_range(config, civ.tech_level);
+    civ.probe_radius = pymin(pymin(config.max_probe_radius, before + speed * dt), reach);
     if is_human || civ.probe_arrived_at_human.is_some() {
         return;
     }
@@ -644,7 +682,7 @@ fn roll_artefacts(world: &mut World, config: &Config, rng: &mut Rng, until: f64)
         if civ.artefact_rolled || world.rejected {
             continue;
         }
-        if pymax(arrival, window_start) > pymin(civ.probes_end_at(config), until) {
+        if pymax(arrival, window_start) > pymin(civ.artefacts_end_at(config), until) {
             continue;
         }
         world.civs[i].artefact_rolled = true;

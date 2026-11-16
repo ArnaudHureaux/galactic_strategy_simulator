@@ -1,6 +1,8 @@
-from math import pi, sqrt
+from math import inf, pi, sqrt
 
+from constants import C_PC_PER_YEAR
 from geometry import dist
+from p0_passive_update._anchored import _anchored_tech
 from p0_passive_update._compute_probe_speed import _probe_speed
 
 FOUR_THIRDS_PI = 4.0 / 3.0 * pi
@@ -18,12 +20,30 @@ def _front_speed_at(civ, config, tech):
     """Settlement front speed (pc/year): probes hop to the nearest habitable world of the civ's type
     at the probe speed, and a settled world launches its own after colonization_launch_period_years
     (Carroll-Nellenback et al. 2019, high-density static limit)."""
+    # Settlement probes are the same probes: one that stops working before the next world settles
+    # nothing, so a civ only colonizes once its probe range covers a hop (_colonization_tech).
     speed = _probe_speed(config, tech)
     density = _world_density(civ, config)
-    if speed <= 0 or density <= 0 or civ.colonization_aggressiveness <= 0:
+    if speed <= 0 or density <= 0 or civ.colonization_aggressiveness <= 0 or tech < _colonization_tech(civ, config):
         return 0.0
-    hop = NEAREST_NEIGHBOUR * density ** (-1.0 / 3.0)
+    hop = _hop(density)
     return civ.colonization_aggressiveness * hop / (hop / speed + config.colonization_launch_period_years)
+
+
+def _hop(density):
+    # Mean distance to the nearest habitable world of the civ's type (density in worlds per pc^3).
+    return NEAREST_NEIGHBOUR * density ** (-1.0 / 3.0)
+
+
+def _colonization_tech(civ, config):
+    """Tech from which the probe range (speed * functioning time, see _probe_range) covers a hop.
+    Both factors follow the anchored law, so their product does too, with the products of the anchors."""
+    density = _world_density(civ, config)
+    if density <= 0:
+        return inf
+    human = config.probe_speed_human_c * C_PC_PER_YEAR * config.probe_function_human_years
+    cap = config.probe_speed_cap_c * C_PC_PER_YEAR * config.probe_function_cap_years
+    return _anchored_tech(_hop(density), human, cap, config)
 
 
 def _world_density(civ, config):

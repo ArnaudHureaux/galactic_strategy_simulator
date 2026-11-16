@@ -131,14 +131,25 @@ class Civilisation:
             self.extinction_cause = cause
 
     def probes_end_at(self, config):
-        # Probes are replenished while the creator lives, then survive it for a tech-dependent time.
+        # Probes are replenished while the creator lives; the last ones work until the creator's
+        # death plus their functioning time (at the tech at death).
         if self.extinct_at is None:
             return inf
         # A dead civ is never updated again: the date is computed once.
         if self._probes_end is None:
-            tech_at_death = self.history[-1].tech_level if self.history else self.tech_level
-            self._probes_end = self.extinct_at + config.probe_lifetime_per_tech * tech_at_death
+            from p0_passive_update._compute_probe_speed import _probe_function_years  # p0 imports state
+            self._probes_end = self.extinct_at + _probe_function_years(config, self._tech_at_death())
         return self._probes_end
+
+    def artefacts_end_at(self, config):
+        # Inert probes persist after they stop working: the last ones until probes_end_at plus their persistence.
+        if self.extinct_at is None:
+            return inf
+        from p0_passive_update._compute_probe_speed import _probe_persistence_years  # p0 imports state
+        return self.probes_end_at(config) + _probe_persistence_years(config, self._tech_at_death())
+
+    def _tech_at_death(self):
+        return self.history[-1].tech_level if self.history else self.tech_level
 
 
 def _entry_order(entry):

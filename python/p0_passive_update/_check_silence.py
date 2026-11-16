@@ -96,7 +96,8 @@ def _exposure(civ, start, end, d):
 
 
 def _roll_artefacts(world, config, rng, until):
-    # Contact (b): one discovery draw per civ whose probes sat near the Sun during the artefact window.
+    # Contact (b): one discovery draw per civ whose probes sat near the Sun during the artefact window
+    # (working, or inert but still there: artefacts_end_at).
     # The draw happens when the probes are first there during the window: the least advanced (least
     # discreet) of them set the odds, against the tech humanity searches with today.
     window_start = config.present_date_years - config.artefact_window_years
@@ -104,7 +105,7 @@ def _roll_artefacts(world, config, rng, until):
         arrival = civ.probe_arrived_at_human
         if arrival is None or civ.artefact_rolled or world.rejected:
             continue
-        if max(arrival, window_start) > min(civ.probes_end_at(config), until):
+        if max(arrival, window_start) > min(civ.artefacts_end_at(config), until):
             continue
         civ.artefact_rolled = True
         stealth = config.artefact_stealth_per_tech * max(0.0, _owner_tech(civ) - config.humanity_present_tech)

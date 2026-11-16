@@ -100,7 +100,9 @@ def test_front_speed_follows_the_hop_model():
     from p0_passive_update._advance_fronts import NEAREST_NEIGHBOUR, _front_speed_at
     from p0_passive_update._compute_probe_speed import _probe_speed
 
-    config = _replace(Config(), colonization_launch_period_years=500.0)
+    # Long-lived probes: the range covers a hop from tech 1 on (see the threshold test below).
+    config = _replace(Config(), colonization_launch_period_years=500.0,
+                     probe_function_human_years=1e6, probe_function_cap_years=1e9)
     civ = _civ("a", 0.0)
     civ.colonization_aggressiveness = 0.5
     hop = NEAREST_NEIGHBOUR * _density() ** (-1.0 / 3.0)
@@ -110,3 +112,16 @@ def test_front_speed_follows_the_hop_model():
     assert _front_speed_at(civ, config, 2.0) > _front_speed_at(civ, config, 1.0)
     civ.colonization_aggressiveness = 0.0
     assert _front_speed_at(civ, config, 1.0) == 0.0
+
+
+def test_colonization_needs_a_probe_range_of_one_hop():
+    from p0_passive_update._advance_fronts import _colonization_tech, _front_speed_at, _hop
+    from p0_passive_update._compute_probe_speed import _probe_range
+
+    config = Config()
+    civ = _civ("a", 0.0)
+    threshold = _colonization_tech(civ, config)
+    assert config.humanity_present_tech < threshold < config.tech_cap
+    assert _probe_range(config, threshold) == pytest.approx(_hop(_density()))
+    assert _front_speed_at(civ, config, threshold * 0.999) == 0.0
+    assert _front_speed_at(civ, config, threshold * 1.001) > 0.0

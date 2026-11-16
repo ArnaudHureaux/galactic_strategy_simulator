@@ -155,10 +155,10 @@
     "artefact_detection_probability": {
       "status": "E", "unit": "probabilité",
       "description": "Probabilité de trouver la sonde d'une civ qui a visité le Système solaire.",
-      "justification": "Bornée par la fouille réelle : la surface terrestre est bien fouillée, mais une sonde se garerait plutôt sur la Lune, aux points de Lagrange ou en co-orbite avec la Terre, où les recherches sont très incomplètes ; peu d'entre elles pourraient détecter un objet de 1 à 10 m, et l'essentiel du volume du Système solaire n'a pas été fouillé. Borne haute ramenée de 0,5 à 0,1 (décision du 2026-11, phase 2, point 11).",
+      "justification": "Bornée par la fouille réelle : la surface terrestre est bien fouillée, mais une sonde se garerait plutôt sur la Lune, aux points de Lagrange ou en co-orbite avec la Terre, où les recherches sont très incomplètes ; peu d'entre elles pourraient détecter un objet de 1 à 10 m, et l'essentiel du volume du Système solaire n'a pas été fouillé. Borne haute ramenée de 0,5 à 0,1, borne basse descendue à 10⁻⁶ : une sonde discrète, garée là où personne n'a cherché, échapperait presque sûrement à la détection (décision du 2026-11, phase 2, point 11).",
       "source": "Haqq-Misra, J. & Kopparapu, R. K. 2012, Acta Astronautica 72, 15 ; Benford, J. 2019, AJ 158, 150.",
-      "range": {"low": 0.001, "high": 0.1, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 5 : quantifier la part fouillée par zone (Lune : LRO ; co-orbitaux)."]
+      "range": {"low": 1e-6, "high": 0.1, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : quantifier la part fouillée par zone. Lune : imagée presque entièrement par la caméra NAC de LRO (0,5–2 m/pixel) mais jamais fouillée pour des artefacts (Davies & Wagner 2013) ; Mars : HiRISE, au plus environ 5 % de la surface (McEwen et al. 2024) ; points de Lagrange, co-orbitaux, ceinture : quasi rien pour des objets de 1 à 10 m."]
     },
     "artefact_stealth_per_tech": {
       "status": "E", "unit": "1/tech",
@@ -313,12 +313,32 @@
       "description": "Plafond technique du rayon des sondes.",
       "justification": "Valeur jamais atteinte (10¹² pc) : sans effet."
     },
-    "probe_lifetime_per_tech": {
-      "status": "E", "unit": "an/tech",
-      "description": "Durée de vie des sondes, par niveau de tech.",
-      "justification": "Inconnu.",
-      "range": {"low": 1e5, "high": 1e8, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 2, point 4 : recaler sur les ancres."]
+    "probe_function_human_years": {
+      "status": "S", "unit": "an",
+      "description": "Ancre humaine de la durée de fonctionnement d'une sonde (loi ancrée sur la tech au lancement). Elle plafonne la portée des sondes en état de marche : vitesse × durée, au-delà du territoire de la civ. À la mort du créateur, les dernières sondes fonctionnent encore cette durée.",
+      "justification": "Voyager 1, lancée en 1977, transmet encore : environ 50 ans de fonctionnement. Sa portée (50 ans à 17 km/s, environ 180 UA) correspond à sa distance actuelle (décision du 2026-11, phase 2, point 11).",
+      "source": "NASA/JPL, Voyager mission status."
+    },
+    "probe_function_cap_years": {
+      "status": "E", "unit": "an",
+      "description": "Durée de fonctionnement d'une sonde au plafond de tech (ancre haute).",
+      "justification": "Sondes autoréparatrices ou auto-réplicatrices : de quelques milliers d'années à des durées géologiques. Inconnu.",
+      "source": "Freitas, R. A. 1980, JBIS 33, 251 (sonde auto-réplicatrice) ; Armstrong, S. & Sandberg, A. 2013, Acta Astronautica 89, 1.",
+      "range": {"low": 1e3, "high": 1e9, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : sourcer les bornes."]
+    },
+    "probe_persistence_human_years": {
+      "status": "S", "unit": "an",
+      "description": "Ancre humaine de la persistance physique d'une sonde éteinte : un artefact reste trouvable dans le Système solaire jusqu'à la fin de son fonctionnement plus cette durée (au moins la durée de fonctionnement).",
+      "justification": "Le disque de Voyager a été conçu pour durer de l'ordre du milliard d'années dans l'espace interstellaire (décision du 2026-11, phase 2, point 11).",
+      "source": "NASA/JPL, The Golden Record ; Sagan, C. et al. 1978, Murmurs of Earth."
+    },
+    "probe_persistence_cap_years": {
+      "status": "E", "unit": "an",
+      "description": "Persistance physique d'une sonde éteinte au plafond de tech (ancre haute).",
+      "justification": "Matériaux plus durables que les nôtres ; au-delà de l'âge de la Galaxie, la valeur n'a plus d'effet. Inconnu.",
+      "range": {"low": 1e9, "high": 1e11, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : sourcer les bornes."]
     },
     "colonization_launch_period_years": {
       "status": "E", "unit": "an",

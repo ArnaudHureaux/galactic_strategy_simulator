@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, front_speed_at, grow, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
+use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, colonization_tech, front_speed_at, grow, probe_range, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -175,10 +175,21 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
         tech_budget[i] = Some(rel * world.civs[i].tech_level);
         pop_budget[i] = Some(rel * world.civs[i].population_size);
     }
+    // A front starts at colonization_tech: the jump stops short of it (see _plan_jump).
+    let growth_cap = config.tech_growth_cap();
+    for &i in &active {
+        let c = &world.civs[i];
+        if c.colonization_aggressiveness > 0.0 && !c.front_blocked {
+            let threshold = colonization_tech(c, config);
+            if c.tech_level < threshold && growth_cap.map_or(true, |cap| threshold < cap) {
+                tech_budget[i] = Some(pymin(tech_budget[i].expect("active"), threshold - c.tech_level));
+            }
+        }
+    }
     // Fronts of attacked civs replay one regular step per jump (see passive_update): they do not drift.
     let mut front_budget: Vec<Option<f64>> = vec![None; n];
     for &i in &active {
-        if !pop_touched[i] && front_moves(&world.civs[i]) {
+        if !pop_touched[i] && front_moves(&world.civs[i], config) {
             front_budget[i] = Some(initial_front_budget(&world.civs[i], config, rel));
         }
     }
@@ -420,9 +431,14 @@ fn detection_limit(
             if y.probe_radius >= d {
                 return 0.0;
             }
-            // Probe speed grows with tech: bound it by the end-of-jump tech.
+            // Probe speed and range grow with tech: bound them by the end-of-jump tech. The nearest
+            // unseen target out of reach of the working probes cannot be reached during the jump.
             let budget = tech_budget[yi].expect("active");
-            let speed = pymax(y.probe_speed, probe_speed(config, y.tech_level + pymax(0.0, budget)));
+            let end_tech = y.tech_level + pymax(0.0, budget);
+            if d > front_end(y, front_budget[yi]) + probe_range(config, end_tech) {
+                break;
+            }
+            let speed = pymax(y.probe_speed, probe_speed(config, end_tech));
             if speed > 0.0 {
                 limit = pymin(limit, (d - y.probe_radius) / speed - config.dt);
             }
@@ -505,8 +521,9 @@ fn time_to_spend_tech_budget(civ: &Civ, config: &Config, tech_budget: f64, pop_b
 }
 
 /// An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
-fn front_moves(civ: &Civ) -> bool {
+fn front_moves(civ: &Civ, config: &Config) -> bool {
     civ.colonization_aggressiveness > 0.0 && civ.tech_level > 0.0 && !civ.front_blocked
+        && civ.tech_level >= colonization_tech(civ, config)
 }
 
 /// Worlds only matter through the population capacity, which a jump keeps at its start value:

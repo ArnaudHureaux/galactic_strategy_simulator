@@ -30,10 +30,10 @@ from p0_passive_update._growth_law import grow, time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
-from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _front_speed_at, _world_density
+from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _colonization_tech, _front_speed_at, _world_density
 from p0_passive_update._compute_broadcast_radius import _signal_radius, _tech_for_signal_radius
 from p0_passive_update._detect import _beacon_hazard
-from p0_passive_update._compute_probe_speed import _probe_speed
+from p0_passive_update._compute_probe_speed import _probe_range, _probe_speed
 from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capacity, _compute_max_number_of_attack
 
 
@@ -136,6 +136,13 @@ def _plan_jump(world, config, now, streams, tech_touched, pop_touched):
     rel = config.jump_max_relative_change
     tech_budget = {c.id: rel * c.tech_level for c in active}
     pop_budget = {c.id: rel * c.population_size for c in active}
+    # A front starts at _colonization_tech: the jump stops short of it (crossed at normal resolution).
+    growth_cap = _tech_growth_cap(config)
+    for c in active:
+        if c.colonization_aggressiveness > 0 and not c.front_blocked:
+            threshold = _colonization_tech(c, config)
+            if c.tech_level < threshold and (growth_cap is None or threshold < growth_cap):
+                tech_budget[c.id] = min(tech_budget[c.id], threshold - c.tech_level)
     # Fronts of attacked civs replay one regular step per jump (see passive_update): they do not drift.
     moving = {c.id for c in active if c.id not in pop_touched and _front_moves(c, config)}
     front_budget = {c.id: _front_budget(c, config, rel) for c in active if c.id in moving}
@@ -315,8 +322,12 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
                 continue
             if y.probe_radius >= d:
                 return 0.0
-            # Probe speed grows with tech: bound it by the end-of-jump tech.
-            speed = max(y.probe_speed, _probe_speed(config, y.tech_level + max(0.0, tech_budget[y.id])))
+            # Probe speed and range grow with tech: bound them by the end-of-jump tech. The nearest
+            # unseen target out of reach of the working probes cannot be reached during the jump.
+            end_tech = y.tech_level + max(0.0, tech_budget[y.id])
+            if d > _front_end(y, front_budget) + _probe_range(config, end_tech):
+                break
+            speed = max(y.probe_speed, _probe_speed(config, end_tech))
             if speed > 0:
                 limit = min(limit, (d - y.probe_radius) / speed - config.dt)
             break
@@ -381,7 +392,8 @@ def _time_to_spend_tech_budget(civ, config, tech_budget, pop_budget):
 
 def _front_moves(civ, config):
     # An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
-    return civ.colonization_aggressiveness > 0 and civ.tech_level > 0 and not civ.front_blocked
+    return (civ.colonization_aggressiveness > 0 and civ.tech_level > 0 and not civ.front_blocked
+            and civ.tech_level >= _colonization_tech(civ, config))
 
 
 def _front_budget(civ, config, rel):

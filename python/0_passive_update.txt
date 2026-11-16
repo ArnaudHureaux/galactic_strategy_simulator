@@ -12,7 +12,8 @@ for civ in world.civs:
     advance_probes(civ, dt)  # records when the probe sphere reaches the Sun
     civ.record_snapshot(now)
 
-# orphan probes keep spreading for PROBE_LIFETIME_PER_TECH * tech_at_death years
+# orphan probes keep spreading until extinct_at + probe_function_years(tech_at_death); inert, they stay
+# findable as artefacts for probe_persistence_years(tech_at_death) more (see roll_artefacts)
 for civ in world.extinct_with_live_probes(now):
     advance_probes(civ, dt)
 

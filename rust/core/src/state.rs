@@ -6,6 +6,7 @@ use std::rc::Rc;
 
 use crate::config::Config;
 use crate::geometry::{NeighborIndex, Position};
+use crate::passive::{probe_function_years, probe_persistence_years};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 
 #[derive(Clone, Copy, Debug)]
@@ -203,16 +204,26 @@ impl Civ {
         }
     }
 
-    /// Probes are replenished while the creator lives, then survive it for a tech-dependent time.
+    /// Probes are replenished while the creator lives; the last ones work until its death plus
+    /// their functioning time (at the tech at death).
     pub fn probes_end_at(&self, config: &Config) -> f64 {
         match self.extinct_at {
             None => f64::INFINITY,
-            // A dead civ is never updated again: its last snapshot is final.
-            Some(extinct_at) => {
-                let tech_at_death = self.history.back().map_or(self.tech_level, |s| s.tech_level);
-                extinct_at + config.probe_lifetime_per_tech * tech_at_death
-            }
+            Some(extinct_at) => extinct_at + probe_function_years(config, self.tech_at_death()),
         }
+    }
+
+    /// Inert probes persist after they stop working (see State.artefacts_end_at).
+    pub fn artefacts_end_at(&self, config: &Config) -> f64 {
+        if self.extinct_at.is_none() {
+            return f64::INFINITY;
+        }
+        self.probes_end_at(config) + probe_persistence_years(config, self.tech_at_death())
+    }
+
+    /// A dead civ is never updated again: its last snapshot is final.
+    fn tech_at_death(&self) -> f64 {
+        self.history.back().map_or(self.tech_level, |s| s.tech_level)
     }
 
     pub fn belief_entry(&self, target: usize) -> Option<&BeliefEntry> {

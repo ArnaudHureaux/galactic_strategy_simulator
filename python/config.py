@@ -143,7 +143,13 @@ class Config:
     probe_speed_human_c: float = 5.67e-5
     probe_speed_cap_c: float = 0.1
     max_probe_radius: float = 1e12
-    probe_lifetime_per_tech: float = 1e6
+    # Probes work for probe_function_*_years (Voyager 1 for humanity), which caps their range at
+    # speed * functioning time beyond the civ's territory, then persist as inert artefacts for
+    # probe_persistence_*_years (at least as long as they work). Both anchored on the tech at launch.
+    probe_function_human_years: float = 50.0
+    probe_function_cap_years: float = 1.0e6
+    probe_persistence_human_years: float = 1.0e9
+    probe_persistence_cap_years: float = 1.0e10
 
     # Colonization front (see p0_passive_update/_advance_fronts.py): settlement probes hop to the nearest
     # free habitable world at the probe speed, and a settled world launches its own probes after
@@ -322,8 +328,12 @@ def _validate(c):
     check(0 < c.eirp_human_w <= c.eirp_cap_w, "eirp_human_w must be in (0, eirp_cap_w]")
     check(0 < c.probe_speed_human_c <= c.probe_speed_cap_c <= 1, "probe speeds must satisfy 0 < human <= cap <= 1")
     check(c.seti_flux_threshold_w_m2 > 0, "seti_flux_threshold_w_m2 must be > 0")
+    check(0 < c.probe_function_human_years <= c.probe_function_cap_years,
+          "probe_function_human_years must be in (0, probe_function_cap_years]")
+    check(0 < c.probe_persistence_human_years <= c.probe_persistence_cap_years,
+          "probe_persistence_human_years must be in (0, probe_persistence_cap_years]")
     for name in ("self_destruction_risk", "passive_leakage_factor", "max_probe_radius",
-                 "probe_lifetime_per_tech", "colonization_launch_period_years", "habitable_world_density",
+                 "colonization_launch_period_years", "habitable_world_density",
                  "tech_population_exponent", "artefact_stealth_per_tech", "belief_memory_years", "share_backflow",
                  "share_synergy_bonus", "damage_coef", "attack_stealth_per_tech",
                  "attacks_per_tech_population", "reputation_trust_drop",
