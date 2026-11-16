@@ -393,7 +393,7 @@ def _time_to_spend_tech_budget(civ, config, tech_budget, pop_budget):
 def _front_moves(civ, config):
     # An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
     return (civ.colonization_aggressiveness > 0 and civ.tech_level > 0 and not civ.front_blocked
-            and civ.tech_level >= _colonization_tech(civ, config))
+            and _front_speed_at(civ, config, civ.tech_level) > 0)
 
 
 def _front_budget(civ, config, rel):

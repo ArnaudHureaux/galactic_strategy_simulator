@@ -251,7 +251,20 @@ pub fn probe_speed(config: &Config, tech: f64) -> f64 {
     if tech <= 0.0 {
         return 0.0;
     }
-    anchored(tech, config.probe_speed_human_c, config.probe_speed_cap_c, config) * C_PC_PER_YEAR
+    // Anchored law on gamma - 1, speed from special relativity (see _compute_probe_speed._probe_speed).
+    let energy = anchored(tech, kinetic(config.probe_speed_human_c), kinetic(config.probe_speed_cap_c), config);
+    beta(energy) * C_PC_PER_YEAR
+}
+
+/// gamma - 1 for a speed beta (fraction of c), without cancellation at low speed.
+fn kinetic(beta: f64) -> f64 {
+    let s = (1.0 - beta * beta).sqrt();
+    beta * beta / (s * (1.0 + s))
+}
+
+/// Speed (fraction of c) for a kinetic energy gamma - 1.
+fn beta(kinetic: f64) -> f64 {
+    (kinetic * (kinetic + 2.0)).sqrt() / (1.0 + kinetic)
 }
 
 // _advance_fronts
@@ -270,7 +283,7 @@ pub fn front_speed_at(civ: &Civ, config: &Config, tech: f64) -> f64 {
     // A civ only colonizes once its probe range covers a hop (see _advance_fronts._front_speed_at).
     let speed = probe_speed(config, tech);
     let density = world_density(civ, config);
-    if speed <= 0.0 || density <= 0.0 || civ.colonization_aggressiveness <= 0.0 || tech < colonization_tech(civ, config) {
+    if speed <= 0.0 || density <= 0.0 || civ.colonization_aggressiveness <= 0.0 || probe_range(config, tech) < hop(density) {
         return 0.0;
     }
     let h = hop(density);
@@ -285,12 +298,20 @@ fn hop(density: f64) -> f64 {
 /// Tech from which the probe range covers a hop (see _advance_fronts._colonization_tech).
 pub fn colonization_tech(civ: &Civ, config: &Config) -> f64 {
     let density = world_density(civ, config);
-    if density <= 0.0 {
+    let h = if density > 0.0 { hop(density) } else { f64::INFINITY };
+    if probe_range(config, config.tech_cap) < h {
         return f64::INFINITY;
     }
-    let human = config.probe_speed_human_c * C_PC_PER_YEAR * config.probe_function_human_years;
-    let cap = config.probe_speed_cap_c * C_PC_PER_YEAR * config.probe_function_cap_years;
-    anchored_tech(hop(density), human, cap, config)
+    let (mut low, mut high) = (0.0, config.tech_cap);
+    for _ in 0..64 {
+        let mid = (low + high) / 2.0;
+        if probe_range(config, mid) < h {
+            low = mid;
+        } else {
+            high = mid;
+        }
+    }
+    high
 }
 
 /// Habitable worlds per pc^3 of the civ's own biochem type.

@@ -326,7 +326,7 @@ def _validate(c):
     check(c.share_decay > 0, "share_decay must be > 0")
 
     check(0 < c.eirp_human_w <= c.eirp_cap_w, "eirp_human_w must be in (0, eirp_cap_w]")
-    check(0 < c.probe_speed_human_c <= c.probe_speed_cap_c <= 1, "probe speeds must satisfy 0 < human <= cap <= 1")
+    check(0 < c.probe_speed_human_c <= c.probe_speed_cap_c < 1, "probe speeds must satisfy 0 < human <= cap < 1")
     check(c.seti_flux_threshold_w_m2 > 0, "seti_flux_threshold_w_m2 must be > 0")
     check(0 < c.probe_function_human_years <= c.probe_function_cap_years,
           "probe_function_human_years must be in (0, probe_function_cap_years]")

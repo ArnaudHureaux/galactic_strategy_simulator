@@ -523,7 +523,7 @@ fn time_to_spend_tech_budget(civ: &Civ, config: &Config, tech_budget: f64, pop_b
 /// An enclave stays blocked until the civ around it shrinks (attack) or dies (random event).
 fn front_moves(civ: &Civ, config: &Config) -> bool {
     civ.colonization_aggressiveness > 0.0 && civ.tech_level > 0.0 && !civ.front_blocked
-        && civ.tech_level >= colonization_tech(civ, config)
+        && front_speed_at(civ, config, civ.tech_level) > 0.0
 }
 
 /// Worlds only matter through the population capacity, which a jump keeps at its start value:

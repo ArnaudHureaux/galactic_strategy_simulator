@@ -303,7 +303,7 @@
     },
     "probe_speed_cap_c": {
       "status": "E", "unit": "fraction de c",
-      "description": "Vitesse des sondes au plafond de tech (ancre haute de la loi vitesse(tech)).",
+      "description": "Vitesse des sondes au plafond de tech. La loi ancrée porte sur l'énergie cinétique par unité d'énergie de masse (γ − 1), de Voyager 1 à cette vitesse ; la vitesse s'en déduit par la relativité restreinte, elle monte vite puis sature sous c.",
       "justification": "Sondes à fusion de type Daedalus, environ 0,12 c (Bond 1978) ; voiles poussées par laser, 0,2 c (Lubin 2016) ; sondes auto-réplicatrices de 0,5 à 0,99 c (Armstrong & Sandberg 2013).",
       "source": "Bond, A. 1978, JBIS (Project Daedalus) ; Lubin, P. 2016, JBIS 69, 40 ; Armstrong, S. & Sandberg, A. 2013, Acta Astronautica 89, 1.",
       "range": {"low": 0.01, "high": 0.99, "scale": "log"}, "range_basis": "littérature"

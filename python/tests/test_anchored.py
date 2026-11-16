@@ -39,3 +39,16 @@ def test_probe_speed_goes_from_voyager_to_the_cap():
     assert _probe_speed(config, config.humanity_present_tech) == pytest.approx(5.67e-5 * C_PC_PER_YEAR)
     assert _probe_speed(config, config.tech_cap) == pytest.approx(0.2 * C_PC_PER_YEAR)
     assert _probe_speed(config, 0.0) == 0.0
+
+
+def test_probe_speed_follows_special_relativity():
+    from p0_passive_update._compute_probe_speed import _beta, _kinetic
+
+    # Kinetic energy per unit rest energy: 0 -> 0.3c costs far less than 0.6c -> 0.99999c.
+    assert _kinetic(0.6) - _kinetic(0.3) > 4 * _kinetic(0.3)
+    assert _kinetic(0.99999) - _kinetic(0.6) > 1000 * _kinetic(0.3)
+    for beta in (5.67e-5, 0.2, 0.99):
+        assert _beta(_kinetic(beta)) == pytest.approx(beta, rel=1e-12)
+    config = replace(Config(), probe_speed_cap_c=0.99)
+    speeds = [_probe_speed(config, t) / C_PC_PER_YEAR for t in (0.5, 1.0, 2.0, 2.9, 3.0, 10.0)]
+    assert speeds == sorted(speeds) and speeds[-1] < 1.0
