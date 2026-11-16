@@ -31,7 +31,8 @@ def _detect(world, config, now, dt, rng):
             # Signals carry from sphere edge to sphere edge. Humanity's signal detection is the
             # survey test of _check_silence: here it only sees through its own probes.
             gap = d - civ.expansion_radius - view.expansion_radius
-            by_probe = _probe_reached(civ, seen_at, d)
+            # Probes see the target on reaching its territory (any of its systems).
+            by_probe = _probe_reached(civ, seen_at, d - view.expansion_radius)
             by_signal = False
             if not civ.is_human:
                 by_signal = view.leak_radius >= gap

@@ -183,12 +183,17 @@ fn population_growth(civ: &mut Civ, config: &Config, dt: f64, exact: bool) {
 }
 
 /// (leak radius, beacon radius) in pc (see _compute_broadcast_radius._compute_signal_radii).
+/// Humanity's leakage is observed; the other civs' is explored.
+pub fn leak_factor(civ: &Civ, config: &Config) -> f64 {
+    if civ.is_human { config.humanity_leakage_factor } else { config.passive_leakage_factor }
+}
+
 fn compute_signal_radii(civ: &Civ, config: &Config, now: f64) -> (f64, f64) {
     // Humanity's technosignatures only exist since it leaks radio signals.
     if civ.is_human && now < config.present_date_years - config.humanity_leak_years {
         return (0.0, 0.0);
     }
-    let leak = signal_radius(config, civ.tech_level, config.passive_leakage_factor);
+    let leak = signal_radius(config, civ.tech_level, leak_factor(civ, config));
     let beacon = if civ.strategy.broadcast { signal_radius(config, civ.tech_level, 1.0) } else { 0.0 };
     (leak, beacon)
 }
@@ -314,13 +319,27 @@ pub fn colonization_tech(civ: &Civ, config: &Config) -> f64 {
     high
 }
 
-/// Habitable worlds per pc^3 of the civ's own biochem type.
-pub fn world_density(civ: &Civ, config: &Config) -> f64 {
+/// Mid-plane habitable worlds per pc^3 of the civ's own biochem type (see _advance_fronts).
+pub fn midplane_density(civ: &Civ, config: &Config) -> f64 {
     config.habitable_world_density * config.world_type_fractions[civ.biochem]
+        * pymath::exp(config.sun_height_pc / config.scale_height_pc)
 }
 
-fn shell_worlds(radius: f64, new_radius: f64, density: f64) -> f64 {
-    density * (FOUR_THIRDS_PI * (new_radius * new_radius * new_radius - radius * radius * radius))
+/// Habitable worlds per pc^3 of the civ's own biochem type around its home (disk profile).
+pub fn world_density(civ: &Civ, config: &Config) -> f64 {
+    midplane_density(civ, config) * pymath::exp(-civ.position[2].abs() / config.scale_height_pc)
+}
+
+/// Habitable worlds of the civ's type within radius of its home (see _advance_fronts._sphere_worlds).
+fn sphere_worlds(civ: &Civ, radius: f64, config: &Config) -> f64 {
+    let h = config.scale_height_pc;
+    let volume = FOUR_THIRDS_PI * radius * radius * radius;
+    let lift = pymath::exp(-pymax(0.0, civ.position[2].abs() - radius) / h);
+    midplane_density(civ, config) * volume * lift / (1.0 + 2.0 * radius / (3.0 * h))
+}
+
+fn shell_worlds(civ: &Civ, radius: f64, new_radius: f64, config: &Config) -> f64 {
+    sphere_worlds(civ, new_radius, config) - sphere_worlds(civ, radius, config)
 }
 
 /// Share of the sky that a sphere of radius other_radius at distance d hides from the observer.
@@ -414,13 +433,13 @@ fn advance_fronts(world: &mut World, config: &Config, active: &[usize], advances
         fractions.push(free);
     }
     for ((&i, &advance), &free) in active.iter().zip(advances).zip(&fractions) {
-        let density = world_density(&world.civs[i], config);
         let civ = &mut world.civs[i];
         civ.front_blocked = advance > 0.0 && free == 0.0;
         civ.free_fraction = free;
         if advance > 0.0 && free > 0.0 {
             let radius = new_radius[i].unwrap();
-            civ.nb_of_world += free * shell_worlds(civ.expansion_radius, radius, density);
+            let shell = shell_worlds(civ, civ.expansion_radius, radius, config);
+            civ.nb_of_world += free * shell;
             civ.expansion_radius = radius;
         }
     }
@@ -492,7 +511,8 @@ fn detect(world: &mut World, config: &Config, now: f64, dt: f64, rng: &mut Rng) 
             // Signals carry from sphere edge to sphere edge. Humanity's signal detection is the
             // survey test of check_silence: here it only sees through its own probes.
             let gap = d - world.civs[i].expansion_radius - view.expansion_radius;
-            let by_probe = probe_reached(&world.civs[i], seen_at, d);
+            // Probes see the target on reaching its territory (any of its systems).
+            let by_probe = probe_reached(&world.civs[i], seen_at, d - view.expansion_radius);
             let mut by_signal = false;
             if !world.civs[i].is_human {
                 by_signal = view.leak_radius >= gap;

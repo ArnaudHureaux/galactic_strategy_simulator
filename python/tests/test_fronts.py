@@ -1,23 +1,30 @@
-from math import pi
+from math import exp, pi
 
 import pytest
 
 from config import Config
-from p0_passive_update._advance_fronts import _advance_fronts, _cap_fraction, _holds, _world_density
+from p0_passive_update._advance_fronts import (_advance_fronts, _cap_fraction, _holds, _sphere_worlds,
+                                              _world_density)
 from state import Civilisation, World
 
 
 def _civ(civ_id, x, biochem="water", radius=0.0, is_human=False):
     return Civilisation(
         id=civ_id, position=(x, 0.0, 0.0), birth_year=0.0, status="alive", biochem_type=biochem,
-        tech_level=1.0, population_size=1.0, nb_of_world=1.0 + _density() * 4.0 / 3.0 * pi * radius ** 3,
+        tech_level=1.0, population_size=1.0, nb_of_world=1.0,
         natural_tech_progress=0.0, natural_population_growth=0.0, colonization_aggressiveness=1.0,
         strategy={}, expansion_radius=radius, is_human=is_human)
 
 
 def _density():
+    # Density around a home in the mid-plane (the tests' civs sit at z = 0).
     config = Config()
-    return config.habitable_world_density * config.world_type_fractions[0]
+    return _world_density(_civ("probe", 0.0), config)
+
+
+def _worlds(radius):
+    # Worlds within radius of a home in the mid-plane (disk profile, see _sphere_worlds).
+    return _sphere_worlds(_civ("probe", 0.0), radius, Config())
 
 
 def _world(*civs):
@@ -42,7 +49,7 @@ def test_a_lone_front_takes_the_whole_sphere():
     world = _world(a, _civ("h", 1e6, is_human=True))
     _grow(world, 10)
     assert a.expansion_radius == 10.0 and a.free_fraction == 1.0
-    assert a.nb_of_world == pytest.approx(1.0 + _density() * 4.0 / 3.0 * pi * 1000.0)
+    assert a.nb_of_world == pytest.approx(1.0 + _worlds(10.0))
 
 
 def test_competitors_in_contact_keep_growing_elsewhere():
@@ -53,8 +60,8 @@ def test_competitors_in_contact_keep_growing_elsewhere():
     assert a.expansion_radius == 20.0 and not a.front_blocked
     assert b.id in a.contacts and a.id in b.contacts
     assert a.free_fraction == pytest.approx(0.5) and a.free_fraction == b.free_fraction
-    full = 1.0 + _density() * 4.0 / 3.0 * pi * 20.0 ** 3
-    assert 1.0 + _density() * 4.0 / 3.0 * pi * 5.0 ** 3 < a.nb_of_world < full
+    full = 1.0 + _worlds(20.0)
+    assert 1.0 + _worlds(5.0) < a.nb_of_world < full
     assert a.nb_of_world == b.nb_of_world
 
 
@@ -67,6 +74,7 @@ def test_other_biochem_does_not_block():
 
 def test_an_enclave_cannot_grow_and_does_not_block():
     a, b = _civ("a", 0.0, radius=50.0), _civ("b", 10.0)
+    a.nb_of_world += _worlds(50.0)
     world = _world(a, b, _civ("h", 1e6, is_human=True))
     _grow(world, 5)
     assert b.front_blocked and b.expansion_radius == 0.0 and b.nb_of_world == 1.0
@@ -125,3 +133,24 @@ def test_colonization_needs_a_probe_range_of_one_hop():
     assert _probe_range(config, threshold) == pytest.approx(_hop(_density()))
     assert _front_speed_at(civ, config, threshold * 0.999) == 0.0
     assert _front_speed_at(civ, config, threshold * 1.001) > 0.0
+
+
+def test_worlds_follow_the_disk():
+    config = Config()
+    h = config.scale_height_pc
+    home, high = _civ("a", 0.0), _civ("b", 0.0)
+    high.position = (0.0, 0.0, 600.0)
+    # Small spheres: the density around the home, which falls with the height.
+    assert _sphere_worlds(home, 1.0, config) == pytest.approx(_world_density(home, config) * 4.0 / 3.0 * pi, rel=1e-2)
+    assert _world_density(high, config) == pytest.approx(_world_density(home, config) * exp(-600.0 / h))
+    # Local density at the Sun's height is habitable_world_density (times the type's share).
+    sun = _civ("s", 0.0)
+    sun.position = (0.0, 0.0, config.sun_height_pc)
+    assert _world_density(sun, config) == pytest.approx(config.habitable_world_density * config.world_type_fractions[0])
+    # Much wider than the disk: the column density 2 h n over the disc pi R^2, whatever the height.
+    for civ in (home, high):
+        assert _sphere_worlds(civ, 1e6, config) == pytest.approx(_world_density(home, config) * 2 * h * pi * 1e12, rel=1e-3)
+    radii = [0.0, 1.0, 100.0, 600.0, 601.0, 1e4]
+    for civ in (home, high):
+        counts = [_sphere_worlds(civ, r, config) for r in radii]
+        assert counts == sorted(counts)

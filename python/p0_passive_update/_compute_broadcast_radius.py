@@ -10,9 +10,14 @@ def _compute_signal_radii(civ, config, now):
     # Humanity's technosignatures only exist since it leaks radio signals.
     if civ.is_human and now < config.present_date_years - config.humanity_leak_years:
         return 0.0, 0.0
-    leak = _signal_radius(config, civ.tech_level, config.passive_leakage_factor)
+    leak = _signal_radius(config, civ.tech_level, _leak_factor(civ, config))
     beacon = _signal_radius(config, civ.tech_level, 1.0) if civ.strategy["broadcast"] else 0.0
     return leak, beacon
+
+
+def _leak_factor(civ, config):
+    # Humanity's leakage is observed; the other civs' is explored.
+    return config.humanity_leakage_factor if civ.is_human else config.passive_leakage_factor
 
 
 def _signal_radius(config, tech, factor):

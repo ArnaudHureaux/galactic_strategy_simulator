@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, colonization_tech, front_speed_at, grow, probe_range, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach, world_density};
+use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, colonization_tech, front_speed_at, leak_factor, midplane_density, grow, probe_range, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -393,7 +393,7 @@ fn detection_limit(
         widest_front = pymax(widest_front, front_end(c, front_budget[i]));
         if c.leak_radius > 0.0 || c.beacon_radius > 0.0 {
             let end_tech = c.tech_level + pymax(0.0, tech_budget[i].expect("active"));
-            let factor = if c.beacon_radius > 0.0 { 1.0 } else { config.passive_leakage_factor };
+            let factor = if c.beacon_radius > 0.0 { 1.0 } else { leak_factor(c, config) };
             widest_signal = pymax(widest_signal, signal_radius(config, end_tech, factor));
         }
     }
@@ -414,35 +414,40 @@ fn detection_limit(
                 if !is_active[xi] || x.tech_level <= 0.0 || seen_now(y, xi, now) {
                     continue;
                 }
-                signal_budget(x, xi, y, yi, d, x.leak_radius, config.passive_leakage_factor, config, tech_budget, front_budget);
+                signal_budget(x, xi, y, yi, d, x.leak_radius, leak_factor(x, config), config, tech_budget, front_budget);
                 if x.beacon_radius > 0.0 && !y.exposures.contains_key(&xi) {
                     signal_budget(x, xi, y, yi, d, x.beacon_radius, 1.0, config, tech_budget, front_budget);
                 }
             }
         }
+        // Probes see a target on reaching its territory (see fast_forward._detection_limit).
+        let budget = tech_budget[yi].expect("active");
+        let end_tech = y.tech_level + pymax(0.0, budget);
+        let probe_reach = front_end(y, front_budget[yi]) + probe_range(config, end_tech);
+        let speed = pymax(y.probe_speed, probe_speed(config, end_tech));
         for (&d, &xi) in distances.iter().zip(neighbors) {
-            if d > config.max_probe_radius {
+            let nearest = d - widest_front;
+            if nearest > config.max_probe_radius || nearest > probe_reach {
+                break;
+            }
+            if speed > 0.0 && (nearest - y.probe_radius) / speed - config.dt >= limit {
                 break;
             }
             let xi = xi as usize;
             if !is_active[xi] || seen_now(y, xi, now) {
                 continue;
             }
-            if y.probe_radius >= d {
+            let x = &world.civs[xi];
+            if y.probe_radius >= d - x.expansion_radius {
                 return 0.0;
             }
-            // Probe speed and range grow with tech: bound them by the end-of-jump tech. The nearest
-            // unseen target out of reach of the working probes cannot be reached during the jump.
-            let budget = tech_budget[yi].expect("active");
-            let end_tech = y.tech_level + pymax(0.0, budget);
-            if d > front_end(y, front_budget[yi]) + probe_range(config, end_tech) {
-                break;
+            let edge = d - front_end(x, front_budget[xi]);
+            if edge > probe_reach {
+                continue;
             }
-            let speed = pymax(y.probe_speed, probe_speed(config, end_tech));
             if speed > 0.0 {
-                limit = pymin(limit, (d - y.probe_radius) / speed - config.dt);
+                limit = pymin(limit, (edge - y.probe_radius) / speed - config.dt);
             }
-            break;
         }
     }
     limit
@@ -529,7 +534,8 @@ fn front_moves(civ: &Civ, config: &Config) -> bool {
 /// Worlds only matter through the population capacity, which a jump keeps at its start value:
 /// the error on pop / capacity is kept within rel (see fast_forward._front_budget).
 fn initial_front_budget(civ: &Civ, config: &Config, rel: f64) -> f64 {
-    let density = world_density(civ, config);
+    // The mid-plane density bounds the density anywhere in the disk.
+    let density = midplane_density(civ, config);
     let capacity = population_capacity(civ, config);
     let Some(capacity) = capacity else { return f64::INFINITY };
     if density <= 0.0 || civ.population_size <= 0.0 || civ.free_fraction <= 0.0 {

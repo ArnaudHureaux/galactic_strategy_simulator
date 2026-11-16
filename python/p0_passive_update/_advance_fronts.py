@@ -1,4 +1,4 @@
-from math import inf, pi, sqrt
+from math import exp, inf, pi, sqrt
 
 from geometry import dist
 from p0_passive_update._compute_probe_speed import _probe_range, _probe_speed
@@ -51,13 +51,31 @@ def _colonization_tech(civ, config):
     return high
 
 
+def _midplane_density(civ, config):
+    # Habitable worlds per pc^3 of the civ's own biochem type in the galactic mid-plane:
+    # habitable_world_density is the local value, at the Sun's height in the exponential disk.
+    fraction = config.world_type_fractions[config.biochem_types.index(civ.biochem_type)]
+    return config.habitable_world_density * fraction * exp(config.sun_height_pc / config.scale_height_pc)
+
+
 def _world_density(civ, config):
-    # Habitable worlds per pc^3 of the civ's own biochem type.
-    return config.habitable_world_density * config.world_type_fractions[config.biochem_types.index(civ.biochem_type)]
+    # Habitable worlds per pc^3 of the civ's own biochem type around its home (disk profile).
+    return _midplane_density(civ, config) * exp(-abs(civ.position[2]) / config.scale_height_pc)
 
 
-def _shell_worlds(radius, new_radius, density):
-    return density * (FOUR_THIRDS_PI * (new_radius * new_radius * new_radius - radius * radius * radius))
+def _sphere_worlds(civ, radius, config):
+    """Habitable worlds of the civ's type within radius of its home, in a disk whose density falls
+    as exp(-|z| / h). Approximation, exact in both limits: the density around the home for a small
+    sphere, and the column density (2 h times the mid-plane density) over the disc pi R^2 for a
+    sphere much wider than the disk; continuous and increasing in the radius."""
+    h = config.scale_height_pc
+    volume = FOUR_THIRDS_PI * radius * radius * radius
+    lift = exp(-max(0.0, abs(civ.position[2]) - radius) / h)
+    return _midplane_density(civ, config) * volume * lift / (1.0 + 2.0 * radius / (3.0 * h))
+
+
+def _shell_worlds(civ, radius, new_radius, config):
+    return _sphere_worlds(civ, new_radius, config) - _sphere_worlds(civ, radius, config)
 
 
 def _cap_fraction(other_radius, d):
@@ -117,7 +135,7 @@ def _advance_fronts(world, config, advances):
         civ.free_fraction = free
         if advance > 0 and free > 0.0:
             radius = new_radius[civ.id]
-            civ.nb_of_world += free * _shell_worlds(civ.expansion_radius, radius, _world_density(civ, config))
+            civ.nb_of_world += free * _shell_worlds(civ, civ.expansion_radius, radius, config)
             civ.expansion_radius = radius
 
 

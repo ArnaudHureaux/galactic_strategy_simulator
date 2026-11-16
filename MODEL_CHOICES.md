@@ -227,6 +227,14 @@ Cela impose de **placer l'humanité sur l'échelle** : c'est fait au point 5 (T_
 
 **Question ouverte (traitée à l'étape 2).** Une civ qui « émet volontairement » le fait-elle en continu et dans toutes les directions, à l'EIRP d'un radar dirigé ? Pour une émission isotrope, 20 TW d'EIRP correspondent à 20 TW réels, soit à peu près la consommation énergétique actuelle de l'humanité. C'est une surestimation probable. Le facteur p_on de l'étape 2 en tiendra compte pour la détection par l'humanité, mais la détection entre civs reste à discuter.
 
+### Audit de la phase 2 : corrections
+
+*Fait le 2026-11-16.*
+
+- **Fuites de l'humanité** : `passive_leakage_factor` s'appliquait aussi à l'humanité, qui fuyait donc selon un paramètre exploré. Elle a maintenant sa valeur observée, `humanity_leakage_factor` = 2·10⁻⁴ (LTE / Arecibo, Sheikh et al. 2025). Le paramètre exploré ne vaut plus que pour les autres civs.
+- **Mondes d'un territoire** : la densité était uniforme et sans borne, si bien que quelques fronts (0,3 % des civs de l'exploration du 2026-11-15) comptaient plus de mondes que la région n'en contient. La densité suit maintenant le profil exponentiel du disque : `habitable_world_density` est la valeur locale, à la hauteur du Soleil. Une sphère de rayon R compte n_milieu × (4/3)πR³ × e^(−max(0, |z| − R)/h) / (1 + 2R/3h) mondes, une approximation exacte dans les deux limites (densité autour du foyer pour une petite sphère, densité de colonne 2h n_milieu sur le disque πR² pour une sphère bien plus large que le disque). Le saut de colonisation utilise la densité autour du foyer : une civ loin du plan colonise plus lentement. L'extension horizontale de la galaxie n'est pas bornée : un front qui la dépasserait tient le Soleil depuis longtemps, et le run est rejeté.
+- **Détection par sonde** : elle se mesurait d'un foyer à l'autre, alors que les signaux vont d'un bord de territoire à l'autre. Une sonde voit maintenant une civ en atteignant son territoire.
+
 ## À décider
 
 Aucun point de la phase 2 (le point 11 est décidé, reste à implémenter).

@@ -30,8 +30,8 @@ from p0_passive_update._growth_law import grow, time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
-from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _colonization_tech, _front_speed_at, _world_density
-from p0_passive_update._compute_broadcast_radius import _signal_radius, _tech_for_signal_radius
+from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _colonization_tech, _front_speed_at, _midplane_density
+from p0_passive_update._compute_broadcast_radius import _leak_factor, _signal_radius, _tech_for_signal_radius
 from p0_passive_update._detect import _beacon_hazard
 from p0_passive_update._compute_probe_speed import _probe_range, _probe_speed
 from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capacity, _compute_max_number_of_attack
@@ -297,7 +297,7 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
         widest_front = max(widest_front, _front_end(c, front_budget))
         if c.leak_radius > 0 or c.beacon_radius > 0:
             end_tech = c.tech_level + max(0.0, tech_budget[c.id])
-            factor = 1.0 if c.beacon_radius > 0 else config.passive_leakage_factor
+            factor = 1.0 if c.beacon_radius > 0 else _leak_factor(c, config)
             widest_signal = max(widest_signal, _signal_radius(config, end_tech, factor))
     window_start = config.present_date_years - config.humanity_listening_years
     for y in active:
@@ -311,26 +311,31 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
             for d, x in zip(distances[:n_signal], neighbors[:n_signal]):
                 if x.id not in active_ids or x.tech_level <= 0 or _seen_now(y, x, now):
                     continue
-                _signal_budget(x, y, d, x.leak_radius, config.passive_leakage_factor, config, tech_budget, front_budget)
+                _signal_budget(x, y, d, x.leak_radius, _leak_factor(x, config), config, tech_budget, front_budget)
                 if x.beacon_radius > 0 and x.id not in y.exposures:
                     _signal_budget(x, y, d, x.beacon_radius, 1.0, config, tech_budget, front_budget)
         # tech_budget[y.id] only changes while scanning other observers, as in a pair-by-pair scan.
+        # Probes see a target on reaching its territory, whose edge may come closer during the jump.
+        # Probe speed and range grow with tech: bound them by the end-of-jump tech.
+        end_tech = y.tech_level + max(0.0, tech_budget[y.id])
+        probe_reach = _front_end(y, front_budget) + _probe_range(config, end_tech)
+        speed = max(y.probe_speed, _probe_speed(config, end_tech))
         for d, x in zip(distances, neighbors):
-            if d > config.max_probe_radius:
+            # No later neighbour has its territory closer than d - widest_front.
+            nearest = d - widest_front
+            if nearest > config.max_probe_radius or nearest > probe_reach:
+                break
+            if speed > 0 and (nearest - y.probe_radius) / speed - config.dt >= limit:
                 break
             if x.id not in active_ids or _seen_now(y, x, now):
                 continue
-            if y.probe_radius >= d:
+            if y.probe_radius >= d - x.expansion_radius:
                 return 0.0
-            # Probe speed and range grow with tech: bound them by the end-of-jump tech. The nearest
-            # unseen target out of reach of the working probes cannot be reached during the jump.
-            end_tech = y.tech_level + max(0.0, tech_budget[y.id])
-            if d > _front_end(y, front_budget) + _probe_range(config, end_tech):
-                break
-            speed = max(y.probe_speed, _probe_speed(config, end_tech))
+            edge = d - _front_end(x, front_budget)
+            if edge > probe_reach:
+                continue
             if speed > 0:
-                limit = min(limit, (d - y.probe_radius) / speed - config.dt)
-            break
+                limit = min(limit, (edge - y.probe_radius) / speed - config.dt)
     return limit
 
 
@@ -400,7 +405,8 @@ def _front_budget(civ, config, rel):
     # Worlds only matter through the population capacity, which a jump keeps at its start value:
     # the error on the logistic term pop / capacity is pop / capacity times the relative growth
     # of the capacity, kept within rel (a civ far below its capacity can expand a lot).
-    density = _world_density(civ, config)
+    # The mid-plane density bounds the density anywhere in the disk (see _sphere_worlds).
+    density = _midplane_density(civ, config)
     capacity = _population_capacity(civ, config)
     if density <= 0 or capacity is None or civ.population_size <= 0 or civ.free_fraction <= 0:
         return inf

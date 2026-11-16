@@ -127,6 +127,8 @@ class Config:
     eirp_human_w: float = 2.0e13
     eirp_cap_w: float = 1.0e21
     passive_leakage_factor: float = 2.0e-4
+    # Humanity's own leakage is observed (LTE networks / Arecibo radar), not explored.
+    humanity_leakage_factor: float = 2.0e-4
     # Sensitivity of the observers: a signal is seen while EIRP >= 4 pi d^2 seti_flux_threshold_w_m2.
     seti_flux_threshold_w_m2: float = 3.3e-25
     # Every civ leaks (continuous, all directions: seen for sure within its leak sphere); a civ that
@@ -332,7 +334,7 @@ def _validate(c):
           "probe_function_human_years must be in (0, probe_function_cap_years]")
     check(0 < c.probe_persistence_human_years <= c.probe_persistence_cap_years,
           "probe_persistence_human_years must be in (0, probe_persistence_cap_years]")
-    for name in ("self_destruction_risk", "passive_leakage_factor", "max_probe_radius",
+    for name in ("self_destruction_risk", "passive_leakage_factor", "humanity_leakage_factor", "max_probe_radius",
                  "colonization_launch_period_years", "habitable_world_density",
                  "tech_population_exponent", "artefact_stealth_per_tech", "belief_memory_years", "share_backflow",
                  "share_synergy_bonus", "damage_coef", "attack_stealth_per_tech",

@@ -250,10 +250,15 @@
     "passive_leakage_factor": {
       "status": "E", "unit": "sans dimension",
       "description": "EIRP des fuites d'une civ qui n'émet pas volontairement, rapportée à son émission volontaire (même niveau de tech).",
-      "justification": "Ancré sur l'humanité : fuites des réseaux LTE, environ 4 GW vus de l'espace, rapportées aux 20 TW du radar d'Arecibo, soit 2·10⁻⁴ (valeur par défaut). Pour les autres civs, l'intervalle couvre un ordre de grandeur et demi de part et d'autre.",
-      "source": "Sheikh, S. Z. et al. 2025, AJ 169, 118 (section 2, d'après Saide et al. 2023 pour le LTE).",
+      "justification": "Civs non humaines seulement (l'humanité a sa valeur observée, humanity_leakage_factor). L'intervalle couvre un ordre de grandeur et demi de part et d'autre de la valeur humaine.",
       "range": {"low": 1e-5, "high": 1e-2, "scale": "log"}, "range_basis": "provisoire",
       "todo": ["Phase 5 : intervalle."]
+    },
+    "humanity_leakage_factor": {
+      "status": "S", "unit": "sans dimension",
+      "description": "Fuites de l'humanité rapportées à son émission volontaire (EIRP du radar d'Arecibo).",
+      "justification": "Fuites des réseaux LTE, environ 4 GW vus de l'espace, rapportées aux 20 TW du radar d'Arecibo, soit 2·10⁻⁴. Observé : il n'est pas exploré.",
+      "source": "Sheikh, S. Z. et al. 2025, AJ 169, 118 (section 2, d'après Saide et al. 2023 pour le LTE)."
     },
     "beacon_duty": {
       "status": "E", "unit": "probabilité",
@@ -350,7 +355,7 @@
     },
     "habitable_world_density": {
       "status": "E", "unit": "mondes/pc³",
-      "description": "Densité de mondes habitables (tous types de biochimie).",
+      "description": "Densité locale de mondes habitables (tous types de biochimie), à la hauteur du Soleil dans le disque. Elle suit le profil exponentiel du disque (scale_height_pc) : les territoires comptent leurs mondes avec ce profil.",
       "justification": "À sourcer : densité stellaire locale (≈ 0,1 étoile/pc³) × η⊕ (Kepler).",
       "range": {"low": 1e-4, "high": 0.1, "scale": "log"}, "range_basis": "provisoire",
       "todo": ["Phase 5 : sourcer η⊕."]

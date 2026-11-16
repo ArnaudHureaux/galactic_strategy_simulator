@@ -52,3 +52,13 @@ def test_probe_speed_follows_special_relativity():
     config = replace(Config(), probe_speed_cap_c=0.99)
     speeds = [_probe_speed(config, t) / C_PC_PER_YEAR for t in (0.5, 1.0, 2.0, 2.9, 3.0, 10.0)]
     assert speeds == sorted(speeds) and speeds[-1] < 1.0
+
+
+def test_humanity_leaks_at_its_observed_rate_whatever_the_explored_factor():
+    from types import SimpleNamespace
+
+    from p0_passive_update._compute_broadcast_radius import _leak_factor
+
+    config = replace(Config(), passive_leakage_factor=1e-2)
+    assert _leak_factor(SimpleNamespace(is_human=True), config) == config.humanity_leakage_factor == 2e-4
+    assert _leak_factor(SimpleNamespace(is_human=False), config) == 1e-2
