@@ -72,6 +72,10 @@ class Config:
     jump_max_relative_change: float = 0.01
 
     region_radius_pc: float = 1000.0
+    # Size-convergence tool: when > 0, the galaxy of region_radius_pc is drawn as usual (same random
+    # numbers), then only the civs within crop_radius_pc of the axis are kept, initial and born alike.
+    # Runs that differ only by the crop share the same civs inside it (nested galaxies).
+    crop_radius_pc: float = 0.0
     scale_height_pc: float = 300.0
     # Humanity sits at the centre of the region, sun_height_pc above the mid-plane.
     sun_height_pc: float = 20.8
@@ -304,6 +308,7 @@ def _validate(c):
     check(c.jump_max_relative_change > 0, "jump_max_relative_change must be > 0")
 
     check(c.region_radius_pc > 0, "region_radius_pc must be > 0")
+    check(0 <= c.crop_radius_pc <= c.region_radius_pc, "crop_radius_pc must be in [0, region_radius_pc]")
     check(c.scale_height_pc > 0, "scale_height_pc must be > 0")
     check(len(c.biochem_types) >= 1, "biochem_types must not be empty")
     check(len(set(c.biochem_types)) == len(c.biochem_types), "biochem_types must be unique")

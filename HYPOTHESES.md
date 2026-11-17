@@ -11,7 +11,7 @@ Statuts :
 - **I** non influent : fixé car le criblage de Morris montre qu'il ne pèse pas
 - **M** choix de modèle : forme d'une loi ou règle, alternatives testées en robustesse
 
-101 paramètres : 52 E, 11 S, 7 N, 18 D, 13 M.
+102 paramètres : 52 E, 11 S, 8 N, 18 D, 13 M.
 23 règles codées en dur. 44 points ouverts.
 
 ## E : exploré
@@ -97,6 +97,7 @@ Statuts :
 | `fast_forward` | oui | booléen |  | Saut des régimes stationnaires. | Accélération : les sauts reproduisent la loi des tirages pas à pas (compare_fast_forward.py). | Phase 3 : comparer les distributions de résultats avec et sans fast-forward. |
 | `max_jump_years` | 1e+07 | an |  | Durée maximale d'un saut. | Paramètre de calcul du fast-forward. | Phase 3 : convergence. |
 | `jump_max_relative_change` | 0.01 | sans dimension |  | Variation relative maximale d'une variable lente pendant un saut. | Paramètre de calcul du fast-forward. | Phase 3 : convergence. |
+| `crop_radius_pc` | 0 | pc |  | Outil de convergence en taille : si > 0, la galaxie de rayon region_radius_pc est tirée normalement, puis seules les civs (initiales et nées) à moins de crop_radius_pc de l'axe sont gardées. Deux runs qui ne diffèrent que par ce recadrage ont les mêmes civs à l'intérieur (galaxies emboîtées). | 0 (désactivé) dans les études ; sert à tester l'effet des civs lointaines à conditions initiales identiques. |  |
 | `max_probe_radius` | 1e+12 | pc |  | Plafond technique du rayon des sondes. | Valeur jamais atteinte (10¹² pc) : sans effet. |  |
 
 ## D : définition

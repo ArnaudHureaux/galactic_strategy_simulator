@@ -52,6 +52,7 @@ pub struct Config {
     pub jump_max_relative_change: f64,
 
     pub region_radius_pc: f64,
+    pub crop_radius_pc: f64,
     pub scale_height_pc: f64,
     pub sun_height_pc: f64,
 
@@ -174,6 +175,7 @@ impl Default for Config {
             max_jump_years: 1.0e7,
             jump_max_relative_change: 0.01,
             region_radius_pc: 1000.0,
+            crop_radius_pc: 0.0,
             scale_height_pc: 300.0,
             sun_height_pc: 20.8,
             biochem_types: vec!["water".into(), "ammonia".into(), "silicon".into()],

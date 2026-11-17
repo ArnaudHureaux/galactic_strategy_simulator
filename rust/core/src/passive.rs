@@ -6,7 +6,7 @@ use crate::geometry::{Position, dist};
 use crate::pymath::{self, C_PC_PER_YEAR, M_PER_PC, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{BeliefEntry, Channel, Civ, Snapshot, World};
-use crate::world_gen::{new_civ, sample_lens_position};
+use crate::world_gen::{in_crop, new_civ, sample_lens_position};
 
 /// dt is the time elapsed since the previous step; jump carries the events forced by the fast-forward.
 pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mut Streams, dt: f64, jump: Option<&Jump>) {
@@ -16,9 +16,13 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
     };
     if born {
         let position = sample_lens_position(config, &mut streams.birth);
-        let id = format!("c_{}", world.civs.len());
+        // Cropped worlds have gaps in the c_ ids of the initial civs: births get their own prefix.
+        let prefix = if config.crop_radius_pc > 0.0 { "b" } else { "c" };
+        let id = format!("{prefix}_{}", world.civs.len());
         let civ = new_civ(id, position, config, &mut streams.birth, now);
-        world.add_civ(civ);
+        if in_crop(&position, config) {
+            world.add_civ(civ);
+        }
     }
 
     let horizon = world.history_horizon(config);

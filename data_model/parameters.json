@@ -56,6 +56,11 @@
       "justification": "Choix de l'échelle simulée : une région autour du Soleil, pas la Galaxie entière.",
       "todo": ["Phase 2, point 6 : justifier la taille.", "Phase 3 : effets de bord à densité constante."]
     },
+    "crop_radius_pc": {
+      "status": "N", "unit": "pc",
+      "description": "Outil de convergence en taille : si > 0, la galaxie de rayon region_radius_pc est tirée normalement, puis seules les civs (initiales et nées) à moins de crop_radius_pc de l'axe sont gardées. Deux runs qui ne diffèrent que par ce recadrage ont les mêmes civs à l'intérieur (galaxies emboîtées).",
+      "justification": "0 (désactivé) dans les études ; sert à tester l'effet des civs lointaines à conditions initiales identiques."
+    },
     "scale_height_pc": {
       "status": "S", "unit": "pc",
       "description": "Hauteur d'échelle du profil vertical exponentiel des positions.",

@@ -90,3 +90,11 @@ def test_initial_births_are_spread_after_the_start():
     default = _replace(config, birth_spread_fraction=0.0)
     assert all(c.birth_year == config.start_date_years
                for c in _generate(default, _streams(3)).civs if not c.is_human)
+
+
+def test_a_cropped_world_keeps_the_same_civs_inside_the_crop():
+    big = replace(Config(), region_radius_pc=4000.0, expected_bubbles=80.0)
+    full, cropped = _world(big), _world(replace(big, crop_radius_pc=1000.0))
+    inside = [c for c in full.civs if c.position[0] ** 2 + c.position[1] ** 2 <= 1000.0 ** 2]
+    assert len(inside) < len(full.civs)
+    assert _snapshot(cropped) == [(c.id, c.position, c.biochem_type, c.strategy) for c in inside]

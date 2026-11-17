@@ -9,7 +9,10 @@ use crate::rng::{Rng, Streams};
 use crate::state::{Civ, Strategy, World};
 
 pub fn generate_world(config: &Config, streams: &mut Streams) -> World {
-    let mut civs = seed_life_in_bubbles(config, &mut streams.world);
+    let mut civs: Vec<Civ> = seed_life_in_bubbles(config, &mut streams.world)
+        .into_iter()
+        .filter(|c| in_crop(&c.position, config))
+        .collect();
     civs.push(make_humanity(config, &mut streams.humanity));
     World::new(civs, config)
 }
@@ -50,6 +53,12 @@ fn make_humanity(config: &Config, rng: &mut Rng) -> Civ {
     humanity.colonization_aggressiveness = 0.0;
     humanity.natural_tech_progress = config.derived().humanity_tech_rate;
     humanity
+}
+
+/// _in_crop: nested galaxies (crop_radius_pc) keep only what lies within the crop radius of the axis.
+pub fn in_crop(position: &Position, config: &Config) -> bool {
+    let crop = config.crop_radius_pc;
+    crop <= 0.0 || position[0] * position[0] + position[1] * position[1] <= crop * crop
 }
 
 pub fn sample_lens_position(config: &Config, rng: &mut Rng) -> Position {

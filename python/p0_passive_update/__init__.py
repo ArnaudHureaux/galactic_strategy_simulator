@@ -1,4 +1,4 @@
-from generate_world._sample_lens_position import _sample_lens_position
+from generate_world._sample_lens_position import _sample_lens_position, _in_crop
 from generate_world._new_civ import _new_civ
 from p0_passive_update._tech_growth import _tech_growth, _tech_rate, _human_tech
 from p0_passive_update._population_growth import _population_growth
@@ -20,7 +20,11 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
         born = jump.birth
     if born:
         position = _sample_lens_position(config, streams.birth)
-        world.add_civ(_new_civ(f"c_{len(world.civs)}", position, config, streams.birth, now))
+        # Cropped worlds have gaps in the c_ ids of the initial civs: births get their own prefix.
+        prefix = "b" if config.crop_radius_pc > 0 else "c"
+        civ = _new_civ(f"{prefix}_{len(world.civs)}", position, config, streams.birth, now)
+        if _in_crop(position, config):
+            world.add_civ(civ)
 
     horizon = world.history_horizon()
     active = world.active(now)

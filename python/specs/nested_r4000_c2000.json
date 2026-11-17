@@ -1,0 +1,143 @@
+{
+  "description": "Nested region-size test: the 4000 pc galaxy (lhs25 with expected_bubbles and civ_birth_rate scaled by 16) cropped to 2000 pc. nested_r4000_c1000, _c2000 and _full share design_seed, n_points and seeds, so they hold the same civs within the crop. LHS over the environment, the strategic make-up of the galaxy and colonization (27 dims). Environment ranges are those of the pilot. Strategy mix: one weight per archetype (config.ARCHETYPES), log-uniform on [0.01, 1] so that galaxies dominated by one or two archetypes are sampled as well as balanced ones; 'random' is the former uniform draw of every trait. strategy_noise spreads civs around their archetype (fraction of each trait's range). artefact_stealth_per_tech: 0 = probes as visible whatever their owner's tech, 5 = a probe 1 tech level above humanity is found exp(-5) as often. Colonization: colonization_launch_period_years, the delay before a settled world launches its own probes (front speed from Carroll-Nellenback et al. 2019, probe speed anchored on Voyager 1 and probe_speed_cap_c); habitable world density per pc^3; tech_population_exponent from tech independent of population (0) to linear returns (1). max_steps is the deterministic budget; run with --time-budget 600 as a wall-clock safety net. Ranges are first guesses, not sourced priors.",
+  "design_seed": 1,
+  "n_points": 150,
+  "seeds_per_point": 1,
+  "base": {
+    "max_steps": 1000000,
+    "region_radius_pc": 4000.0,
+    "crop_radius_pc": 2000.0
+  },
+  "parameters": {
+    "expected_bubbles": {
+      "low": 16.0,
+      "high": 160.0,
+      "scale": "log"
+    },
+    "civs_per_bubble": {
+      "low": 5.0,
+      "high": 40.0,
+      "scale": "log"
+    },
+    "civ_birth_rate": {
+      "low": 1.6e-09,
+      "high": 1.6e-06,
+      "scale": "log"
+    },
+    "self_destruction_risk": {
+      "low": 1e-10,
+      "high": 1e-06,
+      "scale": "log"
+    },
+    "self_destruction_correlation": {
+      "low": 0.001,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "natural_tech_progress_mean": {
+      "low": 3e-11,
+      "high": 8e-06,
+      "scale": "log"
+    },
+    "probe_speed_cap_c": {
+      "low": 0.01,
+      "high": 0.99,
+      "scale": "log"
+    },
+    "probe_function_cap_years": {
+      "low": 1000.0,
+      "high": 1000000000.0,
+      "scale": "log"
+    },
+    "artefact_detection_probability": {
+      "low": 1e-06,
+      "high": 0.1,
+      "scale": "log"
+    },
+    "eirp_cap_w": {
+      "low": 1e+16,
+      "high": 1e+26,
+      "scale": "log"
+    },
+    "passive_leakage_factor": {
+      "low": 1e-05,
+      "high": 0.01,
+      "scale": "log"
+    },
+    "seti_flux_threshold_cap_w_m2": {
+      "low": 3.3e-37,
+      "high": 3.3e-25,
+      "scale": "log"
+    },
+    "damage_coef": {
+      "low": 0.05,
+      "high": 1.0
+    },
+    "share_synergy_bonus": {
+      "low": 0.0,
+      "high": 0.5
+    },
+    "strategy_mix_random": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_mix_full_aggressive": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_mix_full_passive": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_mix_anti_competitors": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_mix_anti_weaker_competitors": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_mix_dark_forest": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_mix_broadcaster": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_mix_cooperative": {
+      "low": 0.01,
+      "high": 1.0,
+      "scale": "log"
+    },
+    "strategy_noise": {
+      "low": 0.0,
+      "high": 0.3
+    },
+    "artefact_stealth_per_tech": {
+      "low": 0.0,
+      "high": 5.0
+    },
+    "colonization_launch_period_years": {
+      "low": 100.0,
+      "high": 100000000.0,
+      "scale": "log"
+    },
+    "habitable_world_density": {
+      "low": 0.0001,
+      "high": 0.1,
+      "scale": "log"
+    },
+    "tech_population_exponent": {
+      "low": 0.0,
+      "high": 1.0
+    }
+  }
+}

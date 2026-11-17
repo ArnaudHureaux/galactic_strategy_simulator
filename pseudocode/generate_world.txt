@@ -1,6 +1,9 @@
 def generate_world(config):
     rng = Random(config.seed)
     civs = seed_life_in_bubbles(config, rng)
+    # nested galaxies (CROP_RADIUS_PC > 0): same draws, only the civs within the crop are kept;
+    # births outside it are drawn then dropped as well
+    civs = [c for c in civs if in_crop(c.position)]
     humanity = make_humanity(config, rng)
     civs.append(humanity)
     return World(civs=civs, humanity=humanity, now=config.present_date_years - config.start_lookback_years)
