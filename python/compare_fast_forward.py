@@ -3,7 +3,11 @@
 Apart from rare random events (births, self-destruction), the dynamics is deterministic,
 so both modes should tell nearly the same story for a given seed. Artefact discovery is
 switched off: it is a pure random draw that would stop runs at unrelated dates. Only the
-civs generated at the start are compared, since civs born later differ between runs.
+civs generated at the start are compared, since civs born later differ between runs: the
+fast-forward draws the step of the next birth at once (same geometric law, other draws). A civ
+born in one run only may then interact with the others, so a seed whose births differ (marked *)
+can drift apart without any fast-forward error: rerun with --config setting civ_birth_rate to 0
+to check the fast-forward alone.
 
 Several fast-forward variants can be compared with the same fixed-step reference, e.g.
 to measure what a looser jump budget costs in accuracy:
@@ -141,7 +145,9 @@ def main():
                 f"{c['alive_mismatch']:>10} {c['max_extinction_shift']:>14.4g} {c['max_tech_gap']:>12.3g} "
                 f"{c['max_front_gap']:>9.2%} "
                 f"{str(fixed['steps']) + '/' + str(fast['steps']):>16} {fixed['time']:>7.1f}/{fast['time']:<7.1f}"
+                + (" *" if fixed["births"] != fast["births"] else "")
             )
+        print("* births differ between the two runs: gaps may come from the extra civ (see the module docstring).")
 
     print(f"\n{'variant':>10} {'same outcome':>13} {'alive diff (mean)':>18} {'tech gap (median/max)':>22} "
           f"{'steps':>10} {'time (s)':>9} {'speed-up vs fixed':>18}")
