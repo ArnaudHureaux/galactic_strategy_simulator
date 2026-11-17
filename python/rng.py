@@ -53,7 +53,16 @@ class Streams:
 
 
 def make_streams(seed):
-    return Streams(**{name: Rng(_derive_seed(seed, name)) for name in Streams.__dataclass_fields__})
+    streams = Streams(**{name: Rng(_derive_seed(seed, name)) for name in Streams.__dataclass_fields__})
+    # Kept for substream: per-bubble and per-birth streams.
+    streams.seed = seed
+    return streams
+
+
+def substream(seed, name):
+    """Stream of its own for one bubble or one birth: what it draws does not depend on how many
+    other bubbles or births were drawn in detail (only those near the region are)."""
+    return Rng(_derive_seed(seed, name))
 
 
 def _derive_seed(seed, name):

@@ -13,9 +13,10 @@ number of regular steps long, that stops before anything can break it:
   - a probe sphere, a broadcast radius or colonization fronts reaching a civ that is not
     seen yet, or a front reaching the Sun;
   - a remembered belief expiring (belief_memory_years);
-  - a fixed date (humanity birth, start of the artefact and human signal windows, present);
-  - a random event (civ birth, self-destruction), placed at the first step where the
-    per-step roll of the fixed-step run would succeed (same geometric law).
+  - a fixed date (humanity birth, start of the artefact and human signal windows, present,
+    birth of a civ: births are drawn up front, see generate_world);
+  - a self-destruction, placed at the first step where the per-step roll of the fixed-step
+    run would succeed (same geometric law).
 During the jump the event queue is translated in time, so the step that ends the jump
 looks exactly like the next regular step of the stationary regime.
 """
@@ -42,7 +43,6 @@ from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capac
 @dataclass
 class Jump:
     dt: float
-    birth: bool = False
     extinctions: frozenset = frozenset()
     # Civs whose tech/population is held periodic by events: they replay one regular
     # step of growth instead of drifting over the whole jump.
@@ -167,21 +167,17 @@ def _plan_jump(world, config, now, streams, tech_touched, pop_touched):
     if n_steps < 2:
         return None
 
-    # Random events: draw the index of the first step at which the per-step roll of the
+    # Self-destructions: draw the index of the first step at which the per-step roll of the
     # fixed-step run would succeed (geometric law), and stop the jump there.
     draws = []
-    if config.civ_birth_rate > 0:
-        draws.append((_first_success(log1p(-min(1.0, config.civ_birth_rate * config.dt)), streams.birth), None))
     for c in active:
         hazard = _self_destruction_hazard(c, config)
         if hazard > 0:
             draws.append((_first_success(-hazard * config.dt, streams.destruction), c.id))
     n_steps = min([n_steps] + [k for k, _ in draws])
-    forced = [civ_id for k, civ_id in draws if k == n_steps]
     return Jump(
         dt=n_steps * config.dt,
-        birth=None in forced,
-        extinctions=frozenset(civ_id for civ_id in forced if civ_id is not None),
+        extinctions=frozenset(civ_id for k, civ_id in draws if k == n_steps),
         frozen_tech=tech_touched,
         frozen_pop=pop_touched,
     )

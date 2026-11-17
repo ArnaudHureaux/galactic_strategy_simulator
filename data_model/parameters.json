@@ -51,15 +51,25 @@
       "todo": ["Phase 3 : convergence."]
     },
     "region_radius_pc": {
-      "status": "M", "unit": "pc",
-      "description": "Rayon de la région simulée (disque).",
-      "justification": "Choix de l'échelle simulée : une région autour du Soleil, pas la Galaxie entière.",
-      "todo": ["Phase 2, point 6 : justifier la taille.", "Phase 3 : effets de bord à densité constante."]
-    },
-    "crop_radius_pc": {
       "status": "N", "unit": "pc",
-      "description": "Outil de convergence en taille : si > 0, la galaxie de rayon region_radius_pc est tirée normalement, puis seules les civs (initiales et nées) à moins de crop_radius_pc de l'axe sont gardées. Deux runs qui ne diffèrent que par ce recadrage ont les mêmes civs à l'intérieur (galaxies emboîtées).",
-      "justification": "0 (désactivé) dans les études ; sert à tester l'effet des civs lointaines à conditions initiales identiques."
+      "description": "Rayon (distance horizontale au Soleil) de la région simulée ; 0 = toute la galaxie. La galaxie entière est toujours tirée avec les mêmes nombres aléatoires, puis seules les civs (initiales et nées) de la région sont gardées : des régions de tailles différentes sont emboîtées.",
+      "justification": "Paramètre de calcul : un silence obtenu dans une petite région se vérifie sur la galaxie entière (test emboîté du 2026-11-17 : 1 seul des 122 rejets à 1 kpc redevient silencieux à 2 kpc).",
+      "todo": ["Phase 3 : règle « silence => galaxie entière » et sa vérification."]
+    },
+    "galactic_radius_sun_pc": {
+      "status": "S", "unit": "pc",
+      "description": "Distance du Soleil au centre galactique : centre de l'anneau habitable.",
+      "justification": "Mesure par l'orbite de l'étoile S2 autour de Sgr A*.",
+      "source": "GRAVITY Collaboration 2019, A&A 625, L10 (R0 = 8,18 kpc).",
+      "todo": ["Vérifier la référence avant citation."]
+    },
+    "ghz_width_pc": {
+      "status": "E", "unit": "pc",
+      "description": "Largeur (écart-type) de l'anneau gaussien de la zone habitable galactique, centré sur le rayon du Soleil.",
+      "justification": "Zone habitable galactique : trop de supernovae et de sursauts gamma vers le centre, trop peu de métaux vers l'extérieur. Lineweaver et al. 2004 : anneau d'environ 7 à 9 kpc (σ ≈ 1 kpc) ; Gowanlock et al. 2011 : zone plus large.",
+      "source": "Lineweaver, Fenner & Gibson 2004, Science 303, 59 ; Gowanlock, Patton & McConnell 2011, Astrobiology 11, 855.",
+      "range": {"low": 500.0, "high": 4000.0, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Vérifier les références avant citation.", "Phase 5 : intervalle."]
     },
     "scale_height_pc": {
       "status": "S", "unit": "pc",
@@ -93,11 +103,11 @@
       "range": {"low": 30.0, "high": 1000.0, "scale": "log"}, "range_basis": "provisoire",
       "todo": ["Phase 5 : intervalle."]
     },
-    "expected_bubbles": {
-      "status": "E", "unit": "bulles",
-      "description": "Nombre moyen de bulles de vie dans la région (loi de Poisson).",
-      "justification": "Fréquence de l'apparition de la vie : inconnue (Sandberg, Drexler & Ord 2018).",
-      "range": {"low": 1.0, "high": 10.0, "scale": "log"}, "range_basis": "provisoire",
+    "bubble_density_kpc2": {
+      "status": "E", "unit": "bulles/kpc²",
+      "description": "Densité de bulles de vie par kpc² de disque au rayon du Soleil (sommet de l'anneau habitable ; processus de Poisson).",
+      "justification": "Fréquence de l'apparition de la vie : inconnue (Sandberg, Drexler & Ord 2018). Ancien intervalle [1 ; 10] bulles dans la région de 1 kpc, divisé par π.",
+      "range": {"low": 0.32, "high": 3.2, "scale": "log"}, "range_basis": "provisoire",
       "todo": ["Phase 5 : intervalle (zéro bulle inclus ?)."]
     },
     "civs_per_bubble": {
@@ -107,11 +117,11 @@
       "range": {"low": 5.0, "high": 40.0, "scale": "log"}, "range_basis": "provisoire",
       "todo": ["Phase 5 : intervalle."]
     },
-    "civ_birth_rate": {
-      "status": "E", "unit": "civs/an",
-      "description": "Taux de naissance de nouvelles civs après le départ.",
-      "justification": "Inconnu.",
-      "range": {"low": 1e-10, "high": 1e-7, "scale": "log"}, "range_basis": "provisoire",
+    "civ_birth_rate_kpc2": {
+      "status": "E", "unit": "civs/an/kpc²",
+      "description": "Taux de naissance de nouvelles civs après le départ, par kpc² de disque au rayon du Soleil. Toutes les naissances sont tirées dès le départ (processus de Poisson), donc identiques avec ou sans fast-forward et dans des régions emboîtées.",
+      "justification": "Inconnu. Ancien intervalle [1e-10 ; 1e-7] par an dans la région de 1 kpc, divisé par π.",
+      "range": {"low": 3e-11, "high": 3e-8, "scale": "log"}, "range_basis": "provisoire",
       "todo": ["Phase 5 : intervalle."]
     },
     "start_lookback_years": {
@@ -652,10 +662,10 @@
       "justification": "Annis 1999 justifie une resynchronisation par le dernier sursaut gamma ; l'étalement rend compte du temps variable de l'évolution vers l'intelligence (phase 2, point 3)."
     },
     "bubble_geometry": {
-      "status": "M", "where": "python/generate_world/_sample_lens_position.py, _seed_life_in_bubbles.py",
-      "description": "Centres des bulles : disque uniforme en surface, profil vertical exponentiel. Civs uniformes dans une boule autour du centre.",
-      "justification": "Approximation du disque mince.",
-      "todo": ["Phase 2, point 6."]
+      "status": "M", "where": "python/generate_world/_galaxy.py, _seed_life_in_bubbles.py",
+      "description": "Centres des bulles et naissances : anneau gaussien (zone habitable galactique) autour du rayon du Soleil, profil vertical exponentiel. Civs uniformes dans une boule autour du centre de leur bulle. Chaque bulle et chaque naissance tire ses civs sur un flux aléatoire à elle.",
+      "justification": "Zone habitable galactique (Lineweaver et al. 2004) et disque mince. Les bras spiraux ne sont pas modélisés : les étoiles les traversent en ~10⁸ ans et dérivent radialement de plusieurs kpc, si bien qu'ils ne retiennent pas la vie sur 1 Ga ; le regroupement durable vient des bulles de panspermie.",
+      "todo": ["Densité d'étoiles (mondes habitables) variable avec le rayon galactique."]
     },
     "humanity_strategy": {
       "status": "M", "where": "python/generate_world/_make_humanity.py",

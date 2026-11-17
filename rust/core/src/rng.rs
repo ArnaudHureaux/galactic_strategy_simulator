@@ -162,6 +162,8 @@ impl Rng {
 
 /// rng.Streams: one independent stream per source of randomness.
 pub struct Streams {
+    /// Kept for substream: per-bubble and per-birth streams.
+    pub seed: i64,
     pub world: Rng,
     pub humanity: Rng,
     pub birth: Rng,
@@ -175,6 +177,7 @@ impl Streams {
     pub fn new(seed: i64) -> Streams {
         let stream = |name: &str| Rng::new(derive_seed(seed, name));
         Streams {
+            seed,
             world: stream("world"),
             humanity: stream("humanity"),
             birth: stream("birth"),
@@ -184,6 +187,11 @@ impl Streams {
             detection: stream("detection"),
         }
     }
+}
+
+/// rng.substream: a stream of its own for one bubble or one birth.
+pub fn substream(seed: i64, name: &str) -> Rng {
+    Rng::new(derive_seed(seed, name))
 }
 
 fn derive_seed(seed: i64, name: &str) -> u64 {

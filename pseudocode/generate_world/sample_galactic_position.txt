@@ -1,0 +1,13 @@
+# galactic habitable zone: Gaussian annulus of width GHZ_WIDTH_PC around the Sun's radius R_SUN
+def sample_galactic_position(rng):
+    # uniform on a proposal disc of radius R_SUN + 6 GHZ_WIDTH_PC, thinned by the annulus profile
+    r = (R_SUN + 6 * GHZ_WIDTH_PC) * sqrt(rng.random())
+    theta = 2 * pi * rng.random()
+    kept = rng.random() < exp(-0.5 * ((r - R_SUN) / GHZ_WIDTH_PC) ** 2)
+    z = rng.exponential(SCALE_HEIGHT_PC) * rng.choice([-1, 1])
+    # Sun's frame: the galactic centre is at (-R_SUN, 0)
+    return (r * cos(theta) - R_SUN, r * sin(theta), z), kept
+
+def in_region(position, margin=0):
+    # horizontal distance from the Sun; REGION_RADIUS_PC = 0 means the whole galaxy
+    return REGION_RADIUS_PC == 0 or hypot(position.x, position.y) <= REGION_RADIUS_PC + margin

@@ -5,31 +5,111 @@ use std::f64::consts::PI;
 use crate::config::{ARCHETYPES, Config};
 use crate::geometry::Position;
 use crate::pymath::{self, pymax, pymin};
-use crate::rng::{Rng, Streams};
+use crate::rng::{Rng, Streams, substream};
 use crate::state::{Civ, Strategy, World};
 
 pub fn generate_world(config: &Config, streams: &mut Streams) -> World {
-    let mut civs: Vec<Civ> = seed_life_in_bubbles(config, &mut streams.world)
-        .into_iter()
-        .filter(|c| in_crop(&c.position, config))
-        .collect();
+    // Initial civs, then every later birth (taking part once their birth_year comes), humanity last.
+    let mut civs = seed_life_in_bubbles(config, streams);
+    civs.extend(draw_births(config, streams));
     civs.push(make_humanity(config, &mut streams.humanity));
     World::new(civs, config)
 }
 
-fn seed_life_in_bubbles(config: &Config, rng: &mut Rng) -> Vec<Civ> {
+/// The annulus is drawn on a proposal disc reaching GHZ_CUTOFF widths beyond the Sun's radius.
+const GHZ_CUTOFF: f64 = 6.0;
+
+fn galaxy_radius(config: &Config) -> f64 {
+    config.galactic_radius_sun_pc + GHZ_CUTOFF * config.ghz_width_pc
+}
+
+/// _candidate_mean: expected candidates on the proposal disc for a density per kpc^2 at the Sun's radius.
+fn candidate_mean(density_kpc2: f64, config: &Config) -> f64 {
+    let radius_kpc = galaxy_radius(config) / 1000.0;
+    density_kpc2 * PI * radius_kpc * radius_kpc
+}
+
+/// _poisson_count: Poisson draw counted as unit-rate arrivals (exact for any mean).
+fn poisson_count(mean: f64, rng: &mut Rng) -> u64 {
+    if mean <= 0.0 {
+        return 0;
+    }
+    let mut n = 0;
+    let mut t = rng.exponential(1.0);
+    while t <= mean {
+        n += 1;
+        t += rng.exponential(1.0);
+    }
+    n
+}
+
+/// _sample_galactic_position: uniform on the proposal disc, kept with probability
+/// exp(-(r - R_sun)^2 / (2 w^2)) (Gaussian annulus); position in the Sun's frame.
+fn sample_galactic_position(config: &Config, rng: &mut Rng) -> (Position, bool) {
+    let r = galaxy_radius(config) * rng.random().sqrt();
+    let theta = 2.0 * PI * rng.random();
+    let u = (r - config.galactic_radius_sun_pc) / config.ghz_width_pc;
+    let kept = rng.random() < pymath::exp(-0.5 * u * u);
+    // `rng.exponential(...) * rng.choice([-1, 1])`: the exponential is drawn first.
+    let height = rng.exponential(config.scale_height_pc);
+    let sign = if rng.randbelow(2) == 0 { -1.0 } else { 1.0 };
+    ([r * pymath::cos(theta) - config.galactic_radius_sun_pc, r * pymath::sin(theta), height * sign], kept)
+}
+
+/// _in_region: horizontal distance from the Sun within region_radius_pc (+ margin); 0 = whole galaxy.
+fn in_region(position: &Position, config: &Config, margin: f64) -> bool {
+    if config.region_radius_pc <= 0.0 {
+        return true;
+    }
+    let reach = config.region_radius_pc + margin;
+    position[0] * position[0] + position[1] * position[1] <= reach * reach
+}
+
+fn seed_life_in_bubbles(config: &Config, streams: &mut Streams) -> Vec<Civ> {
     let mut civs = Vec::new();
-    for _ in 0..rng.poisson(config.expected_bubbles) {
-        let center = sample_lens_position(config, rng);
-        for _ in 0..rng.poisson(config.civs_per_bubble) {
-            let offset = sample_ball(config.panspermia_range_pc, rng);
+    let rng = &mut streams.world;
+    for i in 0..poisson_count(candidate_mean(config.bubble_density_kpc2, config), rng) {
+        let (center, kept) = sample_galactic_position(config, rng);
+        if !kept || !in_region(&center, config, config.panspermia_range_pc) {
+            continue;
+        }
+        let mut bubble = substream(streams.seed, &format!("bubble/{i}"));
+        for k in 0..bubble.poisson(config.civs_per_bubble) {
+            let offset = sample_ball(config.panspermia_range_pc, &mut bubble);
             let position = [center[0] + offset[0], center[1] + offset[1], center[2] + offset[2]];
-            let id = format!("c_{}", civs.len());
-            let birth = birth_date(config, rng);
-            civs.push(new_civ(id, position, config, rng, birth));
+            let birth = birth_date(config, &mut bubble);
+            let civ = new_civ(format!("c_{i}_{k}"), position, config, &mut bubble, birth);
+            if in_region(&position, config, 0.0) {
+                civs.push(civ);
+            }
         }
     }
     civs
+}
+
+/// _draw_births: every later birth, drawn up front over the whole annulus.
+fn draw_births(config: &Config, streams: &mut Streams) -> Vec<Civ> {
+    let rate = candidate_mean(config.civ_birth_rate_kpc2, config);
+    let mut births = Vec::new();
+    if rate <= 0.0 {
+        return births;
+    }
+    let rng = &mut streams.birth;
+    let mut j: u64 = 0;
+    let mut elapsed = rng.exponential(1.0);
+    loop {
+        let birth = config.start_date_years() + elapsed / rate;
+        if birth >= config.present_date_years {
+            return births;
+        }
+        let (position, kept) = sample_galactic_position(config, rng);
+        if kept && in_region(&position, config, 0.0) {
+            let mut own = substream(streams.seed, &format!("birth/{j}"));
+            births.push(new_civ(format!("b_{j}"), position, config, &mut own, birth));
+        }
+        j += 1;
+        elapsed += rng.exponential(1.0);
+    }
 }
 
 /// The sterilizing event resynchronizes life; intelligence then takes a variable time.
@@ -53,22 +133,6 @@ fn make_humanity(config: &Config, rng: &mut Rng) -> Civ {
     humanity.colonization_aggressiveness = 0.0;
     humanity.natural_tech_progress = config.derived().humanity_tech_rate;
     humanity
-}
-
-/// _in_crop: nested galaxies (crop_radius_pc) keep only what lies within the crop radius of the axis.
-pub fn in_crop(position: &Position, config: &Config) -> bool {
-    let crop = config.crop_radius_pc;
-    crop <= 0.0 || position[0] * position[0] + position[1] * position[1] <= crop * crop
-}
-
-pub fn sample_lens_position(config: &Config, rng: &mut Rng) -> Position {
-    let r = config.region_radius_pc * rng.random().sqrt();
-    let theta = 2.0 * PI * rng.random();
-    // `rng.exponential(...) * rng.choice([-1, 1])`: the exponential is drawn first.
-    let height = rng.exponential(config.scale_height_pc);
-    let sign = if rng.randbelow(2) == 0 { -1.0 } else { 1.0 };
-    let z = height * sign;
-    [r * pymath::cos(theta), r * pymath::sin(theta), z]
 }
 
 fn sample_ball(radius: f64, rng: &mut Rng) -> Position {

@@ -11,7 +11,6 @@ use crate::state::{Civ, World};
 
 pub struct Jump {
     pub dt: f64,
-    pub birth: bool,
     pub extinctions: Vec<bool>,
     // Civs whose tech/population is held periodic by events: they replay one regular
     // step of growth instead of drifting over the whole jump.
@@ -222,10 +221,6 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
     // Random events: index of the first step at which the per-step roll of the fixed-step run
     // would succeed (geometric law); the jump stops there.
     let mut draws: Vec<(f64, Option<usize>)> = Vec::new();
-    if config.civ_birth_rate > 0.0 {
-        let log_survival = pymath::log1p(-pymin(1.0, config.civ_birth_rate * config.dt));
-        draws.push((first_success(log_survival, &mut streams.birth), None));
-    }
     for &i in &active {
         let hazard = self_destruction_hazard(&world.civs[i], config);
         if hazard > 0.0 {
@@ -235,17 +230,15 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
     for &(k, _) in &draws {
         n_steps = pymin(n_steps, k);
     }
-    let mut birth = false;
     let mut extinctions = vec![false; n];
     for &(k, civ) in &draws {
         if k == n_steps {
-            match civ {
-                None => birth = true,
-                Some(i) => extinctions[i] = true,
+            if let Some(i) = civ {
+                extinctions[i] = true;
             }
         }
     }
-    Some(Jump { dt: n_steps * config.dt, birth, extinctions, frozen_tech: tech_touched, frozen_pop: pop_touched })
+    Some(Jump { dt: n_steps * config.dt, extinctions, frozen_tech: tech_touched, frozen_pop: pop_touched })
 }
 
 fn first_success(log_survival: f64, rng: &mut Rng) -> f64 {

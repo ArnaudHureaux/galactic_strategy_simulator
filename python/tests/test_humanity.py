@@ -47,7 +47,7 @@ def test_humanity_trajectory_does_not_depend_on_the_steps():
 
 @pytest.mark.parametrize("kind", ["share", "implicit_share"])
 def test_a_share_received_by_humanity_is_a_contact(kind):
-    world = _world(replace(Config(), expected_bubbles=3.0))
+    world = _world(replace(Config(), bubble_density_kpc2=1.0))
     human = world.humanity
     source = next(c for c in world.civs if not c.is_human)
     tech = human.tech_level

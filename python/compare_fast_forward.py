@@ -1,13 +1,10 @@
 """Compare fixed-step and fast-forward runs of the same seeds on a shortened scenario.
 
-Apart from rare random events (births, self-destruction), the dynamics is deterministic,
-so both modes should tell nearly the same story for a given seed. Artefact discovery is
-switched off: it is a pure random draw that would stop runs at unrelated dates. Only the
-civs generated at the start are compared, since civs born later differ between runs: the
-fast-forward draws the step of the next birth at once (same geometric law, other draws). A civ
-born in one run only may then interact with the others, so a seed whose births differ (marked *)
-can drift apart without any fast-forward error: rerun with --config setting civ_birth_rate to 0
-to check the fast-forward alone.
+Apart from self-destructions, the dynamics is deterministic, so both modes should tell nearly
+the same story for a given seed. Births are drawn up front (generate_world), so both runs hold
+the same civs; the births column counts those born by the end of each run (marked * when they
+differ, i.e. when the runs ended at different dates). Artefact discovery is switched off: it is
+a pure random draw that would stop runs at unrelated dates.
 
 Several fast-forward variants can be compared with the same fixed-step reference, e.g.
 to measure what a looser jump budget costs in accuracy:
@@ -71,7 +68,7 @@ def run_one(args):
         "steps": log.n_steps,
         "jumps": log.n_jumps,
         "time": elapsed,
-        "births": len(world.civs) - len(holder["initial"]),
+        "births": sum(1 for c in world.civs if c.id.startswith("b_") and c.birth_year <= (log.rows[-1]["year"] if log.rows else world.now)),
         "alive": {c.id for c in others if c.status == "alive"},
         "extinct_at": {c.id: c.extinct_at for c in others if c.extinct_at is not None},
         "tech": {c.id: c.tech_level for c in others if c.status == "alive"},
@@ -147,7 +144,8 @@ def main():
                 f"{str(fixed['steps']) + '/' + str(fast['steps']):>16} {fixed['time']:>7.1f}/{fast['time']:<7.1f}"
                 + (" *" if fixed["births"] != fast["births"] else "")
             )
-        print("* births differ between the two runs: gaps may come from the extra civ (see the module docstring).")
+        if any(by_key[(s, "fixed")]["births"] != by_key[(s, name)]["births"] for s in seeds):
+            print("* the runs ended at different dates, so a different number of the same births had happened.")
 
     print(f"\n{'variant':>10} {'same outcome':>13} {'alive diff (mean)':>18} {'tech gap (median/max)':>22} "
           f"{'steps':>10} {'time (s)':>9} {'speed-up vs fixed':>18}")

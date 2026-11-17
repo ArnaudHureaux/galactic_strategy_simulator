@@ -71,11 +71,14 @@ class Config:
     max_jump_years: float = 1.0e7
     jump_max_relative_change: float = 0.01
 
+    # Life lies in the galactic habitable zone: a Gaussian annulus of width ghz_width_pc centred on the
+    # Sun's galactocentric radius (Lineweaver et al. 2004). The whole annulus is always drawn with the
+    # same random numbers; only the civs within region_radius_pc of the Sun (horizontal distance) are
+    # simulated (0 = the whole galaxy). Regions of different sizes are thus nested: they share every
+    # civ, initial or born, inside the smaller one.
     region_radius_pc: float = 1000.0
-    # Size-convergence tool: when > 0, the galaxy of region_radius_pc is drawn as usual (same random
-    # numbers), then only the civs within crop_radius_pc of the axis are kept, initial and born alike.
-    # Runs that differ only by the crop share the same civs inside it (nested galaxies).
-    crop_radius_pc: float = 0.0
+    galactic_radius_sun_pc: float = 8200.0
+    ghz_width_pc: float = 1000.0
     scale_height_pc: float = 300.0
     # Humanity sits at the centre of the region, sun_height_pc above the mid-plane.
     sun_height_pc: float = 20.8
@@ -85,9 +88,10 @@ class Config:
     world_type_fractions: tuple = (0.7, 0.2, 0.1)
 
     panspermia_range_pc: float = 300.0
-    expected_bubbles: float = 5.0
+    # Densities at the Sun's galactocentric radius (peak of the annulus), per kpc^2 of disc.
+    bubble_density_kpc2: float = 1.6
     civs_per_bubble: float = 20.0
-    civ_birth_rate: float = 1e-8
+    civ_birth_rate_kpc2: float = 3e-9
 
     # The simulation starts start_lookback_years before the present, at the last sterilizing event
     # (galactic GRB, Annis 1999); the initial civs are all born then.
@@ -307,8 +311,9 @@ def _validate(c):
     check(c.max_jump_years > 0, "max_jump_years must be > 0")
     check(c.jump_max_relative_change > 0, "jump_max_relative_change must be > 0")
 
-    check(c.region_radius_pc > 0, "region_radius_pc must be > 0")
-    check(0 <= c.crop_radius_pc <= c.region_radius_pc, "crop_radius_pc must be in [0, region_radius_pc]")
+    check(c.region_radius_pc >= 0, "region_radius_pc must be >= 0 (0 = the whole galaxy)")
+    check(c.galactic_radius_sun_pc > 0, "galactic_radius_sun_pc must be > 0")
+    check(c.ghz_width_pc > 0, "ghz_width_pc must be > 0")
     check(c.scale_height_pc > 0, "scale_height_pc must be > 0")
     check(len(c.biochem_types) >= 1, "biochem_types must not be empty")
     check(len(set(c.biochem_types)) == len(c.biochem_types), "biochem_types must be unique")
@@ -317,7 +322,7 @@ def _validate(c):
     check(all(x >= 0 for x in c.world_type_fractions), "world_type_fractions must be >= 0")
     check(abs(sum(c.world_type_fractions) - 1.0) < 1e-9, "world_type_fractions must sum to 1")
 
-    for name in ("panspermia_range_pc", "expected_bubbles", "civs_per_bubble", "civ_birth_rate"):
+    for name in ("panspermia_range_pc", "bubble_density_kpc2", "civs_per_bubble", "civ_birth_rate_kpc2"):
         check(getattr(c, name) >= 0, f"{name} must be >= 0")
 
     check(c.start_lookback_years > 0, "start_lookback_years must be > 0")

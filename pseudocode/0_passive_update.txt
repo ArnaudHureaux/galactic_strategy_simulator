@@ -1,8 +1,7 @@
 # dt = time since the previous step: DT, or longer when fast_forward jumps over a stationary regime.
-# During a jump, births and self-destructions are forced by the jump (drawn from their exact
-# waiting-time laws) instead of rolled here, and tech/population follow their exact growth law.
-if rng.random() < CIV_BIRTH_RATE * dt:
-    world.civs.append(new_civ(sample_lens_position(config, rng), config, rng))
+# Births are drawn up front (generate_world): a civ takes part once now >= its birth_year.
+# During a jump, self-destructions are forced by the jump (drawn from their exact waiting-time
+# law) instead of rolled here, and tech/population follow their exact growth law.
 
 for civ in world.civs:
     tech_growth(civ, dt)

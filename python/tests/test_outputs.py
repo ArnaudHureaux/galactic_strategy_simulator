@@ -53,7 +53,7 @@ def test_discreet_probes_of_advanced_civs_are_not_found():
     # Probes may arrive while their owners are only ~1e-3 ahead: the stealth must be strong.
     config = replace(scenario(SHORT), artefact_detection_probability=1.0, probe_speed_human_c=0.3, probe_speed_cap_c=0.99, probe_function_human_years=1e7, probe_function_cap_years=1e8,
                      artefact_window_years=SHORT, artefact_stealth_per_tech=1e5,
-                     natural_tech_progress_mean=1e-4, civ_birth_rate=0.0, attack_cost_tech=0.0, damage_coef=0.0,
+                     natural_tech_progress_mean=1e-4, civ_birth_rate_kpc2=0.0, attack_cost_tech=0.0, damage_coef=0.0,
                      humanity_tech_fraction=1e-6, max_steps=50)
     log = simulation.run(config, 1)
     assert log.run["humanity_reached_by_probe"]
