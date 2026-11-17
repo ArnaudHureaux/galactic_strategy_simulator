@@ -5,9 +5,10 @@ import pytest
 
 from config import Config
 from events import Event
+from p2_from_actions_to_events import from_actions_to_events
 from p3_apply_events import apply_events
 from p3_apply_events._attack_damage import _attack_damage, _attribution_probability, _damage_gap_scale
-from p3_apply_events._rates import _fraction
+from p3_apply_events._rates import _fraction, _step_fraction
 from state import BeliefEntry, Civilisation, World
 
 
@@ -104,3 +105,13 @@ def test_no_stealth_draws_nothing():
     attacker, victim = _civ("a", 2.0), _victim_knowing("a")
     _attack(Config(), None, victim, attacker)
     assert victim.belief["a"].trust == 0.0 and victim.attack_attributed
+
+
+def test_an_attacker_spends_a_share_of_its_power():
+    config = replace(Config(), attack_cost_tech=0.2)
+    attacker, victim = _civ("a", 2.0), _civ("v", 1.0)
+    world = World(civs=[attacker, victim, _civ("h", 1.0)], humanity=None, now=0.0, config=config)
+    from_actions_to_events([("attack", "v")], attacker, world, 0.0, config)
+    # Same energy law as the damage: the cost is a share of power, not of the tech level.
+    kept = 1 - _step_fraction(0.2, config)
+    assert exp(_damage_gap_scale(config) * (attacker.tech_level - 2.0)) == pytest.approx(kept, rel=1e-12)

@@ -8,6 +8,21 @@ use crate::rng::Rng;
 use crate::state::World;
 
 /// rng: the attribution stream, drawn from only when an attacker may stay unidentified.
+/// _damage_gap_scale: power ratio per tech level of the energy law anchored on humanity.
+pub fn damage_gap_scale(config: &Config) -> f64 {
+    pymath::log(config.eirp_cap_w / config.eirp_human_w)
+        / (config.tech_cap - config.derived().humanity_present_tech)
+}
+
+/// _damaged_tech: losing the share `damage` of its power costs ln(1 - damage) / scale tech levels.
+pub fn damaged_tech(tech_level: f64, damage: f64, config: &Config) -> f64 {
+    if damage >= 1.0 {
+        0.0
+    } else {
+        pymax(0.0, tech_level + pymath::log1p(-damage) / damage_gap_scale(config))
+    }
+}
+
 pub fn apply_event(event: &Event, world: &mut World, config: &Config, rng: &mut Rng) {
     if !world.civs[event.dst].alive {
         return;
@@ -80,9 +95,7 @@ fn apply_attack(event: &Event, world: &mut World, config: &Config, rng: &mut Rng
     let target = &mut world.civs[event.dst];
     // A war destroys min(1, damage_coef * power ratio) of the target per
     // interaction period; an attack event stands for one regular step of it.
-    // Power ratio per tech level of the energy law anchored on humanity (see _attack_damage).
-    let scale = pymath::log(config.eirp_cap_w / config.eirp_human_w)
-        / (config.tech_cap - config.derived().humanity_present_tech);
+    let scale = damage_gap_scale(config);
     let damage = if target.tech_level <= 0.0 {
         1.0
     } else {
@@ -100,12 +113,7 @@ fn apply_attack(event: &Event, world: &mut World, config: &Config, rng: &mut Rng
             attributed
         }
     };
-    // The target loses the share damage of its power: ln(1 - damage) / scale tech levels (_damaged_tech).
-    target.tech_level = if damage >= 1.0 {
-        0.0
-    } else {
-        pymax(0.0, target.tech_level + pymath::log1p(-damage) / scale)
-    };
+    target.tech_level = damaged_tech(target.tech_level, damage, config);
     target.population_size *= 1.0 - damage;
     shrink_worlds(target, 1.0 - damage);
     if let Some(&b) = target.belief_of.get(&event.src).filter(|_| attributed) {

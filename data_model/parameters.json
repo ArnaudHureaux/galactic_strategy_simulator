@@ -433,7 +433,7 @@
     },
     "attack_cost_tech": {
       "status": "E", "unit": "fraction/période",
-      "description": "Fraction de sa tech qu'une civ dépense par période d'interaction, pour chaque guerre en cours.",
+      "description": "Part de sa puissance (loi d'énergie) qu'une civ dépense par période d'interaction, pour chaque guerre en cours.",
       "justification": "Inconnu.",
       "range": {"low": 0.0, "high": 0.3, "scale": "linear"}, "range_basis": "inconnu"
     },

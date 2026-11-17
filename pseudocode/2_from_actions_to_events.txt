@@ -2,7 +2,8 @@ events = []
 
 # one attack event per step and per ongoing war; ATTACK_COST_TECH is per interaction period
 for target in civ_to_attack:
-    my_civ.tech_level -= step_fraction(ATTACK_COST_TECH) * my_civ.tech_level
+    # the attacker spends this share of its power: ln(1 - cost) / k tech levels (see damaged_tech)
+    my_civ.tech_level = damaged_tech(my_civ.tech_level, step_fraction(ATTACK_COST_TECH))
     d = dist(my_civ, target)
     events.append(Event(
         kind="attack",

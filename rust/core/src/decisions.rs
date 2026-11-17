@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 
+use crate::apply::damaged_tech;
 use crate::config::Config;
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
@@ -78,7 +79,8 @@ pub fn decide(world: &mut World, i: usize, config: &Config, now: f64, out: &mut 
     for &(_, target) in &scored[..n_attacks] {
         let arrival = now + dist(&position, &world.civs[target].position) / C_PC_PER_YEAR;
         let civ = &mut world.civs[i];
-        civ.tech_level -= config.derived().attack_cost_fraction * civ.tech_level;
+        // The attacker spends this share of its power, on the energy law's log scale (_damaged_tech).
+        civ.tech_level = damaged_tech(civ.tech_level, config.derived().attack_cost_fraction, config);
         out.push(Event { kind: Kind::Attack, src: i, dst: target, t: arrival, power: civ.tech_level, shared_tech_level: 0.0 });
     }
 }
