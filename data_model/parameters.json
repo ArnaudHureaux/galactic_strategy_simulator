@@ -439,10 +439,9 @@
     },
     "natural_tech_progress_mean": {
       "status": "E", "unit": "1/an",
-      "description": "Rythme moyen de progrès techno.",
-      "justification": "Inconnu.",
-      "range": {"low": 3e-11, "high": 3e-10, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 5 : intervalle."]
+      "description": "Rythme moyen de progrès techno des civs non humaines.",
+      "justification": "Inconnu. Borne basse : un progrès quasi nul (0,10 → 0,13 en un milliard d'années pour une civ seule). Le rythme humain observé (3,5·10⁻⁷ /an, déduit de humanity_tech_fraction) est le 75e centile de l'intervalle : dans un quart des runs, les autres civs progressent plus vite que nous. Défaut : la médiane. Décision du 2026-11-17 (audit de la phase 2, point 5).",
+      "range": {"low": 3e-11, "high": 8e-6, "scale": "log"}, "range_basis": "inconnu"
     },
     "natural_tech_progress_spread": {
       "status": "E", "unit": "sans dimension",
@@ -473,8 +472,8 @@
       "status": "E", "unit": "1/an",
       "description": "Plafond du rythme de progrès atteignable par synergie de partage.",
       "justification": "Inconnu.",
-      "range": {"low": 1e-9, "high": 1e-6, "scale": "log"}, "range_basis": "provisoire",
-      "todo": ["Phase 5 : intervalle (doit rester au-dessus du rythme naturel maximal)."]
+      "range": {"low": 2e-5, "high": 2e-3, "scale": "log"}, "range_basis": "provisoire",
+      "todo": ["Phase 5 : intervalle. Il doit rester au-dessus du rythme propre de toute civ, natural_tech_progress_mean × (1 + spread) ≤ 8·10⁻⁶ × 1,9 (vérifié par Config)."]
     },
     "broadcast_probability": {
       "status": "E", "unit": "probabilité",

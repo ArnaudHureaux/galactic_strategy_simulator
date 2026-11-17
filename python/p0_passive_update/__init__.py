@@ -36,7 +36,7 @@ def passive_update(world, config, now, streams, dt=None, jump=None):
         if civ.is_human:
             _human_tech(civ, config, now)
         else:
-            _tech_growth(civ, config, step if exact_tech else min(step, config.dt), exact_tech)
+            _tech_growth(civ, config, step if exact_tech else min(step, config.dt))
         _population_growth(civ, config, step if exact_pop else min(step, config.dt), exact_pop)
         civ.leak_radius, civ.beacon_radius = _compute_signal_radii(civ, config, now)
         world.widest_broadcast = max(world.widest_broadcast, civ.leak_radius, civ.beacon_radius)

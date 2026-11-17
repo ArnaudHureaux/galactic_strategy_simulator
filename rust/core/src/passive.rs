@@ -38,7 +38,7 @@ pub fn passive_update(world: &mut World, config: &Config, now: f64, streams: &mu
         if civ.is_human {
             human_tech(civ, config, now);
         } else {
-            tech_growth(civ, config, if exact_tech { step } else { pymin(step, config.dt) }, exact_tech);
+            tech_growth(civ, config, if exact_tech { step } else { pymin(step, config.dt) });
         }
         population_growth(civ, config, if exact_pop { step } else { pymin(step, config.dt) }, exact_pop);
         let (leak, beacon) = compute_signal_radii(civ, config, now);
@@ -141,16 +141,10 @@ pub fn tech_rate(civ: &Civ, config: &Config) -> f64 {
     civ.natural_tech_progress * (1.0 - civ.colonization_aggressiveness) * pymath::pow(civ.population_size, config.tech_population_exponent)
 }
 
-fn tech_growth(civ: &mut Civ, config: &Config, dt: f64, exact: bool) {
-    let r = tech_rate(civ, config);
-    let t = civ.tech_level;
-    civ.tech_level = if exact {
-        grow(t, r, config.tech_growth_cap(), dt)
-    } else if config.derived().tech_logistic {
-        t + r * t * (1.0 - t / config.tech_cap) * dt
-    } else {
-        t + r * t * dt
-    };
+/// Exact solution of the growth law over the step, the rate held constant: the fastest explored
+/// rates (~1e-5 per year, more with shares and population) are too fast for an Euler step.
+fn tech_growth(civ: &mut Civ, config: &Config, dt: f64) {
+    civ.tech_level = grow(civ.tech_level, tech_rate(civ, config), config.tech_growth_cap(), dt);
     civ.tech_level = pymin(config.tech_cap, pymax(0.0, civ.tech_level));
 }
 

@@ -11,7 +11,7 @@
     "civs_per_bubble": {"low": 5.0, "high": 40.0, "scale": "log"},
     "civ_birth_rate": {"low": 1e-10, "high": 1e-7, "scale": "log"},
     "self_destruction_risk": {"low": 1e-10, "high": 1e-6, "scale": "log"},
-    "natural_tech_progress_mean": {"low": 3e-11, "high": 3e-10, "scale": "log"},
+    "natural_tech_progress_mean": {"low": 3e-11, "high": 8e-6, "scale": "log"},
     "probe_speed_cap_c": {"low": 0.01, "high": 0.99, "scale": "log"},
     "probe_function_cap_years": {"low": 1e3, "high": 1e9, "scale": "log"},
     "artefact_detection_probability": {"low": 1e-6, "high": 0.1, "scale": "log"},

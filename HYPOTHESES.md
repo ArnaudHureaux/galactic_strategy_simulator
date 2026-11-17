@@ -12,7 +12,7 @@ Statuts :
 - **M** choix de modèle : forme d'une loi ou règle, alternatives testées en robustesse
 
 99 paramètres : 50 E, 11 S, 7 N, 18 D, 13 M.
-23 règles codées en dur. 46 points ouverts.
+23 règles codées en dur. 45 points ouverts.
 
 ## E : exploré
 
@@ -52,12 +52,12 @@ Statuts :
 | `attacks_per_tech_population` | 1 | guerres/(tech × population) | [0.1 ; 10] log (inconnu) | Nombre maximal de guerres menées en même temps = max(1, int(coef × tech × population)). | Capacité offensive : inconnue. Constante cachée sortie en phase 1. |  |
 | `attack_cost_tech` | 0.05 | fraction/période | [0 ; 0.3] linear (inconnu) | Fraction de sa tech qu'une civ dépense par période d'interaction, pour chaque guerre en cours. | Inconnu. |  |
 | `reputation_trust_drop` | 0.3 | confiance/période | [0 ; 1] linear (inconnu) | Baisse de confiance envers un attaquant connu, par période d'interaction, chez les civs qui voient sa victime subir une guerre en cours. | Comportemental : inconnu. |  |
-| `natural_tech_progress_mean` | 1e-10 | 1/an | [3e-11 ; 3e-10] log (provisoire) | Rythme moyen de progrès techno. | Inconnu. | Phase 5 : intervalle. |
+| `natural_tech_progress_mean` | 1.5e-08 | 1/an | [3e-11 ; 8e-06] log (inconnu) | Rythme moyen de progrès techno des civs non humaines. | Inconnu. Borne basse : un progrès quasi nul (0,10 → 0,13 en un milliard d'années pour une civ seule). Le rythme humain observé (3,5·10⁻⁷ /an, déduit de humanity_tech_fraction) est le 75e centile de l'intervalle : dans un quart des runs, les autres civs progressent plus vite que nous. Défaut : la médiane. Décision du 2026-11-17 (audit de la phase 2, point 5). |  |
 | `natural_tech_progress_spread` | 0.5 | sans dimension | [0 ; 0.9] linear (inconnu) | Dispersion du rythme de progrès entre civs : moyenne × U(1 - s, 1 + s). | Hétérogénéité des civs : inconnue. Constante cachée sortie en phase 1. |  |
 | `natural_population_growth_spread` | 0.5 | sans dimension | [0 ; 0.9] linear (inconnu) | Dispersion du taux de croissance démographique entre civs : moyenne × U(1 - s, 1 + s). | Hétérogénéité des civs : inconnue. Constante cachée sortie en phase 1. |  |
 | `tech_population_exponent` | 1 | sans dimension | [0 ; 1] linear (inconnu) | Rendement de la population sur le progrès techno (rythme × population^exposant). | Inconnu : de 0 (tech indépendante de la population) à 1 (rendement linéaire). |  |
 | `natural_population_growth_mean` | 1e-09 | 1/an | [1e-10 ; 1e-08] log (provisoire) | Taux moyen de croissance démographique. | Inconnu. | Phase 5 : intervalle. |
-| `max_natural_tech_progress` | 1e-07 | 1/an | [1e-09 ; 1e-06] log (provisoire) | Plafond du rythme de progrès atteignable par synergie de partage. | Inconnu. | Phase 5 : intervalle (doit rester au-dessus du rythme naturel maximal). |
+| `max_natural_tech_progress` | 0.0002 | 1/an | [2e-05 ; 0.002] log (provisoire) | Plafond du rythme de progrès atteignable par synergie de partage. | Inconnu. | Phase 5 : intervalle. Il doit rester au-dessus du rythme propre de toute civ, natural_tech_progress_mean × (1 + spread) ≤ 8·10⁻⁶ × 1,9 (vérifié par Config). |
 | `broadcast_probability` | 0.5 | probabilité | [0 ; 1] linear (inconnu) | Probabilité d'émettre volontairement pour une civ de l'archétype « random ». | Inconnu. |  |
 | `strategy_mix_random` | 1 | poids | [0.01 ; 1] log (inconnu) | Poids de l'archétype « random » (tous les traits tirés uniformément). | Composition stratégique de la galaxie : inconnue. | Phase 6 : couvrir aussi les galaxies dominées par un seul archétype (plan de mélange). |
 | `strategy_mix_full_aggressive` | 0 | poids | [0.01 ; 1] log (inconnu) | Poids de l'archétype « full_aggressive ». | Composition stratégique de la galaxie : inconnue. |  |

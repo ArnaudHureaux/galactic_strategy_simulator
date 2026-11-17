@@ -12,14 +12,10 @@ def _tech_growth_cap(config):
     return config.tech_cap if config.tech_growth_model == "logistic" else None
 
 
-def _tech_growth(civ, config, dt, exact=False):
-    r = _tech_rate(civ, config)
-    if exact:
-        civ.tech_level = grow(civ.tech_level, r, _tech_growth_cap(config), dt)
-    elif config.tech_growth_model == "logistic":
-        civ.tech_level += r * civ.tech_level * (1 - civ.tech_level / config.tech_cap) * dt
-    else:
-        civ.tech_level += r * civ.tech_level * dt
+def _tech_growth(civ, config, dt):
+    # Exact solution of the growth law over the step, the rate held constant: the fastest explored
+    # rates (~1e-5 per year, more with shares and population) are too fast for an Euler step.
+    civ.tech_level = grow(civ.tech_level, _tech_rate(civ, config), _tech_growth_cap(config), dt)
     civ.tech_level = min(config.tech_cap, max(0.0, civ.tech_level))
 
 

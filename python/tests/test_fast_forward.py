@@ -34,7 +34,9 @@ def test_incremental_belief_tracking_matches_the_full_signature(monkeypatch):
         return original_step(self, world, applied, emitted, now, streams)
 
     monkeypatch.setattr(fast_forward.FastForward, "step", step)
-    log = simulation.run(replace(scenario(1.0e7), max_steps=1500), 2)
+    # Slow progress and a low sharing ceiling (the former defaults) keep this galaxy going for the whole run.
+    log = simulation.run(replace(scenario(1.0e7), max_steps=1500, natural_tech_progress_mean=1e-10,
+                                 max_natural_tech_progress=1e-7), 2)
     assert log.n_steps == 1500
     assert checked["compared"] > 1000
     assert 0 < checked["changed"] < checked["compared"]

@@ -185,7 +185,9 @@ class Config:
     attack_cost_tech: float = 0.05
     reputation_trust_drop: float = 0.3
 
-    natural_tech_progress_mean: float = 1e-10
+    # Explored log-uniformly in [3e-11, 8e-6] per year: humanity's rate (3.5e-7 at the default
+    # humanity_tech_fraction) is its 75th percentile. Default: the median.
+    natural_tech_progress_mean: float = 1.5e-8
     # Each civ draws its own rates uniformly in mean * [1 - spread, 1 + spread].
     natural_tech_progress_spread: float = 0.5
     natural_population_growth_spread: float = 0.5
@@ -193,7 +195,8 @@ class Config:
     # expanding costs tech now but brings population, hence tech later (1 = linear returns).
     tech_population_exponent: float = 1.0
     natural_population_growth_mean: float = 1e-9
-    max_natural_tech_progress: float = 1e-7
+    # Must stay above every civ's own rate, natural_tech_progress_mean * (1 + spread).
+    max_natural_tech_progress: float = 2e-4
 
     # Strategy sampling (see STRATEGY_RANGES); humanity's strategy is then partly overridden.
     broadcast_probability: float = 0.5
@@ -329,6 +332,8 @@ def _validate(c):
 
     check(0 < c.eirp_human_w <= c.eirp_cap_w, "eirp_human_w must be in (0, eirp_cap_w]")
     check(0 < c.probe_speed_human_c <= c.probe_speed_cap_c < 1, "probe speeds must satisfy 0 < human <= cap < 1")
+    check(c.max_natural_tech_progress >= c.natural_tech_progress_mean * (1 + c.natural_tech_progress_spread),
+          "max_natural_tech_progress must be >= natural_tech_progress_mean * (1 + natural_tech_progress_spread)")
     check(c.seti_flux_threshold_w_m2 > 0, "seti_flux_threshold_w_m2 must be > 0")
     check(0 < c.probe_function_human_years <= c.probe_function_cap_years,
           "probe_function_human_years must be in (0, probe_function_cap_years]")
