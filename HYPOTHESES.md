@@ -11,7 +11,7 @@ Statuts :
 - **I** non influent : fixé car le criblage de Morris montre qu'il ne pèse pas
 - **M** choix de modèle : forme d'une loi ou règle, alternatives testées en robustesse
 
-100 paramètres : 51 E, 11 S, 7 N, 18 D, 13 M.
+101 paramètres : 52 E, 11 S, 7 N, 18 D, 13 M.
 23 règles codées en dur. 44 points ouverts.
 
 ## E : exploré
@@ -29,6 +29,7 @@ Statuts :
 | `initial_tech_level` | 0.1 | tech | [0.01 ; 1] log (provisoire) | Tech d'une civ à sa naissance, y compris l'humanité il y a 10 000 ans (Néolithique). | Niveau où une civ devient une civilisation, relatif au plafond : inconnu. | Phase 5 : intervalle. |
 | `humanity_tech_fraction` | 0.001 | sans dimension | [1e-06 ; 0.95] log (inconnu) | Position actuelle de l'humanité sur l'échelle de tech, en fraction du chemin entre la naissance et le plafond, en ordres de grandeur : T_h = initial_tech_level × (tech_cap / initial_tech_level)^f. L'humanité suit la trajectoire exacte de la loi de croissance de initial_tech_level (il y a 10 000 ans) à T_h (aujourd'hui) ; son rythme s'en déduit. | Inconnu : sommes-nous loin du plafond technologique ? Au rythme humain déduit, le plafond est à environ 10^4 / f ans : de quelques millénaires (f = 0,95) à l'âge de l'Univers (f = 10^-6). Une fraction évite une contrainte d'ordre avec initial_tech_level dans l'hypercube latin (décision du 2026-11, phase 2, point 5). |  |
 | `self_destruction_risk` | 1e-08 | 1/an | [1e-10 ; 1e-06] log (provisoire) | Taux d'autodestruction au pic de la fenêtre de danger. | Inconnu (Ćirković 2009, scénario « catastrophique »). | Phase 5 : intervalle. |
+| `self_destruction_correlation` | 0.1 | fraction | [0.001 ; 1] log (inconnu) | Part des catastrophes qui atteignent tous les mondes d'une civ (propagées par ses communications : technologie, IA, guerre). Les autres restent locales à un monde et ne tuent qu'une civ à un seul monde. | Inconnu. Hart (1975) : une civ dispersée ne meurt plus d'une seule catastrophe. 1 redonne un risque indépendant du nombre de mondes. |  |
 | `danger_window_center` | 1.5 | tech | [0.2 ; 2.8] linear (inconnu) | Niveau de tech du pic de risque d'autodestruction. | Inconnu. |  |
 | `danger_window_width` | 0.5 | tech | [0.1 ; 1.5] log (inconnu) | Largeur de la fenêtre de danger. | Inconnu. |  |
 | `eirp_cap_w` | 1e+21 | W | [1e+16 ; 1e+26] log (littérature) | EIRP d'une civ au plafond de tech qui émet volontairement (ancre haute de la loi EIRP(tech)). | Puissance d'une civilisation de type I à II de Kardashev, émise de façon isotrope : 10^16 W (K = 1) à 10^26 W (K = 2, environ la luminosité du Soleil) dans l'interpolation de Sagan K = (log10 P − 6) / 10. Un faisceau dirigé pourrait dépasser ces valeurs. Source : Kardashev, N. S. 1964, Soviet Astronomy 8, 217 ; Sagan, C. 1973, The Cosmic Connection. |  |

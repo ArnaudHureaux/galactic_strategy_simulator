@@ -29,7 +29,7 @@ from geometry import dist
 from p0_passive_update._growth_law import grow, time_to_reach
 from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
-from p0_passive_update._self_destruction_shape import _self_destruction_shape
+from p0_passive_update._self_destruction import _self_destruction_hazard
 from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _colonization_tech, _front_speed_at, _midplane_density
 from p0_passive_update._compute_broadcast_radius import (_leak_factor, _listening_gain, _listening_gain_cap,
                                                           _observer_gain, _signal_radius,
@@ -173,7 +173,7 @@ def _plan_jump(world, config, now, streams, tech_touched, pop_touched):
     if config.civ_birth_rate > 0:
         draws.append((_first_success(log1p(-min(1.0, config.civ_birth_rate * config.dt)), streams.birth), None))
     for c in active:
-        hazard = config.self_destruction_risk * _self_destruction_shape(c.tech_level, config)
+        hazard = _self_destruction_hazard(c, config)
         if hazard > 0:
             draws.append((_first_success(-hazard * config.dt, streams.destruction), c.id))
     n_steps = min([n_steps] + [k for k, _ in draws])

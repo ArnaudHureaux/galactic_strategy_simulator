@@ -489,9 +489,16 @@ pub fn self_destruction_shape(tech_level: f64, config: &Config) -> f64 {
     }
 }
 
+/// _self_destruction_hazard: a share self_destruction_correlation of catastrophes reaches every
+/// world; the others only end a single-world civ (fading linearly from 1 world to 2).
+pub fn self_destruction_hazard(civ: &Civ, config: &Config) -> f64 {
+    let local = config.self_destruction_correlation;
+    let exposed = local + (1.0 - local) * pymin(1.0, pymax(0.0, 2.0 - civ.nb_of_world));
+    config.self_destruction_risk * self_destruction_shape(civ.tech_level, config) * exposed
+}
+
 fn self_destruction(civ: &Civ, config: &Config, rng: &mut Rng, dt: f64) -> bool {
-    let hazard = config.self_destruction_risk * self_destruction_shape(civ.tech_level, config);
-    rng.random() < 1.0 - pymath::exp(-hazard * dt)
+    rng.random() < 1.0 - pymath::exp(-self_destruction_hazard(civ, config) * dt)
 }
 
 // _detect

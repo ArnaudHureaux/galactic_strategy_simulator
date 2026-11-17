@@ -222,6 +222,12 @@
       "alternatives": ["constant", "increasing"],
       "todo": ["Phase 7 : robustesse."]
     },
+    "self_destruction_correlation": {
+      "status": "E", "unit": "fraction",
+      "description": "Part des catastrophes qui atteignent tous les mondes d'une civ (propagées par ses communications : technologie, IA, guerre). Les autres restent locales à un monde et ne tuent qu'une civ à un seul monde.",
+      "justification": "Inconnu. Hart (1975) : une civ dispersée ne meurt plus d'une seule catastrophe. 1 redonne un risque indépendant du nombre de mondes.",
+      "range": {"low": 1e-3, "high": 1.0, "scale": "log"}, "range_basis": "inconnu"
+    },
     "danger_window_center": {
       "status": "E", "unit": "tech",
       "description": "Niveau de tech du pic de risque d'autodestruction.",

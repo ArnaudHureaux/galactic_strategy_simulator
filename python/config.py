@@ -117,6 +117,9 @@ class Config:
 
     self_destruction_risk: float = 1e-8
     self_destruction_shape: str = "danger_window"
+    # Share of catastrophes that reach every world of a civ (spread by its communications); the others
+    # stay local to one world, fatal only to a single-world civ (see _self_destruction_hazard).
+    self_destruction_correlation: float = 0.1
     danger_window_center: float = 1.5
     danger_window_width: float = 0.5
 
@@ -355,7 +358,7 @@ def _validate(c):
     for name in ("share_catchup", "share_trust_gain"):
         check(0 <= getattr(c, name) < 1, f"{name} must be in [0, 1)")
     for name in ("beacon_duty", "listen_coverage", "seti_coverage_50pc", "seti_coverage_beyond",
-                 "birth_spread_fraction", "forgiveness", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability",
+                 "birth_spread_fraction", "forgiveness", "self_destruction_correlation", "attack_cost_tech", "artefact_detection_probability", "broadcast_probability",
                  "natural_tech_progress_spread", "natural_population_growth_spread"):
         check(0 <= getattr(c, name) <= 1, f"{name} must be in [0, 1]")
 

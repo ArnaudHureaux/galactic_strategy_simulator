@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, colonization_tech, front_speed_at, leak_factor, midplane_density, grow, probe_range, probe_speed, signal_radius, tech_for_signal_radius, listening_gain, listening_gain_cap, observer_gain, tech_for_listening_gain, population_capacity, self_destruction_shape, tech_rate, time_to_reach};
+use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, colonization_tech, front_speed_at, leak_factor, midplane_density, grow, probe_range, probe_speed, signal_radius, tech_for_signal_radius, listening_gain, listening_gain_cap, observer_gain, tech_for_listening_gain, population_capacity, self_destruction_hazard, tech_rate, time_to_reach};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -227,7 +227,7 @@ fn plan_jump(world: &mut World, config: &Config, now: f64, streams: &mut Streams
         draws.push((first_success(log_survival, &mut streams.birth), None));
     }
     for &i in &active {
-        let hazard = config.self_destruction_risk * self_destruction_shape(world.civs[i].tech_level, config);
+        let hazard = self_destruction_hazard(&world.civs[i], config);
         if hazard > 0.0 {
             draws.push((first_success(-hazard * config.dt, &mut streams.destruction), Some(i)));
         }

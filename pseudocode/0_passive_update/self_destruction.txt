@@ -1,2 +1,5 @@
 def self_destruction(civ, rng):
-    return rng.random() < SELF_DESTRUCTION_RISK * self_destruction_shape(civ.tech_level)
+    # a share SELF_DESTRUCTION_CORRELATION of catastrophes reaches every world; the others only end
+    # a single-world civ (linear fade from 1 world to 2, nb_of_world being continuous)
+    exposed = SELF_DESTRUCTION_CORRELATION + (1 - SELF_DESTRUCTION_CORRELATION) * clamp(2 - civ.nb_of_world, 0, 1)
+    return rng.random() < SELF_DESTRUCTION_RISK * self_destruction_shape(civ.tech_level) * exposed

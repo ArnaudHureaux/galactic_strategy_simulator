@@ -1,5 +1,5 @@
 {
-  "description": "LHS over the environment, the strategic make-up of the galaxy and colonization (26 dims). Environment ranges are those of the pilot. Strategy mix: one weight per archetype (config.ARCHETYPES), log-uniform on [0.01, 1] so that galaxies dominated by one or two archetypes are sampled as well as balanced ones; 'random' is the former uniform draw of every trait. strategy_noise spreads civs around their archetype (fraction of each trait's range). artefact_stealth_per_tech: 0 = probes as visible whatever their owner's tech, 5 = a probe 1 tech level above humanity is found exp(-5) as often. Colonization: colonization_launch_period_years, the delay before a settled world launches its own probes (front speed from Carroll-Nellenback et al. 2019, probe speed anchored on Voyager 1 and probe_speed_cap_c); habitable world density per pc^3; tech_population_exponent from tech independent of population (0) to linear returns (1). max_steps is the deterministic budget; run with --time-budget 600 as a wall-clock safety net. Ranges are first guesses, not sourced priors.",
+  "description": "LHS over the environment, the strategic make-up of the galaxy and colonization (27 dims). Environment ranges are those of the pilot. Strategy mix: one weight per archetype (config.ARCHETYPES), log-uniform on [0.01, 1] so that galaxies dominated by one or two archetypes are sampled as well as balanced ones; 'random' is the former uniform draw of every trait. strategy_noise spreads civs around their archetype (fraction of each trait's range). artefact_stealth_per_tech: 0 = probes as visible whatever their owner's tech, 5 = a probe 1 tech level above humanity is found exp(-5) as often. Colonization: colonization_launch_period_years, the delay before a settled world launches its own probes (front speed from Carroll-Nellenback et al. 2019, probe speed anchored on Voyager 1 and probe_speed_cap_c); habitable world density per pc^3; tech_population_exponent from tech independent of population (0) to linear returns (1). max_steps is the deterministic budget; run with --time-budget 600 as a wall-clock safety net. Ranges are first guesses, not sourced priors.",
   "design_seed": 1,
   "n_points": 500,
   "seeds_per_point": 1,
@@ -11,6 +11,7 @@
     "civs_per_bubble": {"low": 5.0, "high": 40.0, "scale": "log"},
     "civ_birth_rate": {"low": 1e-10, "high": 1e-7, "scale": "log"},
     "self_destruction_risk": {"low": 1e-10, "high": 1e-6, "scale": "log"},
+    "self_destruction_correlation": {"low": 1e-3, "high": 1.0, "scale": "log"},
     "natural_tech_progress_mean": {"low": 3e-11, "high": 8e-6, "scale": "log"},
     "probe_speed_cap_c": {"low": 0.01, "high": 0.99, "scale": "log"},
     "probe_function_cap_years": {"low": 1e3, "high": 1e9, "scale": "log"},

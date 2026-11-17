@@ -84,6 +84,7 @@ pub struct Config {
 
     pub self_destruction_risk: f64,
     pub self_destruction_shape: String,
+    pub self_destruction_correlation: f64,
     pub danger_window_center: f64,
     pub danger_window_width: f64,
 
@@ -199,6 +200,7 @@ impl Default for Config {
             initial_population: 1.0,
             self_destruction_risk: 1e-8,
             self_destruction_shape: "danger_window".into(),
+            self_destruction_correlation: 0.1,
             danger_window_center: 1.5,
             danger_window_width: 0.5,
             eirp_human_w: 2.0e13,
