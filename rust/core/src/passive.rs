@@ -219,6 +219,25 @@ pub fn signal_radius(config: &Config, tech: f64, factor: f64) -> f64 {
     (eirp / (4.0 * std::f64::consts::PI * config.seti_flux_threshold_w_m2)).sqrt() / M_PER_PC
 }
 
+pub fn listening_gain_cap(config: &Config) -> f64 {
+    (config.seti_flux_threshold_w_m2 / config.seti_flux_threshold_cap_w_m2).sqrt()
+}
+
+/// Factor on the range of the signals an observer of this tech catches (see _listening_gain).
+pub fn listening_gain(config: &Config, tech: f64) -> f64 {
+    anchored(tech, 1.0, listening_gain_cap(config), config)
+}
+
+/// Humanity listens with its observed sensitivity.
+pub fn observer_gain(civ: &Civ, config: &Config) -> f64 {
+    if civ.is_human { 1.0 } else { listening_gain(config, civ.tech_level) }
+}
+
+/// Tech at which listening_gain reaches gain (inf if never).
+pub fn tech_for_listening_gain(config: &Config, gain: f64) -> f64 {
+    anchored_tech(gain, 1.0, listening_gain_cap(config), config)
+}
+
 /// Tech at which signal_radius reaches radius (inf if never).
 pub fn tech_for_signal_radius(config: &Config, radius: f64, factor: f64) -> f64 {
     let meters = radius * M_PER_PC;
@@ -494,7 +513,9 @@ fn detect(world: &mut World, config: &Config, now: f64, dt: f64, rng: &mut Rng) 
             continue;
         }
         let own_front = world.civs[i].expansion_radius;
-        let reach = pymax(world.widest_broadcast + own_front + widest_front, world.civs[i].probe_radius);
+        // Signal radii are seen at humanity's sensitivity: an advanced observer hears gain times farther.
+        let gain = observer_gain(&world.civs[i], config);
+        let reach = pymax(world.widest_broadcast * gain + own_front + widest_front, world.civs[i].probe_radius);
         let pairs = world.neighbor_pairs_within(i, reach);
         for &(j, d) in pairs.iter() {
             let j = j as usize;
@@ -511,8 +532,8 @@ fn detect(world: &mut World, config: &Config, now: f64, dt: f64, rng: &mut Rng) 
             let by_probe = probe_reached(&world.civs[i], seen_at, d - view.expansion_radius);
             let mut by_signal = false;
             if !world.civs[i].is_human {
-                by_signal = view.leak_radius >= gap;
-                if !(by_signal || by_probe) && view.beacon_radius >= gap {
+                by_signal = view.leak_radius * gain >= gap;
+                if !(by_signal || by_probe) && view.beacon_radius * gain >= gap {
                     by_signal = beacon_caught(&mut world.civs[i], j, &view, config, dt, rng);
                 }
             }

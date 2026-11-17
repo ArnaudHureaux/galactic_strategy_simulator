@@ -4,7 +4,7 @@ use crate::config::Config;
 use crate::decisions::{attack_capacity, max_number_of_attack, sort_scored};
 use crate::events::{Event, Kind};
 use crate::geometry::dist;
-use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, colonization_tech, front_speed_at, leak_factor, midplane_density, grow, probe_range, probe_speed, signal_radius, tech_for_signal_radius, population_capacity, self_destruction_shape, tech_rate, time_to_reach};
+use crate::passive::{FOUR_THIRDS_PI, beacon_hazard, colonization_tech, front_speed_at, leak_factor, midplane_density, grow, probe_range, probe_speed, signal_radius, tech_for_signal_radius, listening_gain, listening_gain_cap, observer_gain, tech_for_listening_gain, population_capacity, self_destruction_shape, tech_rate, time_to_reach};
 use crate::pymath::{self, C_PC_PER_YEAR, pymax, pymin};
 use crate::rng::{Rng, Streams};
 use crate::state::{Civ, World};
@@ -406,7 +406,9 @@ fn detection_limit(
         let (distances, neighbors) = world.neighbors_by_distance(yi);
         if !y.is_human {
             limit = pymin(limit, exposure_limit(world, y, config));
-            let reach = widest_signal + front_end(y, front_budget[yi]) + widest_front;
+            // The observer hears better as its tech grows: bound it by its end-of-jump tech.
+            let end_gain = listening_gain(config, y.tech_level + pymax(0.0, tech_budget[yi].expect("active")));
+            let reach = widest_signal * end_gain + front_end(y, front_budget[yi]) + widest_front;
             let n_signal = distances.partition_point(|&d| d <= reach);
             for (&d, &xi) in distances[..n_signal].iter().zip(&neighbors[..n_signal]) {
                 let xi = xi as usize;
@@ -472,13 +474,29 @@ fn signal_budget(
     if n_moving == 0 {
         return;
     }
-    let share = (d - y.expansion_radius - x.expansion_radius - radius) / n_moving as f64;
+    let gain = observer_gain(y, config);
+    let heard = radius * gain;
+    let share = (d - y.expansion_radius - x.expansion_radius - heard) / n_moving as f64;
     for m in movers {
         shrink(front_budget, m, share);
     }
     if radius > 0.0 {
-        // Signal radii grow with tech (see compute_signal_radii).
-        let critical_tech = tech_for_signal_radius(config, radius + share, factor);
+        // The heard radius grows with the emitter's tech and the observer's (see _signal_budget).
+        let hears_better = !y.is_human && listening_gain_cap(config) > 1.0 && y.tech_level < config.tech_cap;
+        if share <= 0.0 {
+            shrink(tech_budget, xi, 0.0);
+            if hears_better {
+                shrink(tech_budget, yi, 0.0);
+            }
+            return;
+        }
+        let mut growth = 1.0 + share / heard;
+        if hears_better {
+            growth = growth.sqrt();
+            let critical_tech = tech_for_listening_gain(config, gain * growth);
+            shrink(tech_budget, yi, critical_tech - y.tech_level);
+        }
+        let critical_tech = tech_for_signal_radius(config, radius * growth, factor);
         shrink(tech_budget, xi, critical_tech - x.tech_level);
     }
 }

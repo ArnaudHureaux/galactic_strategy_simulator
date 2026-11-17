@@ -31,7 +31,9 @@ from p0_passive_update._tech_growth import _tech_rate, _tech_growth_cap
 from p0_passive_update._population_growth import _population_capacity
 from p0_passive_update._self_destruction_shape import _self_destruction_shape
 from p0_passive_update._advance_fronts import FOUR_THIRDS_PI, _colonization_tech, _front_speed_at, _midplane_density
-from p0_passive_update._compute_broadcast_radius import _leak_factor, _signal_radius, _tech_for_signal_radius
+from p0_passive_update._compute_broadcast_radius import (_leak_factor, _listening_gain, _listening_gain_cap,
+                                                          _observer_gain, _signal_radius,
+                                                          _tech_for_listening_gain, _tech_for_signal_radius)
 from p0_passive_update._detect import _beacon_hazard
 from p0_passive_update._compute_probe_speed import _probe_range, _probe_speed
 from p1_from_strat_to_actions._compute_max_number_of_attack import _attack_capacity, _compute_max_number_of_attack
@@ -306,7 +308,9 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
         distances, neighbors = world.neighbors_by_distance(y)
         if not y.is_human:
             limit = min(limit, _exposure_limit(world, y, config, now))
-            reach = widest_signal + _front_end(y, front_budget) + widest_front
+            # The observer hears better as its tech grows (see _listening_gain): bound it by its end-of-jump tech.
+            end_gain = _listening_gain(config, y.tech_level + max(0.0, tech_budget[y.id]))
+            reach = widest_signal * end_gain + _front_end(y, front_budget) + widest_front
             n_signal = bisect_right(distances, reach)
             for d, x in zip(distances[:n_signal], neighbors[:n_signal]):
                 if x.id not in active_ids or x.tech_level <= 0 or _seen_now(y, x, now):
@@ -340,17 +344,31 @@ def _detection_limit(world, active, config, now, tech_budget, front_budget):
 
 
 def _signal_budget(x, y, d, radius, factor, config, tech_budget, front_budget):
-    # Share what is left of the gap (x's signal of this radius to y) between whatever can close it.
+    # Share what is left of the gap (x's signal of this radius, heard by y) between whatever can close it.
     movers = [mover for mover in (x.id, y.id) if mover in front_budget]
     n_moving = len(movers) + (radius > 0)
     if n_moving == 0:
         return
-    share = (d - y.expansion_radius - x.expansion_radius - radius) / n_moving
+    gain = _observer_gain(y, config)
+    heard = radius * gain
+    share = (d - y.expansion_radius - x.expansion_radius - heard) / n_moving
     for mover in movers:
         front_budget[mover] = min(front_budget[mover], share)
     if radius > 0:
-        # Signal radii grow with tech (see _compute_signal_radii).
-        critical_tech = _tech_for_signal_radius(config, radius + share, factor)
+        # The heard radius grows with the emitter's tech (signal radius) and the observer's (gain):
+        # each may multiply it by sqrt(1 + share / heard).
+        hears_better = not y.is_human and _listening_gain_cap(config) > 1 and y.tech_level < config.tech_cap
+        if share <= 0:
+            tech_budget[x.id] = min(tech_budget[x.id], 0.0)
+            if hears_better:
+                tech_budget[y.id] = min(tech_budget[y.id], 0.0)
+            return
+        growth = 1 + share / heard
+        if hears_better:
+            growth = sqrt(growth)
+            critical_tech = _tech_for_listening_gain(config, gain * growth)
+            tech_budget[y.id] = min(tech_budget[y.id], critical_tech - y.tech_level)
+        critical_tech = _tech_for_signal_radius(config, radius * growth, factor)
         tech_budget[x.id] = min(tech_budget[x.id], critical_tech - x.tech_level)
 
 

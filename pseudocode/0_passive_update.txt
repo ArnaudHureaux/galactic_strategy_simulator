@@ -62,8 +62,10 @@ for civ in world.active(now):
         gap = d - civ.R - view.R                                  # from sphere edge to sphere edge
         by_probe = public_view(civ, at=now - d / C).probe_radius >= d
         # humanity only sees through its probes here (its signal detection: final_silence_check)
-        by_signal = not civ.is_human and view.leak_radius >= gap  # leak: continuous, certain
-        if not civ.is_human and not (by_signal or by_probe) and view.beacon_radius >= gap:
+        # radii are seen at Breakthrough Listen's sensitivity; an observer hears gain times farther,
+        # gain = sqrt(F_human / F(tech)) anchored on its tech (1 for humanity)
+        by_signal = not civ.is_human and view.leak_radius * gain >= gap  # leak: continuous, certain
+        if not civ.is_human and not (by_signal or by_probe) and view.beacon_radius * gain >= gap:
             # beacon: threshold Exp(1) drawn once per pair, hazard accumulated while exposed
             exposure = civ.exposures.setdefault(other, [exponential(1), 0])
             exposure.hazard += -view.nb_of_world * log(1 - LISTEN_COVERAGE * BEACON_DUTY) / INTERACTION_PERIOD * dt

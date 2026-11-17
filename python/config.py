@@ -131,6 +131,9 @@ class Config:
     humanity_leakage_factor: float = 2.0e-4
     # Sensitivity of the observers: a signal is seen while EIRP >= 4 pi d^2 seti_flux_threshold_w_m2.
     seti_flux_threshold_w_m2: float = 3.3e-25
+    # Advanced civs listen better: the sensitivity is anchored on seti_flux_threshold_w_m2 (Breakthrough
+    # Listen) at humanity's level and on this value at tech_cap (see _listening_gain). Humanity keeps its own.
+    seti_flux_threshold_cap_w_m2: float = 3.3e-31
     # Every civ leaks (continuous, all directions: seen for sure within its leak sphere); a civ that
     # broadcasts also has a beacon (full EIRP, but intermittent and beamed). Within a beacon sphere,
     # an observer detects the source at a hazard rate: each system of the source, each interaction
@@ -334,7 +337,8 @@ def _validate(c):
     check(0 < c.probe_speed_human_c <= c.probe_speed_cap_c < 1, "probe speeds must satisfy 0 < human <= cap < 1")
     check(c.max_natural_tech_progress >= c.natural_tech_progress_mean * (1 + c.natural_tech_progress_spread),
           "max_natural_tech_progress must be >= natural_tech_progress_mean * (1 + natural_tech_progress_spread)")
-    check(c.seti_flux_threshold_w_m2 > 0, "seti_flux_threshold_w_m2 must be > 0")
+    check(0 < c.seti_flux_threshold_cap_w_m2 <= c.seti_flux_threshold_w_m2,
+          "seti flux thresholds must satisfy 0 < cap <= human")
     check(0 < c.probe_function_human_years <= c.probe_function_cap_years,
           "probe_function_human_years must be in (0, probe_function_cap_years]")
     check(0 < c.probe_persistence_human_years <= c.probe_persistence_cap_years,

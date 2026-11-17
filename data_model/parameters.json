@@ -298,7 +298,13 @@
       "description": "Sensibilité des observateurs : un signal est capté tant que EIRP ≥ 4π d² F_min (d d'un bord de sphère à l'autre). Sert à toutes les civs (point 9 : détection certaine au-dessus du seuil).",
       "justification": "Relevé Breakthrough Listen au Green Bank Telescope (1,1–1,9 GHz) : EIRP minimale d'environ 10^13 W pour les étoiles à 50 pc, d'où F_min = 10^13 / (4π (50 pc)²) ≈ 3,3·10⁻²⁵ W/m². Price et al. 2020 donnent des limites du même ordre (2·10^12 W au GBT, 9·10^12 W à Parkes).",
       "source": "Enriquez, J. E. et al. 2017, ApJ 849, 104, arXiv:1709.03491 ; Price, D. C. et al. 2020, AJ 159, 86, arXiv:1906.07750.",
-      "todo": ["Phase 7 : sensibilité des civs avancées, sans doute meilleure que la nôtre (une alternative : F_min décroissant avec la tech de l'observateur)."]
+      "todo": []
+    },
+    "seti_flux_threshold_cap_w_m2": {
+      "status": "E", "unit": "W/m²",
+      "description": "Sensibilité d'écoute d'une civ au plafond technologique. La sensibilité suit la loi ancrée : seti_flux_threshold_w_m2 (Breakthrough Listen) au niveau humain, cette valeur à tech_cap. Une civ entend donc les signaux √(F_humain / F(tech)) fois plus loin qu'au seuil humain. L'humanité garde sa sensibilité observée.",
+      "justification": "Inconnu. La sensibilité est proportionnelle à la surface collectrice : 10⁻⁶ × Breakthrough Listen correspond à environ 100 km d'antenne équivalente (nos fuites entendues à ~1 kpc), 10⁻⁹ à ~3 000 km (toute la Galaxie). Au-delà de 10⁻¹², la Galaxie est entendue de toute façon. Borne haute : personne n'écoute mieux que nous. Décision du 2026-11-17 (audit de la phase 2, point 3).",
+      "range": {"low": 3.3e-37, "high": 3.3e-25, "scale": "log"}, "range_basis": "inconnu"
     },
     "probe_speed_human_c": {
       "status": "S", "unit": "fraction de c",

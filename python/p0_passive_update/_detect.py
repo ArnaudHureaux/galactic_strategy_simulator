@@ -1,6 +1,7 @@
 from math import inf, log, log1p
 
 from constants import C_PC_PER_YEAR
+from p0_passive_update._compute_broadcast_radius import _observer_gain
 from p0_passive_update._growth_law import grow
 from p0_passive_update._tech_growth import _tech_growth_cap
 from p3_apply_events._rates import _step_additive
@@ -19,7 +20,9 @@ def _detect(world, config, now, dt, rng):
         # Humanity only observes (through its own probes) since it searches the sky.
         if civ.is_human and now < config.present_date_years - config.humanity_listening_years:
             continue
-        reach = max(world.widest_broadcast + civ.expansion_radius + widest_front, civ.probe_radius)
+        # Signal radii are seen at humanity's sensitivity: an advanced observer hears gain times farther.
+        gain = _observer_gain(civ, config)
+        reach = max(world.widest_broadcast * gain + civ.expansion_radius + widest_front, civ.probe_radius)
         for other, d in world.neighbor_pairs_within(civ, reach):
             if other.id not in visible:
                 continue
@@ -35,8 +38,8 @@ def _detect(world, config, now, dt, rng):
             by_probe = _probe_reached(civ, seen_at, d - view.expansion_radius)
             by_signal = False
             if not civ.is_human:
-                by_signal = view.leak_radius >= gap
-                if not (by_signal or by_probe) and view.beacon_radius >= gap:
+                by_signal = view.leak_radius * gain >= gap
+                if not (by_signal or by_probe) and view.beacon_radius * gain >= gap:
                     by_signal = _beacon_caught(civ, other, view, config, dt, rng)
             if not (by_signal or by_probe):
                 continue

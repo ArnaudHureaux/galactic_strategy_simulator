@@ -5,7 +5,8 @@ import pytest
 
 from config import Config
 from p0_passive_update._check_silence import _exposure, _received_signal_in_window, _seti_coverage
-from p0_passive_update._compute_broadcast_radius import _compute_signal_radii
+from p0_passive_update._compute_broadcast_radius import (_compute_signal_radii, _listening_gain, _observer_gain,
+                                                          _tech_for_listening_gain)
 from p0_passive_update._detect import _beacon_caught, _beacon_hazard
 from state import Civilisation, Snapshot, World
 
@@ -38,6 +39,21 @@ def test_every_civ_leaks_and_only_broadcasters_have_a_beacon():
     human = _civ("h", 0.0, is_human=True, tech=config.humanity_present_tech)
     assert _compute_signal_radii(human, config, config.present_date_years - 100.0) == (0.0, 0.0)
     assert _compute_signal_radii(human, config, config.present_date_years - 50.0)[0] > 0
+
+
+def test_advanced_civs_listen_better():
+    config = replace(Config(), seti_flux_threshold_cap_w_m2=3.3e-33)
+    # Breakthrough Listen at humanity's level, the explored sensitivity at the cap: 1e8 in flux, 1e4 in range.
+    assert _listening_gain(config, config.humanity_present_tech) == pytest.approx(1.0)
+    assert _listening_gain(config, config.tech_cap) == pytest.approx(1e4)
+    assert _tech_for_listening_gain(config, 100.0) == pytest.approx(
+        (config.humanity_present_tech + config.tech_cap) / 2)
+    # Humanity keeps its observed sensitivity whatever its tech.
+    assert _observer_gain(_civ("h", 0.0, is_human=True, tech=3.0), config) == 1.0
+    assert _observer_gain(_civ("a", 0.0, tech=3.0), config) == pytest.approx(1e4)
+    # Nobody listens better than us: the gain stays 1.
+    flat = replace(config, seti_flux_threshold_cap_w_m2=config.seti_flux_threshold_w_m2)
+    assert _listening_gain(flat, 3.0) == 1.0
 
 
 def test_beacon_hazard_and_exposure():

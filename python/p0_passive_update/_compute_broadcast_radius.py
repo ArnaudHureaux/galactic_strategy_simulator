@@ -29,6 +29,27 @@ def _signal_radius(config, tech, factor):
     return sqrt(eirp / (4.0 * pi * config.seti_flux_threshold_w_m2)) / M_PER_PC
 
 
+def _listening_gain_cap(config):
+    return sqrt(config.seti_flux_threshold_w_m2 / config.seti_flux_threshold_cap_w_m2)
+
+
+def _listening_gain(config, tech):
+    """Factor on the range of the signals an observer of this tech catches, sqrt(F_human / F(tech)):
+    its sensitivity F is anchored on Breakthrough Listen at humanity's level and on
+    seti_flux_threshold_cap_w_m2 at tech_cap. Signal radii are those seen at F_human."""
+    return _anchored(tech, 1.0, _listening_gain_cap(config), config)
+
+
+def _observer_gain(civ, config):
+    # Humanity listens with its observed sensitivity.
+    return 1.0 if civ.is_human else _listening_gain(config, civ.tech_level)
+
+
+def _tech_for_listening_gain(config, gain):
+    """Tech at which _listening_gain reaches gain (inf if never)."""
+    return _anchored_tech(gain, 1.0, _listening_gain_cap(config), config)
+
+
 def _tech_for_signal_radius(config, radius, factor):
     """Tech at which _signal_radius reaches radius (inf if never)."""
     meters = radius * M_PER_PC
