@@ -1,4 +1,4 @@
-from math import exp, log
+from math import exp, log, log1p
 
 from p3_apply_events._rates import _fraction
 
@@ -10,6 +10,14 @@ def _attack_damage(power, target_tech_level, config):
         return 1.0
     per_period = min(1.0, config.damage_coef * exp(_damage_gap_scale(config) * (power - target_tech_level)))
     return _fraction(per_period, config.dt, config.interaction_period_years)
+
+
+def _damaged_tech(tech_level, damage, config):
+    # The target loses the share damage of its power: on the log scale of the energy law, that is
+    # ln(1 - damage) / k tech levels (k = _damage_gap_scale). At 0 the civ collapses.
+    if damage >= 1:
+        return 0.0
+    return max(0.0, tech_level + log1p(-damage) / _damage_gap_scale(config))
 
 
 def _damage_gap_scale(config):

@@ -87,9 +87,10 @@ def _cap_fraction(other_radius, d):
 
 
 def _shrink_worlds(civ, kept):
-    # An attack shrinks the territory homothetically: kept is the share of the radius left.
-    civ.expansion_radius *= kept
-    civ.nb_of_world = 1.0 + (civ.nb_of_world - 1.0) * (kept * kept * kept)
+    # An attack shrinks the territory homothetically: kept is the share of the colonized worlds
+    # left (like the population), hence of the volume.
+    civ.expansion_radius *= kept ** (1.0 / 3.0)
+    civ.nb_of_world = 1.0 + (civ.nb_of_world - 1.0) * kept
 
 
 def _advance_fronts(world, config, advances):

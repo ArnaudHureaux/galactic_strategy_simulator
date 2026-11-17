@@ -3,7 +3,7 @@
 use crate::config::{Config, step_fraction};
 use crate::events::{Event, Kind};
 use crate::passive::shrink_worlds;
-use crate::pymath::{self, pymin};
+use crate::pymath::{self, pymax, pymin};
 use crate::rng::Rng;
 use crate::state::World;
 
@@ -80,12 +80,12 @@ fn apply_attack(event: &Event, world: &mut World, config: &Config, rng: &mut Rng
     let target = &mut world.civs[event.dst];
     // A war destroys min(1, damage_coef * power ratio) of the target per
     // interaction period; an attack event stands for one regular step of it.
+    // Power ratio per tech level of the energy law anchored on humanity (see _attack_damage).
+    let scale = pymath::log(config.eirp_cap_w / config.eirp_human_w)
+        / (config.tech_cap - config.derived().humanity_present_tech);
     let damage = if target.tech_level <= 0.0 {
         1.0
     } else {
-        // Power ratio per tech level of the energy law anchored on humanity (see _attack_damage).
-        let scale = pymath::log(config.eirp_cap_w / config.eirp_human_w)
-            / (config.tech_cap - config.derived().humanity_present_tech);
         let gain = pymath::exp(scale * (event.power - target.tech_level));
         let per_period = pymin(1.0, config.damage_coef * gain);
         step_fraction(per_period, config.derived().interaction_step)
@@ -100,7 +100,12 @@ fn apply_attack(event: &Event, world: &mut World, config: &Config, rng: &mut Rng
             attributed
         }
     };
-    target.tech_level *= 1.0 - damage;
+    // The target loses the share damage of its power: ln(1 - damage) / scale tech levels (_damaged_tech).
+    target.tech_level = if damage >= 1.0 {
+        0.0
+    } else {
+        pymax(0.0, target.tech_level + pymath::log1p(-damage) / scale)
+    };
     target.population_size *= 1.0 - damage;
     shrink_worlds(target, 1.0 - damage);
     if let Some(&b) = target.belief_of.get(&event.src).filter(|_| attributed) {

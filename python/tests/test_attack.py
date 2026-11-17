@@ -44,6 +44,28 @@ def test_damage_grows_with_the_tech_gap():
     assert _attack_damage(1.0, 0.0, config) == 1.0
 
 
+def test_an_attack_destroys_the_same_share_of_power_population_and_worlds():
+    config = replace(Config(), damage_coef=0.1)
+    attacker, victim = _civ("a", 1.1), _civ("v", 1.0)
+    victim.population_size, victim.nb_of_world, victim.expansion_radius = 100.0, 1001.0, 10.0
+    damage = _attack_damage(attacker.tech_level, victim.tech_level, config)
+    _attack(config, _Rng(0.0), victim, attacker)
+    kept = 1 - damage
+    # The power follows the energy law: exp(k * tech), k = _damage_gap_scale.
+    assert exp(_damage_gap_scale(config) * (victim.tech_level - 1.0)) == pytest.approx(kept, rel=1e-12)
+    assert victim.population_size == pytest.approx(100.0 * kept, rel=1e-12)
+    assert victim.nb_of_world - 1 == pytest.approx(1000.0 * kept, rel=1e-12)
+    assert victim.expansion_radius ** 3 == pytest.approx(1000.0 * kept, rel=1e-12)
+
+
+def test_an_attack_that_wipes_out_the_power_margin_kills():
+    config = replace(Config(), damage_coef=1.0, interaction_period_years=Config().dt)
+    victim = _civ("v", 0.1)
+    _attack(config, _Rng(0.0), victim, _civ("a", 3.0))
+    assert victim.tech_level == 0.0
+    assert victim.status == "extinct"
+
+
 def test_attribution_probability():
     config = replace(Config(), attack_stealth_per_tech=2.0)
     assert _attribution_probability(1.5, 1.0, config) == exp(-1.0)

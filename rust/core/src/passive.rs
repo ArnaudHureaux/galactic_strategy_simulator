@@ -344,9 +344,11 @@ pub fn cap_fraction(other_radius: f64, d: f64) -> f64 {
 }
 
 /// An attack shrinks the territory homothetically: kept is the share of the radius left.
+/// An attack shrinks the territory homothetically: kept is the share of the colonized worlds
+/// left (like the population), hence of the volume.
 pub fn shrink_worlds(civ: &mut Civ, kept: f64) {
-    civ.expansion_radius *= kept;
-    civ.nb_of_world = 1.0 + (civ.nb_of_world - 1.0) * (kept * kept * kept);
+    civ.expansion_radius *= pymath::pow(kept, 1.0 / 3.0);
+    civ.nb_of_world = 1.0 + (civ.nb_of_world - 1.0) * kept;
 }
 
 /// Whether the territory of civ covers point: within its front's reach, and not in the shadow

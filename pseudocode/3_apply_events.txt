@@ -29,10 +29,12 @@ def apply_share_relationship(event, world):
 def apply_attack(event, world):
     target = world.civ(event.dst)
     damage = attack_damage(event.power, target.tech_level)
-    target.tech_level *= (1 - damage)
+    # The target loses the share damage of its power, population and colonized worlds.
+    # Power follows the energy law exp(k * tech), k = ln(eirp_cap_w / eirp_human_w) / (tech_cap - T_h).
+    target.tech_level = max(0, target.tech_level + ln(1 - damage) / k)   # 0 if damage = 1: collapse
     target.population_size *= (1 - damage)
-    target.expansion_radius *= (1 - damage)
-    target.nb_of_world = 1 + (target.nb_of_world - 1) * (1 - damage)^3   # homothetic shrink
+    target.expansion_radius *= (1 - damage)^(1/3)                       # homothetic shrink
+    target.nb_of_world = 1 + (target.nb_of_world - 1) * (1 - damage)
     # drawn once per war (first attack of the pair), from the attribution stream
     if event.src not in target.attributions:
         target.attributions[event.src] = random() < attribution_probability(event.power, target.tech_level)

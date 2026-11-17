@@ -1,7 +1,7 @@
 from p3_apply_events._share_tech_update import _share_tech_update
 from p3_apply_events._share_trust_update import _share_trust_update
 from p3_apply_events._rates import _step_growth
-from p3_apply_events._attack_damage import _attack_damage, _attribution_probability
+from p3_apply_events._attack_damage import _attack_damage, _attribution_probability, _damaged_tech
 from p0_passive_update._advance_fronts import _shrink_worlds
 
 
@@ -53,7 +53,7 @@ def _apply_attack(event, target, world, rng):
         p = _attribution_probability(event.power, target.tech_level, world.config)
         attributed = p >= 1.0 or rng.random() < p
         target.attributions[event.src] = attributed
-    target.tech_level *= (1 - damage)
+    target.tech_level = _damaged_tech(target.tech_level, damage, world.config)
     target.population_size *= (1 - damage)
     _shrink_worlds(target, 1 - damage)
     if attributed and event.src in target.belief:
